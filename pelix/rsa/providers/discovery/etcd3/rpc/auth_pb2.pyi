@@ -3,23 +3,19 @@
 isort:skip_file
 """
 
-import builtins as _builtins
-import sys
-import typing as _typing
 from collections import abc as _abc
-
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
+import builtins as _builtins
+import sys
+import typing as _typing
 
 if sys.version_info >= (3, 11):
-    from typing import Never as _Never
-    from typing import TypeAlias as _TypeAlias
+    from typing import TypeAlias as _TypeAlias, Never as _Never
 else:
-    from typing import TypeAlias as _TypeAlias
-
-    from typing_extensions import Never as _Never
+    from typing_extensions import TypeAlias as _TypeAlias, Never as _Never
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -68,9 +64,7 @@ class User(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["options", b"options"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "name", b"name", "options", b"options", "password", b"password", "roles", b"roles"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["name", b"name", "options", b"options", "password", b"password", "roles", b"roles"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -86,9 +80,7 @@ class Permission(_message.Message):
         ValueType = _typing.NewType("ValueType", _builtins.int)
         V: _TypeAlias = ValueType  # noqa: Y015
 
-    class _TypeEnumTypeWrapper(
-        _enum_type_wrapper._EnumTypeWrapper[Permission._Type.ValueType], _builtins.type
-    ):
+    class _TypeEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[Permission._Type.ValueType], _builtins.type):
         DESCRIPTOR: _descriptor.EnumDescriptor
         READ: Permission._Type.ValueType  # 0
         WRITE: Permission._Type.ValueType  # 1
@@ -114,9 +106,7 @@ class Permission(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "key", b"key", "permType", b"permType", "range_end", b"range_end"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "permType", b"permType", "range_end", b"range_end"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 

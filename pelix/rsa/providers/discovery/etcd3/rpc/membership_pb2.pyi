@@ -3,22 +3,18 @@
 isort:skip_file
 """
 
-import builtins as _builtins
-import sys
-import typing as _typing
 from collections import abc as _abc
-
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf.internal import containers as _containers
+import builtins as _builtins
+import sys
+import typing as _typing
 
 if sys.version_info >= (3, 11):
-    from typing import Never as _Never
-    from typing import TypeAlias as _TypeAlias
+    from typing import TypeAlias as _TypeAlias, Never as _Never
 else:
-    from typing import TypeAlias as _TypeAlias
-
-    from typing_extensions import Never as _Never
+    from typing_extensions import TypeAlias as _TypeAlias, Never as _Never
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -94,13 +90,9 @@ class Member(_message.Message):
         raft_attributes: Global___RaftAttributes | None = ...,
         member_attributes: Global___Attributes | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal[
-        "member_attributes", b"member_attributes", "raft_attributes", b"raft_attributes"
-    ]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["member_attributes", b"member_attributes", "raft_attributes", b"raft_attributes"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "ID", b"ID", "member_attributes", b"member_attributes", "raft_attributes", b"raft_attributes"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["ID", b"ID", "member_attributes", b"member_attributes", "raft_attributes", b"raft_attributes"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -142,9 +134,7 @@ class ClusterMemberAttrSetRequest(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["member_attributes", b"member_attributes"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "member_ID", b"member_ID", "member_attributes", b"member_attributes"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["member_ID", b"member_ID", "member_attributes", b"member_attributes"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 

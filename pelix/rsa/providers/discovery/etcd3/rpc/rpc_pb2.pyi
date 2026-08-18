@@ -3,26 +3,21 @@
 isort:skip_file
 """
 
-import builtins as _builtins
-import sys
-import typing as _typing
 from collections import abc as _abc
-
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
-
 from pelix.rsa.providers.discovery.etcd3.rpc import auth_pb2 as _auth_pb2
 from pelix.rsa.providers.discovery.etcd3.rpc import kv_pb2 as _kv_pb2
+import builtins as _builtins
+import sys
+import typing as _typing
 
 if sys.version_info >= (3, 11):
-    from typing import Never as _Never
-    from typing import TypeAlias as _TypeAlias
+    from typing import TypeAlias as _TypeAlias, Never as _Never
 else:
-    from typing import TypeAlias as _TypeAlias
-
-    from typing_extensions import Never as _Never
+    from typing_extensions import TypeAlias as _TypeAlias, Never as _Never
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -80,16 +75,7 @@ class ResponseHeader(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "cluster_id",
-        b"cluster_id",
-        "member_id",
-        b"member_id",
-        "raft_term",
-        b"raft_term",
-        "revision",
-        b"revision",
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["cluster_id", b"cluster_id", "member_id", b"member_id", "raft_term", b"raft_term", "revision", b"revision"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -103,9 +89,7 @@ class RangeRequest(_message.Message):
         ValueType = _typing.NewType("ValueType", _builtins.int)
         V: _TypeAlias = ValueType  # noqa: Y015
 
-    class _SortOrderEnumTypeWrapper(
-        _enum_type_wrapper._EnumTypeWrapper[RangeRequest._SortOrder.ValueType], _builtins.type
-    ):
+    class _SortOrderEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[RangeRequest._SortOrder.ValueType], _builtins.type):
         DESCRIPTOR: _descriptor.EnumDescriptor
         NONE: RangeRequest._SortOrder.ValueType  # 0
         """default, no sorting"""
@@ -126,9 +110,7 @@ class RangeRequest(_message.Message):
         ValueType = _typing.NewType("ValueType", _builtins.int)
         V: _TypeAlias = ValueType  # noqa: Y015
 
-    class _SortTargetEnumTypeWrapper(
-        _enum_type_wrapper._EnumTypeWrapper[RangeRequest._SortTarget.ValueType], _builtins.type
-    ):
+    class _SortTargetEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[RangeRequest._SortTarget.ValueType], _builtins.type):
         DESCRIPTOR: _descriptor.EnumDescriptor
         KEY: RangeRequest._SortTarget.ValueType  # 0
         VERSION: RangeRequest._SortTarget.ValueType  # 1
@@ -225,34 +207,7 @@ class RangeRequest(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "count_only",
-        b"count_only",
-        "key",
-        b"key",
-        "keys_only",
-        b"keys_only",
-        "limit",
-        b"limit",
-        "max_create_revision",
-        b"max_create_revision",
-        "max_mod_revision",
-        b"max_mod_revision",
-        "min_create_revision",
-        b"min_create_revision",
-        "min_mod_revision",
-        b"min_mod_revision",
-        "range_end",
-        b"range_end",
-        "revision",
-        b"revision",
-        "serializable",
-        b"serializable",
-        "sort_order",
-        b"sort_order",
-        "sort_target",
-        b"sort_target",
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["count_only", b"count_only", "key", b"key", "keys_only", b"keys_only", "limit", b"limit", "max_create_revision", b"max_create_revision", "max_mod_revision", b"max_mod_revision", "min_create_revision", b"min_create_revision", "min_mod_revision", b"min_mod_revision", "range_end", b"range_end", "revision", b"revision", "serializable", b"serializable", "sort_order", b"sort_order", "sort_target", b"sort_target"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -288,9 +243,7 @@ class RangeResponse(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["header", b"header"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "count", b"count", "header", b"header", "kvs", b"kvs", "more", b"more"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["count", b"count", "header", b"header", "kvs", b"kvs", "more", b"more"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -338,20 +291,7 @@ class PutRequest(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "ignore_lease",
-        b"ignore_lease",
-        "ignore_value",
-        b"ignore_value",
-        "key",
-        b"key",
-        "lease",
-        b"lease",
-        "prev_kv",
-        b"prev_kv",
-        "value",
-        b"value",
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["ignore_lease", b"ignore_lease", "ignore_value", b"ignore_value", "key", b"key", "lease", b"lease", "prev_kv", b"prev_kv", "value", b"value"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -412,9 +352,7 @@ class DeleteRangeRequest(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "key", b"key", "prev_kv", b"prev_kv", "range_end", b"range_end"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "prev_kv", b"prev_kv", "range_end", b"range_end"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -444,9 +382,7 @@ class DeleteRangeResponse(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["header", b"header"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "deleted", b"deleted", "header", b"header", "prev_kvs", b"prev_kvs"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["deleted", b"deleted", "header", b"header", "prev_kvs", b"prev_kvs"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -476,35 +412,11 @@ class RequestOp(_message.Message):
         request_delete_range: Global___DeleteRangeRequest | None = ...,
         request_txn: Global___TxnRequest | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal[
-        "request",
-        b"request",
-        "request_delete_range",
-        b"request_delete_range",
-        "request_put",
-        b"request_put",
-        "request_range",
-        b"request_range",
-        "request_txn",
-        b"request_txn",
-    ]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["request", b"request", "request_delete_range", b"request_delete_range", "request_put", b"request_put", "request_range", b"request_range", "request_txn", b"request_txn"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "request",
-        b"request",
-        "request_delete_range",
-        b"request_delete_range",
-        "request_put",
-        b"request_put",
-        "request_range",
-        b"request_range",
-        "request_txn",
-        b"request_txn",
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["request", b"request", "request_delete_range", b"request_delete_range", "request_put", b"request_put", "request_range", b"request_range", "request_txn", b"request_txn"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType_request: _TypeAlias = _typing.Literal[
-        "request_range", "request_put", "request_delete_range", "request_txn"
-    ]  # noqa: Y015
+    _WhichOneofReturnType_request: _TypeAlias = _typing.Literal["request_range", "request_put", "request_delete_range", "request_txn"]  # noqa: Y015
     _WhichOneofArgType_request: _TypeAlias = _typing.Literal["request", b"request"]  # noqa: Y015
     def WhichOneof(self, oneof_group: _WhichOneofArgType_request) -> _WhichOneofReturnType_request | None: ...
 
@@ -534,39 +446,13 @@ class ResponseOp(_message.Message):
         response_delete_range: Global___DeleteRangeResponse | None = ...,
         response_txn: Global___TxnResponse | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal[
-        "response",
-        b"response",
-        "response_delete_range",
-        b"response_delete_range",
-        "response_put",
-        b"response_put",
-        "response_range",
-        b"response_range",
-        "response_txn",
-        b"response_txn",
-    ]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["response", b"response", "response_delete_range", b"response_delete_range", "response_put", b"response_put", "response_range", b"response_range", "response_txn", b"response_txn"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "response",
-        b"response",
-        "response_delete_range",
-        b"response_delete_range",
-        "response_put",
-        b"response_put",
-        "response_range",
-        b"response_range",
-        "response_txn",
-        b"response_txn",
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["response", b"response", "response_delete_range", b"response_delete_range", "response_put", b"response_put", "response_range", b"response_range", "response_txn", b"response_txn"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType_response: _TypeAlias = _typing.Literal[
-        "response_range", "response_put", "response_delete_range", "response_txn"
-    ]  # noqa: Y015
+    _WhichOneofReturnType_response: _TypeAlias = _typing.Literal["response_range", "response_put", "response_delete_range", "response_txn"]  # noqa: Y015
     _WhichOneofArgType_response: _TypeAlias = _typing.Literal["response", b"response"]  # noqa: Y015
-    def WhichOneof(
-        self, oneof_group: _WhichOneofArgType_response
-    ) -> _WhichOneofReturnType_response | None: ...
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_response) -> _WhichOneofReturnType_response | None: ...
 
 Global___ResponseOp: _TypeAlias = ResponseOp  # noqa: Y015
 
@@ -578,9 +464,7 @@ class Compare(_message.Message):
         ValueType = _typing.NewType("ValueType", _builtins.int)
         V: _TypeAlias = ValueType  # noqa: Y015
 
-    class _CompareResultEnumTypeWrapper(
-        _enum_type_wrapper._EnumTypeWrapper[Compare._CompareResult.ValueType], _builtins.type
-    ):
+    class _CompareResultEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[Compare._CompareResult.ValueType], _builtins.type):
         DESCRIPTOR: _descriptor.EnumDescriptor
         EQUAL: Compare._CompareResult.ValueType  # 0
         GREATER: Compare._CompareResult.ValueType  # 1
@@ -597,9 +481,7 @@ class Compare(_message.Message):
         ValueType = _typing.NewType("ValueType", _builtins.int)
         V: _TypeAlias = ValueType  # noqa: Y015
 
-    class _CompareTargetEnumTypeWrapper(
-        _enum_type_wrapper._EnumTypeWrapper[Compare._CompareTarget.ValueType], _builtins.type
-    ):
+    class _CompareTargetEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[Compare._CompareTarget.ValueType], _builtins.type):
         DESCRIPTOR: _descriptor.EnumDescriptor
         VERSION: Compare._CompareTarget.ValueType  # 0
         CREATE: Compare._CompareTarget.ValueType  # 1
@@ -659,51 +541,13 @@ class Compare(_message.Message):
         lease: _builtins.int = ...,
         range_end: _builtins.bytes = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal[
-        "create_revision",
-        b"create_revision",
-        "lease",
-        b"lease",
-        "mod_revision",
-        b"mod_revision",
-        "target_union",
-        b"target_union",
-        "value",
-        b"value",
-        "version",
-        b"version",
-    ]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["create_revision", b"create_revision", "lease", b"lease", "mod_revision", b"mod_revision", "target_union", b"target_union", "value", b"value", "version", b"version"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "create_revision",
-        b"create_revision",
-        "key",
-        b"key",
-        "lease",
-        b"lease",
-        "mod_revision",
-        b"mod_revision",
-        "range_end",
-        b"range_end",
-        "result",
-        b"result",
-        "target",
-        b"target",
-        "target_union",
-        b"target_union",
-        "value",
-        b"value",
-        "version",
-        b"version",
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["create_revision", b"create_revision", "key", b"key", "lease", b"lease", "mod_revision", b"mod_revision", "range_end", b"range_end", "result", b"result", "target", b"target", "target_union", b"target_union", "value", b"value", "version", b"version"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType_target_union: _TypeAlias = _typing.Literal[
-        "version", "create_revision", "mod_revision", "value", "lease"
-    ]  # noqa: Y015
+    _WhichOneofReturnType_target_union: _TypeAlias = _typing.Literal["version", "create_revision", "mod_revision", "value", "lease"]  # noqa: Y015
     _WhichOneofArgType_target_union: _TypeAlias = _typing.Literal["target_union", b"target_union"]  # noqa: Y015
-    def WhichOneof(
-        self, oneof_group: _WhichOneofArgType_target_union
-    ) -> _WhichOneofReturnType_target_union | None: ...
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_target_union) -> _WhichOneofReturnType_target_union | None: ...
 
 Global___Compare: _TypeAlias = Compare  # noqa: Y015
 
@@ -757,9 +601,7 @@ class TxnRequest(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "compare", b"compare", "failure", b"failure", "success", b"success"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["compare", b"compare", "failure", b"failure", "success", b"success"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -791,9 +633,7 @@ class TxnResponse(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["header", b"header"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "header", b"header", "responses", b"responses", "succeeded", b"succeeded"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["header", b"header", "responses", b"responses", "succeeded", b"succeeded"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -911,16 +751,7 @@ class HashKVResponse(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["header", b"header"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "compact_revision",
-        b"compact_revision",
-        "hash",
-        b"hash",
-        "hash_revision",
-        b"hash_revision",
-        "header",
-        b"header",
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["compact_revision", b"compact_revision", "hash", b"hash", "hash_revision", b"hash_revision", "header", b"header"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -998,9 +829,7 @@ class SnapshotResponse(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["header", b"header"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "blob", b"blob", "header", b"header", "remaining_bytes", b"remaining_bytes", "version", b"version"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["blob", b"blob", "header", b"header", "remaining_bytes", b"remaining_bytes", "version", b"version"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -1026,35 +855,13 @@ class WatchRequest(_message.Message):
         cancel_request: Global___WatchCancelRequest | None = ...,
         progress_request: Global___WatchProgressRequest | None = ...,
     ) -> None: ...
-    _HasFieldArgType: _TypeAlias = _typing.Literal[
-        "cancel_request",
-        b"cancel_request",
-        "create_request",
-        b"create_request",
-        "progress_request",
-        b"progress_request",
-        "request_union",
-        b"request_union",
-    ]  # noqa: Y015
+    _HasFieldArgType: _TypeAlias = _typing.Literal["cancel_request", b"cancel_request", "create_request", b"create_request", "progress_request", b"progress_request", "request_union", b"request_union"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "cancel_request",
-        b"cancel_request",
-        "create_request",
-        b"create_request",
-        "progress_request",
-        b"progress_request",
-        "request_union",
-        b"request_union",
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["cancel_request", b"cancel_request", "create_request", b"create_request", "progress_request", b"progress_request", "request_union", b"request_union"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
-    _WhichOneofReturnType_request_union: _TypeAlias = _typing.Literal[
-        "create_request", "cancel_request", "progress_request"
-    ]  # noqa: Y015
+    _WhichOneofReturnType_request_union: _TypeAlias = _typing.Literal["create_request", "cancel_request", "progress_request"]  # noqa: Y015
     _WhichOneofArgType_request_union: _TypeAlias = _typing.Literal["request_union", b"request_union"]  # noqa: Y015
-    def WhichOneof(
-        self, oneof_group: _WhichOneofArgType_request_union
-    ) -> _WhichOneofReturnType_request_union | None: ...
+    def WhichOneof(self, oneof_group: _WhichOneofArgType_request_union) -> _WhichOneofReturnType_request_union | None: ...
 
 Global___WatchRequest: _TypeAlias = WatchRequest  # noqa: Y015
 
@@ -1066,9 +873,7 @@ class WatchCreateRequest(_message.Message):
         ValueType = _typing.NewType("ValueType", _builtins.int)
         V: _TypeAlias = ValueType  # noqa: Y015
 
-    class _FilterTypeEnumTypeWrapper(
-        _enum_type_wrapper._EnumTypeWrapper[WatchCreateRequest._FilterType.ValueType], _builtins.type
-    ):
+    class _FilterTypeEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[WatchCreateRequest._FilterType.ValueType], _builtins.type):
         DESCRIPTOR: _descriptor.EnumDescriptor
         NOPUT: WatchCreateRequest._FilterType.ValueType  # 0
         """filter out put event."""
@@ -1120,9 +925,7 @@ class WatchCreateRequest(_message.Message):
     fragment: _builtins.bool
     """fragment enables splitting large revisions into multiple watch responses."""
     @_builtins.property
-    def filters(
-        self,
-    ) -> _containers.RepeatedScalarFieldContainer[Global___WatchCreateRequest.FilterType.ValueType]:
+    def filters(self) -> _containers.RepeatedScalarFieldContainer[Global___WatchCreateRequest.FilterType.ValueType]:
         """filters filter the events at server side before it sends back to the watcher."""
 
     def __init__(
@@ -1139,24 +942,7 @@ class WatchCreateRequest(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "filters",
-        b"filters",
-        "fragment",
-        b"fragment",
-        "key",
-        b"key",
-        "prev_kv",
-        b"prev_kv",
-        "progress_notify",
-        b"progress_notify",
-        "range_end",
-        b"range_end",
-        "start_revision",
-        b"start_revision",
-        "watch_id",
-        b"watch_id",
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["filters", b"filters", "fragment", b"fragment", "key", b"key", "prev_kv", b"prev_kv", "progress_notify", b"progress_notify", "range_end", b"range_end", "start_revision", b"start_revision", "watch_id", b"watch_id"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -1257,24 +1043,7 @@ class WatchResponse(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["header", b"header"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "cancel_reason",
-        b"cancel_reason",
-        "canceled",
-        b"canceled",
-        "compact_revision",
-        b"compact_revision",
-        "created",
-        b"created",
-        "events",
-        b"events",
-        "fragment",
-        b"fragment",
-        "header",
-        b"header",
-        "watch_id",
-        b"watch_id",
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["cancel_reason", b"cancel_reason", "canceled", b"canceled", "compact_revision", b"compact_revision", "created", b"created", "events", b"events", "fragment", b"fragment", "header", b"header", "watch_id", b"watch_id"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -1329,9 +1098,7 @@ class LeaseGrantResponse(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["header", b"header"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "ID", b"ID", "TTL", b"TTL", "error", b"error", "header", b"header"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["ID", b"ID", "TTL", b"TTL", "error", b"error", "header", b"header"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -1545,9 +1312,7 @@ class LeaseTimeToLiveResponse(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["header", b"header"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "ID", b"ID", "TTL", b"TTL", "grantedTTL", b"grantedTTL", "header", b"header", "keys", b"keys"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["ID", b"ID", "TTL", b"TTL", "grantedTTL", b"grantedTTL", "header", b"header", "keys", b"keys"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -1646,18 +1411,7 @@ class Member(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "ID",
-        b"ID",
-        "clientURLs",
-        b"clientURLs",
-        "isLearner",
-        b"isLearner",
-        "name",
-        b"name",
-        "peerURLs",
-        b"peerURLs",
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["ID", b"ID", "clientURLs", b"clientURLs", "isLearner", b"isLearner", "name", b"name", "peerURLs", b"peerURLs"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -1715,9 +1469,7 @@ class MemberAddResponse(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["header", b"header", "member", b"member"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "header", b"header", "member", b"member", "members", b"members"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["header", b"header", "member", b"member", "members", b"members"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -1995,9 +1747,7 @@ class AlarmRequest(_message.Message):
         ValueType = _typing.NewType("ValueType", _builtins.int)
         V: _TypeAlias = ValueType  # noqa: Y015
 
-    class _AlarmActionEnumTypeWrapper(
-        _enum_type_wrapper._EnumTypeWrapper[AlarmRequest._AlarmAction.ValueType], _builtins.type
-    ):
+    class _AlarmActionEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[AlarmRequest._AlarmAction.ValueType], _builtins.type):
         DESCRIPTOR: _descriptor.EnumDescriptor
         GET: AlarmRequest._AlarmAction.ValueType  # 0
         ACTIVATE: AlarmRequest._AlarmAction.ValueType  # 1
@@ -2031,9 +1781,7 @@ class AlarmRequest(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "action", b"action", "alarm", b"alarm", "memberID", b"memberID"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["action", b"action", "alarm", b"alarm", "memberID", b"memberID"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -2097,9 +1845,7 @@ class DowngradeRequest(_message.Message):
         ValueType = _typing.NewType("ValueType", _builtins.int)
         V: _TypeAlias = ValueType  # noqa: Y015
 
-    class _DowngradeActionEnumTypeWrapper(
-        _enum_type_wrapper._EnumTypeWrapper[DowngradeRequest._DowngradeAction.ValueType], _builtins.type
-    ):
+    class _DowngradeActionEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[DowngradeRequest._DowngradeAction.ValueType], _builtins.type):
         DESCRIPTOR: _descriptor.EnumDescriptor
         VALIDATE: DowngradeRequest._DowngradeAction.ValueType  # 0
         ENABLE: DowngradeRequest._DowngradeAction.ValueType  # 1
@@ -2228,30 +1974,7 @@ class StatusResponse(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["header", b"header"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "dbSize",
-        b"dbSize",
-        "dbSizeInUse",
-        b"dbSizeInUse",
-        "errors",
-        b"errors",
-        "header",
-        b"header",
-        "isLearner",
-        b"isLearner",
-        "leader",
-        b"leader",
-        "raftAppliedIndex",
-        b"raftAppliedIndex",
-        "raftIndex",
-        b"raftIndex",
-        "raftTerm",
-        b"raftTerm",
-        "storageVersion",
-        b"storageVersion",
-        "version",
-        b"version",
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["dbSize", b"dbSize", "dbSizeInUse", b"dbSizeInUse", "errors", b"errors", "header", b"header", "isLearner", b"isLearner", "leader", b"leader", "raftAppliedIndex", b"raftAppliedIndex", "raftIndex", b"raftIndex", "raftTerm", b"raftTerm", "storageVersion", b"storageVersion", "version", b"version"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -2347,9 +2070,7 @@ class AuthUserAddRequest(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["options", b"options"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "hashedPassword", b"hashedPassword", "name", b"name", "options", b"options", "password", b"password"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["hashedPassword", b"hashedPassword", "name", b"name", "options", b"options", "password", b"password"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -2416,9 +2137,7 @@ class AuthUserChangePasswordRequest(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "hashedPassword", b"hashedPassword", "name", b"name", "password", b"password"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["hashedPassword", b"hashedPassword", "name", b"name", "password", b"password"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -2603,9 +2322,7 @@ class AuthRoleRevokePermissionRequest(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "key", b"key", "range_end", b"range_end", "role", b"role"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["key", b"key", "range_end", b"range_end", "role", b"role"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -2672,9 +2389,7 @@ class AuthStatusResponse(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _typing.Literal["header", b"header"]  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "authRevision", b"authRevision", "enabled", b"enabled", "header", b"header"
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["authRevision", b"authRevision", "enabled", b"enabled", "header", b"header"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 

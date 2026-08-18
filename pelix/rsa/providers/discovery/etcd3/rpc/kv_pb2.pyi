@@ -3,21 +3,17 @@
 isort:skip_file
 """
 
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 import builtins as _builtins
 import sys
 import typing as _typing
 
-from google.protobuf import descriptor as _descriptor
-from google.protobuf import message as _message
-from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
-
 if sys.version_info >= (3, 11):
-    from typing import Never as _Never
-    from typing import TypeAlias as _TypeAlias
+    from typing import TypeAlias as _TypeAlias, Never as _Never
 else:
-    from typing import TypeAlias as _TypeAlias
-
-    from typing_extensions import Never as _Never
+    from typing_extensions import TypeAlias as _TypeAlias, Never as _Never
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -61,20 +57,7 @@ class KeyValue(_message.Message):
     ) -> None: ...
     _HasFieldArgType: _TypeAlias = _Never  # noqa: Y015
     def HasField(self, field_name: _HasFieldArgType) -> _builtins.bool: ...
-    _ClearFieldArgType: _TypeAlias = _typing.Literal[
-        "create_revision",
-        b"create_revision",
-        "key",
-        b"key",
-        "lease",
-        b"lease",
-        "mod_revision",
-        b"mod_revision",
-        "value",
-        b"value",
-        "version",
-        b"version",
-    ]  # noqa: Y015
+    _ClearFieldArgType: _TypeAlias = _typing.Literal["create_revision", b"create_revision", "key", b"key", "lease", b"lease", "mod_revision", b"mod_revision", "value", b"value", "version", b"version"]  # noqa: Y015
     def ClearField(self, field_name: _ClearFieldArgType) -> None: ...
     def WhichOneof(self, oneof_group: _Never) -> None: ...
 
@@ -88,9 +71,7 @@ class Event(_message.Message):
         ValueType = _typing.NewType("ValueType", _builtins.int)
         V: _TypeAlias = ValueType  # noqa: Y015
 
-    class _EventTypeEnumTypeWrapper(
-        _enum_type_wrapper._EnumTypeWrapper[Event._EventType.ValueType], _builtins.type
-    ):
+    class _EventTypeEnumTypeWrapper(_enum_type_wrapper._EnumTypeWrapper[Event._EventType.ValueType], _builtins.type):
         DESCRIPTOR: _descriptor.EnumDescriptor
         PUT: Event._EventType.ValueType  # 0
         DELETE: Event._EventType.ValueType  # 1

@@ -3,16 +3,16 @@
 isort:skip_file
 """
 
-import abc as _abc_1
-import typing as _typing
 from collections import abc as _abc
-
-import grpc as _grpc
 from grpc import aio as _aio
+import abc as _abc_1
+import grpc as _grpc
+import typing as _typing
 
 _T = _typing.TypeVar("_T")
 
 class _MaybeAsyncIterator(_abc.AsyncIterator[_T], _abc.Iterator[_T], metaclass=_abc_1.ABCMeta): ...
+
 class _ServicerContext(_grpc.ServicerContext, _aio.ServicerContext):  # type: ignore[misc, type-arg]
     ...
 

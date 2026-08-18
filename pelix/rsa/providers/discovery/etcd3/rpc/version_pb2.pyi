@@ -3,11 +3,10 @@
 isort:skip_file
 """
 
-import builtins as _builtins
-
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import descriptor_pb2 as _descriptor_pb2
 from google.protobuf.internal import extension_dict as _extension_dict
+import builtins as _builtins
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -18,6 +17,4 @@ ETCD_VERSION_ENUM_VALUE_FIELD_NUMBER: _builtins.int
 etcd_version_msg: _extension_dict._ExtensionFieldDescriptor[_descriptor_pb2.MessageOptions, _builtins.str]
 etcd_version_field: _extension_dict._ExtensionFieldDescriptor[_descriptor_pb2.FieldOptions, _builtins.str]
 etcd_version_enum: _extension_dict._ExtensionFieldDescriptor[_descriptor_pb2.EnumOptions, _builtins.str]
-etcd_version_enum_value: _extension_dict._ExtensionFieldDescriptor[
-    _descriptor_pb2.EnumValueOptions, _builtins.str
-]
+etcd_version_enum_value: _extension_dict._ExtensionFieldDescriptor[_descriptor_pb2.EnumValueOptions, _builtins.str]
