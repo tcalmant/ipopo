@@ -44,7 +44,9 @@ from pelix.rsa import create_uuid
 from pelix.rsa.endpointdescription import EndpointDescription, decode_endpoint_props, encode_endpoint_props
 from pelix.rsa.providers.discovery import EndpointAdvertiser, EndpointEvent, EndpointSubscriber
 
-from .etcdrpc import rpc_pb2, rpc_pb2_grpc
+from .rpc import rpc_pb2, rpc_pb2_grpc
+
+from .rpc.kv_pb2 import Event
 
 # ------------------------------------------------------------------------------
 # Module version
@@ -330,6 +332,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         return f"{self._get_key_prefix()}/{self._session_id}"
 
     class EndpointKey:
+
         def __init__(self, sessionid: str, ed_id: str) -> None:
             self.sessionid = sessionid
             self.ed_id = ed_id
@@ -506,12 +509,10 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                     for event in watch_response.events:
                         key = str(event.kv.key, self._encoding)
                         value = str(event.kv.value, self._encoding)
-                        from .etcdrpc.kv_pb2 import Event
-
                         if key:
-                            if event.type == Event.EventType.PUT:
+                            if event.type == Event.PUT:
                                 self._process_kv(key, value, True)
-                            elif event.type == Event.EventType.DELETE:
+                            elif event.type == Event.DELETE:
                                 self._process_kv(key, value, False)
         except asyncio.CancelledError:
             # Calling _disconnect() will cancel this async for loop (no log necessary)
@@ -551,7 +552,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             self._channel = None
 
 
-def instantiate_etcd3_discovery_provider(context: BundleContext, properties: dict[str, Any] | None = None):
+def instantiate_etcd3_discovery_provider(context: BundleContext, properties: dict[str, Any] | None=None):
     from pelix.rsa import instantiate_rsa_component
 
     return instantiate_rsa_component(context, ETCD_FACTORY_NAME, ETCD_INSTANCE_NAME, properties)
