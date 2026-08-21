@@ -25,6 +25,7 @@ Pelix Utilities: Cached thread pool
     limitations under the License.
 """
 
+import contextvars
 import logging
 import queue
 import threading
@@ -165,6 +166,10 @@ class _QueuedTask:
     args: tuple[Any, ...]
     kwargs: dict[str, Any]
     future: FutureResult
+
+    # Context of the caller, to run the task with the same context variables.
+    # Defaulted so that the _STOP sentinel can still be built
+    context: contextvars.Context | None = None
 
 
 _STOP = _QueuedTask(lambda: ..., (), {}, FutureResult())
@@ -343,6 +348,10 @@ class ThreadPool:
         Tasks can be enqueued while the pool is stopped (or not yet started):
         they will be executed once the pool is started.
 
+        The task is executed in a copy of the context of the caller, so it sees the
+        context variables set here, and what it sets reaches neither the caller nor
+        the next task run by the same thread.
+
         :param method: Method to call
         :return: A FutureResult object, to get the result of the task
         :raise ValueError: Invalid method
@@ -356,8 +365,9 @@ class ThreadPool:
 
         # Use a lock, as we might be "resetting" the queue
         with self.__lock:
-            # Add the task to the queue
-            self._queue.put(_QueuedTask(method, args, kwargs, future), True, self._timeout)
+            # Copy the caller context: a reused pool thread must not inherit the previous task's
+            task = _QueuedTask(method, args, kwargs, future, contextvars.copy_context())
+            self._queue.put(task, True, self._timeout)
             self.__nb_pending_task += 1
 
             if self.__nb_pending_task > self.__nb_threads:
@@ -428,7 +438,10 @@ class ThreadPool:
                         self.__nb_active_threads += 1
                     try:
                         # Call the method
-                        task.future.execute(task.method, task.args, task.kwargs)
+                        if task.context is not None:
+                            task.context.run(task.future.execute, task.method, task.args, task.kwargs)
+                        else:
+                            task.future.execute(task.method, task.args, task.kwargs)
                     except Exception:
                         self._logger.exception(
                             "Error executing %s", getattr(task.method, "__name__", repr(task.method))

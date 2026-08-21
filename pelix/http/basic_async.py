@@ -29,6 +29,8 @@ Provides an implementation of the Pelix HTTP service based on aiohttp.
 
 import asyncio
 import concurrent.futures
+import contextvars
+import functools
 import io
 import logging
 import ssl
@@ -934,10 +936,12 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                         servlet_request = _SyncHTTPServletRequest(request, path, prefix, content)
                         servlet_response = _SyncHTTPServletResponse(request, self._loop)
 
-                        # Handle the request in the executor
+                        # Copy the context here: unlike asyncio.to_thread, run_in_executor does not carry it
                         handler_method = getattr(servlet, sync_name)
+                        context = contextvars.copy_context()
                         await self._loop.run_in_executor(
-                            self._executor, handler_method, servlet_request, servlet_response
+                            self._executor,
+                            functools.partial(context.run, handler_method, servlet_request, servlet_response),
                         )
                         return servlet_response.to_aiohttp_response()
 

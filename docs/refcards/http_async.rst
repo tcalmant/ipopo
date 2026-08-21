@@ -112,6 +112,16 @@ Synchronous Servlet service
 This service is compatible with the synchronous servlets of the HTTP service.
 See :ref:`refcard_http` for more information on the synchronous servlets.
 
+A synchronous servlet is handled in a thread pool, but it runs in a copy of the
+context (see :mod:`contextvars`) of the request which triggered it: a context
+variable set before the dispatch is visible to ``do_GET()`` and the like.
+What the servlet sets stays in that copy: it reaches neither the event loop nor
+the next request handled by the same thread.
+
+.. versionchanged:: 3.3.0
+   The context variables of the request used to be dropped, the servlet running
+   in whatever context the worker thread of the pool happened to hold.
+
 Asynchronous Servlet service
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

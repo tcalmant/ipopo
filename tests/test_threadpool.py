@@ -8,6 +8,7 @@ Cached thread pool tests
 
 # ------------------------------------------------------------------------------
 
+import contextvars
 import threading
 import time
 import unittest
@@ -22,6 +23,8 @@ __version_info__ = (3, 2, 2)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 T = TypeVar("T")
+
+_TEST_VAR: contextvars.ContextVar[str] = contextvars.ContextVar("test_var")
 
 # ------------------------------------------------------------------------------
 
@@ -527,6 +530,86 @@ class ThreadPoolTest(unittest.TestCase):
             self.assertLessEqual(self.pool._ThreadPool__nb_threads, self.pool._max_threads)  # type: ignore
 
         self.pool.join()
+
+
+# ------------------------------------------------------------------------------
+
+
+class ThreadPoolContextTest(unittest.TestCase):
+    """
+    Tests the propagation of context variables through the thread pool
+    """
+
+    def setUp(self) -> None:
+        """
+        Sets up the test
+        """
+        self.pool = threadpool.ThreadPool(1)
+        self.pool.start()
+
+        # The context of the main thread outlives a test method: give the variable a
+        # known value, and take it back afterwards
+        self._token = _TEST_VAR.set("initial")
+
+    def tearDown(self) -> None:
+        """
+        Cleans up the test
+        """
+        self.pool.stop()
+        _TEST_VAR.reset(self._token)
+
+    def testContextIsPropagated(self) -> None:
+        """
+        The task must see the context variables of its caller
+        """
+        _TEST_VAR.set("caller")
+        future = self.pool.enqueue(_TEST_VAR.get, "unset")
+        self.assertEqual(future.result(2), "caller")
+
+    def testContextIsCapturedAtEnqueue(self) -> None:
+        """
+        The value seen by the task is the one set when it was queued, not the one
+        set while it was waiting in the queue
+        """
+        _TEST_VAR.set("at-enqueue")
+        blocker = EventData[Any]()
+        self.pool.enqueue(blocker.wait, 5)
+        future = self.pool.enqueue(_TEST_VAR.get, "unset")
+
+        # The task is queued behind the blocker: change the value in the meantime
+        _TEST_VAR.set("after-enqueue")
+        blocker.set(None)
+
+        self.assertEqual(future.result(5), "at-enqueue")
+
+    def testTaskDoesNotLeakIntoTheNextOne(self) -> None:
+        """
+        A pool thread is reused: what a task sets must not reach the next one
+        """
+        future = self.pool.enqueue(_TEST_VAR.set, "leaked")
+        future.result(2)
+
+        future = self.pool.enqueue(_TEST_VAR.get, "unset")
+        self.assertEqual(future.result(2), "initial")
+
+    def testTaskDoesNotAffectTheCaller(self) -> None:
+        """
+        A task runs in a copy: what it sets must not reach the caller either
+        """
+        _TEST_VAR.set("caller")
+        self.pool.enqueue(_TEST_VAR.set, "task").result(2)
+        self.assertEqual(_TEST_VAR.get(), "caller")
+
+    def testHandMadeTaskKeepsTheOldBehaviour(self) -> None:
+        """
+        A task built without a context (the stop sentinel is one) is still executed,
+        in the context of the worker thread, as every task used to be
+        """
+        task = threadpool._QueuedTask(_TEST_VAR.get, ("unset",), {}, threadpool.FutureResult())
+        self.assertIsNone(task.context)
+
+        self.pool._queue.put(task)
+        self.assertEqual(task.future.result(2), "unset")
 
 
 # ------------------------------------------------------------------------------

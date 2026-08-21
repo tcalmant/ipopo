@@ -56,6 +56,13 @@ Unreleased
   servlet
 * The Remote Services dispatcher servlet now routes on its relative path
   instead of counting segments
+* The asynchronous HTTP service now carries the caller's context variables
+  into the servlet it dispatches to
+
+### Utilities
+
+* `ThreadPool` now runs each task in a copy of its caller's context instead
+  of the previous task's
 
 ### Security
 
