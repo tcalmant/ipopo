@@ -48,6 +48,23 @@ Unreleased
 * Added tests for the configuration of ConfigurationAdmin managed service
   factories
 
+### HTTP service
+
+* Request paths are now normalized (decoded, collapsed, resolved) before
+  routing, and `get_path()` / `get_sub_path()` return that normalized path
+* A malformed or out-of-root path now gets a 400 error instead of reaching a
+  servlet
+* The Remote Services dispatcher servlet now routes on its relative path
+  instead of counting segments
+
+### Security
+
+All versions up to 3.2.2 are affected.
+
+* Servlet paths are now matched case-sensitively (breaking change: see
+  `pelix.http.case_sensitive_paths` to opt out)
+* Servlet paths are no longer vulnerable to path traversal
+
 ## iPOPO 3.2.2
 
 :::{admonition} Release Date

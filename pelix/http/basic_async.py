@@ -101,6 +101,7 @@ class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
         :param content: The request content
         """
         self._request = request
+        self._full_path = full_path
         self._prefix = prefix
         self._content = content
 
@@ -142,9 +143,9 @@ class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
 
     def get_path(self) -> str:
         """
-        Retrieves the request full path
+        Retrieves the request full path, normalized
         """
-        return self._request.path
+        return self._full_path
 
     def get_prefix_path(self) -> str:
         """
@@ -341,6 +342,7 @@ class _AsyncHTTPServletRequest(http.AbstractAsyncHTTPServletRequest):
         :param max_body_size: Maximum accepted size of the body, in bytes
         """
         self._request = request
+        self._full_path = full_path
         self._prefix = prefix
         self.max_body_size = max_body_size
 
@@ -382,9 +384,9 @@ class _AsyncHTTPServletRequest(http.AbstractAsyncHTTPServletRequest):
 
     def get_path(self) -> str:
         """
-        Retrieves the request full path
+        Retrieves the request full path, normalized
         """
-        return self._request.path
+        return self._full_path
 
     def get_prefix_path(self) -> str:
         """
@@ -885,8 +887,14 @@ class AsyncHttpServiceImpl(AbstractHttpService):
             # No executor available, cannot handle the request
             return aiohttp.web.Response(status=503, text="Service unavailable")
 
-        # Get the corresponding servlet
-        routing = self.resolve_request(request.path)
+        # Use the raw path: aiohttp already decoded request.path, normalizing it again would double-decode
+        routing = self.resolve_request(request.raw_path)
+        if routing.error is not None:
+            # The path itself has been refused: no servlet is looked for
+            return aiohttp.web.Response(
+                status=400, text="<html><body><h1>Bad Request</h1></body></html>", content_type="text/html"
+            )
+
         path = routing.path
         servlet = routing.servlet
         if servlet is not None:

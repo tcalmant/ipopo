@@ -37,6 +37,7 @@ import logging
 import re
 import socket
 import threading
+import urllib.parse
 import uuid
 from dataclasses import dataclass
 from typing import Any, cast
@@ -75,6 +76,9 @@ DEFAULT_REQUEST_QUEUE_SIZE = 5
 _MULTIPLE_SLASHES = re.compile("/+")
 """ Matches a sequence of consecutive slashes """
 
+_CONTROL_CHARS = re.compile(r"[\x00-\x1f\x7f]")
+""" Matches a control character, which has no place in a decoded request path """
+
 AnyServlet = http.Servlet | http.AsyncServlet | http.WebSocketHandler
 """ Any kind of servlet service (sync, async, web socket, ...) """
 
@@ -112,13 +116,45 @@ def normalize_max_body_size(value: Any) -> int | None:
 
 def normalize_request_path(raw_path: str) -> str:
     """
-    Normalizes the path of an incoming request: removes the query string and
-    collapses the sequences of consecutive slashes.
+    Normalizes the path of an incoming request: removes the query string,
+    decodes the percent-encoded characters, collapses the sequences of
+    consecutive slashes and resolves the ``.`` and ``..`` segments.
 
-    :param raw_path: The raw request path
+    The result is the single path used both to look for a servlet and to
+    compute the path given to that servlet, so that the two can never disagree.
+
+    This must be called once, on the raw request path: as it decodes, applying
+    it to its own result would decode a second time.
+
+    :param raw_path: The raw request path, as sent by the client
     :return: The path to use to look for a servlet
+    :raise ValueError: The path holds a control character or escapes the root
     """
-    return _MULTIPLE_SLASHES.sub("/", raw_path.split("?", 1)[0])
+    path = urllib.parse.unquote(raw_path.split("?", 1)[0])
+    if _CONTROL_CHARS.search(path):
+        raise ValueError("Control character in request path")
+
+    path = _MULTIPLE_SLASHES.sub("/", path)
+    trailing_slash = path.endswith("/") and path != "/"
+
+    segments: list[str] = []
+    for segment in path.split("/"):
+        if not segment or segment == ".":
+            continue
+
+        if segment == "..":
+            if not segments:
+                # Refuse the request instead of silently clamping it to the root
+                raise ValueError("Request path escapes the root")
+            segments.pop()
+        else:
+            segments.append(segment)
+
+    normalized = f"/{'/'.join(segments)}"
+    if trailing_slash and normalized != "/":
+        normalized += "/"
+
+    return normalized
 
 
 def compute_sub_path(full_path: str, prefix: str) -> str:
@@ -162,6 +198,9 @@ class RequestRouting:
     servlet_type: http.ServletType
     """ The kind of servlet which must handle the request """
 
+    error: int | None = None
+    """ Error code to answer with, when the path itself has been refused """
+
 
 # ------------------------------------------------------------------------------
 
@@ -171,6 +210,7 @@ class RequestRouting:
 @Property("_debug_errors", http.HTTP_DEBUG_ERRORS, False)
 @Property("_max_body_size", http.HTTP_MAX_BODY_SIZE, 1024 * 1024)
 @Property("_socket_timeout", http.HTTP_SOCKET_TIMEOUT, 60.0)
+@Property("_case_sensitive_paths", http.HTTP_CASE_SENSITIVE_PATHS, True)
 @Property("_uses_ssl", http.HTTP_USES_SSL, False)
 @Property("_cert_file", http.HTTPS_CERT_FILE, None)
 @Property("_key_file", http.HTTPS_KEY_FILE, None)
@@ -191,6 +231,7 @@ class AbstractHttpService(http.HTTPService):
         self._debug_errors = False
         self._max_body_size: int | None = 1024 * 1024
         self._socket_timeout: float | None = 60.0
+        self._case_sensitive_paths = True
         self._uses_ssl = False
         self._extra: dict[str, Any] | None = None
         self._instance_name: str | None = None
@@ -387,6 +428,15 @@ class AbstractHttpService(http.HTTPService):
         """
         return sorted(self._servlets)
 
+    def _servlet_key(self, path: str) -> str:
+        """
+        Computes the key a path is stored under in the servlets registry.
+
+        :param path: A servlet or request path
+        :return: The path itself, unless the folding of paths has been re-enabled
+        """
+        return path if self._case_sensitive_paths else path.lower()
+
     def get_servlet(self, path: str | None) -> tuple[Any, dict[str, Any], str, http.ServletType] | None:
         """
         Retrieves the servlet matching the given path and its parameters.
@@ -399,8 +449,7 @@ class AbstractHttpService(http.HTTPService):
             # No path, nothing to return
             return None
 
-        # Use lower case for comparison
-        path = path.lower()
+        path = self._servlet_key(path)
 
         if path[-1] != "/":
             # Add a trailing slash
@@ -436,9 +485,16 @@ class AbstractHttpService(http.HTTPService):
 
         :param raw_path: The raw request path, as given by the client
         :return: The result of the routing (never None). Its ``servlet`` is
-                 None if no servlet matches the path.
+                 None if no servlet matches the path, and its ``error`` is set
+                 if the path itself has been refused.
         """
-        normalized_path = normalize_request_path(raw_path)
+        try:
+            normalized_path = normalize_request_path(raw_path)
+        except ValueError as ex:
+            # Malformed path: it is answered before any servlet is looked for
+            self.log(logging.WARNING, "Refused request path %r: %s", raw_path, ex)
+            return RequestRouting(raw_path, None, {}, "", http.ServletType.SYNC, error=400)
+
         found_servlet = self.get_servlet(normalized_path)
         if found_servlet is None:
             return RequestRouting(normalized_path, None, {}, "", http.ServletType.SYNC)
@@ -481,8 +537,7 @@ class AbstractHttpService(http.HTTPService):
         if not path or path[0] != "/":
             raise ValueError(f"Invalid path given to register the servlet: {path}")
 
-        # Use lower-case paths
-        path = path.lower()
+        path = self._servlet_key(path)
 
         # Prepare the parameters
         if parameters is None:
@@ -565,8 +620,7 @@ class AbstractHttpService(http.HTTPService):
                 # Invalid path
                 return False
 
-            # Always use lower case to compare paths
-            path = path.lower()
+            path = self._servlet_key(path)
 
             with self._lock:
                 # Notify the servlet

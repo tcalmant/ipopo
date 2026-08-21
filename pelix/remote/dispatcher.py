@@ -653,12 +653,12 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         :param request: Request handler
         :param response: Response handler
         """
-        # Normalize the path
-        path_parts = [part for part in request.get_path().split("/") if part]
+        # Route on the normalized sub path: segment counting would shift with an extra slash or dot
+        path_parts = [part for part in request.get_sub_path().split("/") if part]
+        if not path_parts:
+            response.send_content(404, "No action given", "text/plain")
+            return
 
-        # Remove the servlet part
-        servlet_parts = [part for part in self._path.split("/") if part]
-        path_parts = path_parts[len(servlet_parts) :]
         action = path_parts[0]
 
         data: Any
@@ -712,9 +712,9 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         :param request: Request handler
         :param response: Response handler
         """
-        # Split the path
-        path_parts = request.get_path().split("/")
-        if path_parts[-1] != "endpoints":
+        # Split the sub path, ignoring a trailing slash
+        path_parts = [part for part in request.get_sub_path().split("/") if part]
+        if path_parts != ["endpoints"]:
             # Bad path
             response.send_content(404, "Unhandled path", "text/plain")
             return
