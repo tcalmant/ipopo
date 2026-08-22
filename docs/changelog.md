@@ -64,6 +64,27 @@ Unreleased
 * `ThreadPool` now runs each task in a copy of its caller's context instead
   of the previous task's
 
+### Authentication and authorization
+
+A new `pelix.security` package adds a transport-neutral notion of a caller:
+identity, groups, roles and permissions. See its reference card for details.
+
+* `pelix.security`: core beans, service specifications (`Authenticator`,
+  `MembershipProvider`, `Authorizer`, `Authorization`) and the current
+  subject
+* `pelix.security.decorators`: declarative `@Allow*`, `@DenyAll` and
+  `@RunAs` decorators
+* `pelix.security.core`: the identity and authorization pipeline
+* `pelix.security.htpasswd`: authentication against Apache `.htpasswd` /
+  `.htgroup` files
+* `pelix.security.policy`: roles and permissions from a TOML file
+
+Nothing is permissive by default.
+
+### Dependencies
+
+* Added `tomli` (Python 3.10 only) and the optional `bcrypt` extra
+
 ### Security
 
 All versions up to 3.2.2 are affected.

@@ -16,6 +16,7 @@ log
 http
 http_async
 http_routing
+security
 remote_services
 rsa
 shell
