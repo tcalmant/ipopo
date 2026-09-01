@@ -2,12 +2,10 @@
 """Client and server classes corresponding to protobuf-defined services."""
 import grpc
 
-from pelix.rsa.providers.discovery.etcd3.rpc import (
-    rpc_pb2 as pelix_dot_rsa_dot_providers_dot_discovery_dot_etcd3_dot_rpc_dot_rpc__pb2,
-)
+from pelix.rsa.providers.discovery.etcd3.rpc import rpc_pb2 as pelix_dot_rsa_dot_providers_dot_discovery_dot_etcd3_dot_rpc_dot_rpc__pb2
 
 
-class KVStub:
+class KVStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -43,7 +41,7 @@ class KVStub:
                 _registered_method=True)
 
 
-class KVServicer:
+class KVServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def Range(self, request, context):
@@ -126,7 +124,7 @@ def add_KVServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class KV:
+class KV(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -265,7 +263,7 @@ class KV:
             _registered_method=True)
 
 
-class WatchStub:
+class WatchStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -281,7 +279,7 @@ class WatchStub:
                 _registered_method=True)
 
 
-class WatchServicer:
+class WatchServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def Watch(self, request_iterator, context):
@@ -311,7 +309,7 @@ def add_WatchServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class Watch:
+class Watch(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -342,7 +340,7 @@ class Watch:
             _registered_method=True)
 
 
-class LeaseStub:
+class LeaseStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -378,7 +376,7 @@ class LeaseStub:
                 _registered_method=True)
 
 
-class LeaseServicer:
+class LeaseServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def LeaseGrant(self, request, context):
@@ -455,7 +453,7 @@ def add_LeaseServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class Lease:
+class Lease(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -594,7 +592,7 @@ class Lease:
             _registered_method=True)
 
 
-class ClusterStub:
+class ClusterStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -630,7 +628,7 @@ class ClusterStub:
                 _registered_method=True)
 
 
-class ClusterServicer:
+class ClusterServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def MemberAdd(self, request, context):
@@ -704,7 +702,7 @@ def add_ClusterServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class Cluster:
+class Cluster(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -843,7 +841,7 @@ class Cluster:
             _registered_method=True)
 
 
-class MaintenanceStub:
+class MaintenanceStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -894,7 +892,7 @@ class MaintenanceStub:
                 _registered_method=True)
 
 
-class MaintenanceServicer:
+class MaintenanceServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def Alarm(self, request, context):
@@ -1012,7 +1010,7 @@ def add_MaintenanceServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class Maintenance:
+class Maintenance(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod
@@ -1232,7 +1230,7 @@ class Maintenance:
             _registered_method=True)
 
 
-class AuthStub:
+class AuthStub(object):
     """Missing associated documentation comment in .proto file."""
 
     def __init__(self, channel):
@@ -1328,7 +1326,7 @@ class AuthStub:
                 _registered_method=True)
 
 
-class AuthServicer:
+class AuthServicer(object):
     """Missing associated documentation comment in .proto file."""
 
     def AuthEnable(self, request, context):
@@ -1546,7 +1544,7 @@ def add_AuthServicer_to_server(servicer, server):
 
 
  # This class is part of an EXPERIMENTAL API.
-class Auth:
+class Auth(object):
     """Missing associated documentation comment in .proto file."""
 
     @staticmethod

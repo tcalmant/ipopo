@@ -3,21 +3,17 @@
 isort:skip_file
 """
 
+from google.protobuf import descriptor as _descriptor
+from google.protobuf import message as _message
+from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
 import builtins as _builtins
 import sys
 import typing as _typing
 
-from google.protobuf import descriptor as _descriptor
-from google.protobuf import message as _message
-from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
-
 if sys.version_info >= (3, 11):
-    from typing import Never as _Never
-    from typing import TypeAlias as _TypeAlias
+    from typing import TypeAlias as _TypeAlias, Never as _Never
 else:
-    from typing import TypeAlias as _TypeAlias
-
-    from typing_extensions import Never as _Never
+    from typing_extensions import TypeAlias as _TypeAlias, Never as _Never
 
 DESCRIPTOR: _descriptor.FileDescriptor
 

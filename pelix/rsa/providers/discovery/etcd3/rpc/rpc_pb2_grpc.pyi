@@ -3,15 +3,13 @@
 isort:skip_file
 """
 
+from collections import abc as _abc
+from grpc import aio as _aio
+from pelix.rsa.providers.discovery.etcd3.rpc import rpc_pb2 as _rpc_pb2
 import abc as _abc_1
+import grpc as _grpc
 import sys
 import typing as _typing
-from collections import abc as _abc
-
-import grpc as _grpc
-from grpc import aio as _aio
-
-from pelix.rsa.providers.discovery.etcd3.rpc import rpc_pb2 as _rpc_pb2
 
 if sys.version_info >= (3, 11):
     from typing import Self as _Self
@@ -90,7 +88,7 @@ class KVServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.RangeRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.RangeResponse | _abc.Awaitable[_rpc_pb2.RangeResponse]:
+    ) -> _typing.Union[_rpc_pb2.RangeResponse, _abc.Awaitable[_rpc_pb2.RangeResponse]]:
         """Range gets the keys in the range from the key-value store."""
 
     @_abc_1.abstractmethod
@@ -98,7 +96,7 @@ class KVServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.PutRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.PutResponse | _abc.Awaitable[_rpc_pb2.PutResponse]:
+    ) -> _typing.Union[_rpc_pb2.PutResponse, _abc.Awaitable[_rpc_pb2.PutResponse]]:
         """Put puts the given key into the key-value store.
         A put request increments the revision of the key-value store
         and generates one event in the event history.
@@ -109,7 +107,7 @@ class KVServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.DeleteRangeRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.DeleteRangeResponse | _abc.Awaitable[_rpc_pb2.DeleteRangeResponse]:
+    ) -> _typing.Union[_rpc_pb2.DeleteRangeResponse, _abc.Awaitable[_rpc_pb2.DeleteRangeResponse]]:
         """DeleteRange deletes the given range from the key-value store.
         A delete request increments the revision of the key-value store
         and generates a delete event in the event history for every deleted key.
@@ -120,7 +118,7 @@ class KVServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.TxnRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.TxnResponse | _abc.Awaitable[_rpc_pb2.TxnResponse]:
+    ) -> _typing.Union[_rpc_pb2.TxnResponse, _abc.Awaitable[_rpc_pb2.TxnResponse]]:
         """Txn processes multiple requests in a single transaction.
         A txn request increments the revision of the key-value store
         and generates events with the same revision for every completed request.
@@ -132,13 +130,13 @@ class KVServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.CompactionRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.CompactionResponse | _abc.Awaitable[_rpc_pb2.CompactionResponse]:
+    ) -> _typing.Union[_rpc_pb2.CompactionResponse, _abc.Awaitable[_rpc_pb2.CompactionResponse]]:
         """Compact compacts the event history in the etcd key-value store. The key-value
         store should be periodically compacted or the event history will continue to grow
         indefinitely.
         """
 
-def add_KVServicer_to_server(servicer: KVServicer, server: _grpc.Server | _aio.Server) -> None: ...
+def add_KVServicer_to_server(servicer: KVServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...
 
 class WatchStub:
     @_typing.overload
@@ -170,7 +168,7 @@ class WatchServicer(metaclass=_abc_1.ABCMeta):
         self,
         request_iterator: _MaybeAsyncIterator[_rpc_pb2.WatchRequest],
         context: _ServicerContext,
-    ) -> _abc.Iterator[_rpc_pb2.WatchResponse] | _abc.AsyncIterator[_rpc_pb2.WatchResponse]:
+    ) -> _typing.Union[_abc.Iterator[_rpc_pb2.WatchResponse], _abc.AsyncIterator[_rpc_pb2.WatchResponse]]:
         """Watch watches for events happening or that have happened. Both input and output
         are streams; the input stream is for creating and canceling watchers and the output
         stream sends events. One watch RPC can watch on multiple key ranges, streaming events
@@ -178,7 +176,7 @@ class WatchServicer(metaclass=_abc_1.ABCMeta):
         last compaction revision.
         """
 
-def add_WatchServicer_to_server(servicer: WatchServicer, server: _grpc.Server | _aio.Server) -> None: ...
+def add_WatchServicer_to_server(servicer: WatchServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...
 
 class LeaseStub:
     @_typing.overload
@@ -226,7 +224,7 @@ class LeaseServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.LeaseGrantRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.LeaseGrantResponse | _abc.Awaitable[_rpc_pb2.LeaseGrantResponse]:
+    ) -> _typing.Union[_rpc_pb2.LeaseGrantResponse, _abc.Awaitable[_rpc_pb2.LeaseGrantResponse]]:
         """LeaseGrant creates a lease which expires if the server does not receive a keepAlive
         within a given time to live period. All keys attached to the lease will be expired and
         deleted if the lease expires. Each expired key generates a delete event in the event history.
@@ -237,7 +235,7 @@ class LeaseServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.LeaseRevokeRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.LeaseRevokeResponse | _abc.Awaitable[_rpc_pb2.LeaseRevokeResponse]:
+    ) -> _typing.Union[_rpc_pb2.LeaseRevokeResponse, _abc.Awaitable[_rpc_pb2.LeaseRevokeResponse]]:
         """LeaseRevoke revokes a lease. All keys attached to the lease will expire and be deleted."""
 
     @_abc_1.abstractmethod
@@ -245,7 +243,7 @@ class LeaseServicer(metaclass=_abc_1.ABCMeta):
         self,
         request_iterator: _MaybeAsyncIterator[_rpc_pb2.LeaseKeepAliveRequest],
         context: _ServicerContext,
-    ) -> _abc.Iterator[_rpc_pb2.LeaseKeepAliveResponse] | _abc.AsyncIterator[_rpc_pb2.LeaseKeepAliveResponse]:
+    ) -> _typing.Union[_abc.Iterator[_rpc_pb2.LeaseKeepAliveResponse], _abc.AsyncIterator[_rpc_pb2.LeaseKeepAliveResponse]]:
         """LeaseKeepAlive keeps the lease alive by streaming keep alive requests from the client
         to the server and streaming keep alive responses from the server to the client.
         """
@@ -255,7 +253,7 @@ class LeaseServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.LeaseTimeToLiveRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.LeaseTimeToLiveResponse | _abc.Awaitable[_rpc_pb2.LeaseTimeToLiveResponse]:
+    ) -> _typing.Union[_rpc_pb2.LeaseTimeToLiveResponse, _abc.Awaitable[_rpc_pb2.LeaseTimeToLiveResponse]]:
         """LeaseTimeToLive retrieves lease information."""
 
     @_abc_1.abstractmethod
@@ -263,10 +261,10 @@ class LeaseServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.LeaseLeasesRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.LeaseLeasesResponse | _abc.Awaitable[_rpc_pb2.LeaseLeasesResponse]:
+    ) -> _typing.Union[_rpc_pb2.LeaseLeasesResponse, _abc.Awaitable[_rpc_pb2.LeaseLeasesResponse]]:
         """LeaseLeases lists all existing leases."""
 
-def add_LeaseServicer_to_server(servicer: LeaseServicer, server: _grpc.Server | _aio.Server) -> None: ...
+def add_LeaseServicer_to_server(servicer: LeaseServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...
 
 class ClusterStub:
     @_typing.overload
@@ -304,7 +302,7 @@ class ClusterServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.MemberAddRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.MemberAddResponse | _abc.Awaitable[_rpc_pb2.MemberAddResponse]:
+    ) -> _typing.Union[_rpc_pb2.MemberAddResponse, _abc.Awaitable[_rpc_pb2.MemberAddResponse]]:
         """MemberAdd adds a member into the cluster."""
 
     @_abc_1.abstractmethod
@@ -312,7 +310,7 @@ class ClusterServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.MemberRemoveRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.MemberRemoveResponse | _abc.Awaitable[_rpc_pb2.MemberRemoveResponse]:
+    ) -> _typing.Union[_rpc_pb2.MemberRemoveResponse, _abc.Awaitable[_rpc_pb2.MemberRemoveResponse]]:
         """MemberRemove removes an existing member from the cluster."""
 
     @_abc_1.abstractmethod
@@ -320,7 +318,7 @@ class ClusterServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.MemberUpdateRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.MemberUpdateResponse | _abc.Awaitable[_rpc_pb2.MemberUpdateResponse]:
+    ) -> _typing.Union[_rpc_pb2.MemberUpdateResponse, _abc.Awaitable[_rpc_pb2.MemberUpdateResponse]]:
         """MemberUpdate updates the member configuration."""
 
     @_abc_1.abstractmethod
@@ -328,7 +326,7 @@ class ClusterServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.MemberListRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.MemberListResponse | _abc.Awaitable[_rpc_pb2.MemberListResponse]:
+    ) -> _typing.Union[_rpc_pb2.MemberListResponse, _abc.Awaitable[_rpc_pb2.MemberListResponse]]:
         """MemberList lists all the members in the cluster."""
 
     @_abc_1.abstractmethod
@@ -336,10 +334,10 @@ class ClusterServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.MemberPromoteRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.MemberPromoteResponse | _abc.Awaitable[_rpc_pb2.MemberPromoteResponse]:
+    ) -> _typing.Union[_rpc_pb2.MemberPromoteResponse, _abc.Awaitable[_rpc_pb2.MemberPromoteResponse]]:
         """MemberPromote promotes a member from raft learner (non-voting) to raft voting member."""
 
-def add_ClusterServicer_to_server(servicer: ClusterServicer, server: _grpc.Server | _aio.Server) -> None: ...
+def add_ClusterServicer_to_server(servicer: ClusterServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...
 
 class MaintenanceStub:
     @_typing.overload
@@ -411,7 +409,7 @@ class MaintenanceServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AlarmRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AlarmResponse | _abc.Awaitable[_rpc_pb2.AlarmResponse]:
+    ) -> _typing.Union[_rpc_pb2.AlarmResponse, _abc.Awaitable[_rpc_pb2.AlarmResponse]]:
         """Alarm activates, deactivates, and queries alarms regarding cluster health."""
 
     @_abc_1.abstractmethod
@@ -419,7 +417,7 @@ class MaintenanceServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.StatusRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.StatusResponse | _abc.Awaitable[_rpc_pb2.StatusResponse]:
+    ) -> _typing.Union[_rpc_pb2.StatusResponse, _abc.Awaitable[_rpc_pb2.StatusResponse]]:
         """Status gets the status of the member."""
 
     @_abc_1.abstractmethod
@@ -427,7 +425,7 @@ class MaintenanceServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.DefragmentRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.DefragmentResponse | _abc.Awaitable[_rpc_pb2.DefragmentResponse]:
+    ) -> _typing.Union[_rpc_pb2.DefragmentResponse, _abc.Awaitable[_rpc_pb2.DefragmentResponse]]:
         """Defragment defragments a member's backend database to recover storage space."""
 
     @_abc_1.abstractmethod
@@ -435,7 +433,7 @@ class MaintenanceServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.HashRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.HashResponse | _abc.Awaitable[_rpc_pb2.HashResponse]:
+    ) -> _typing.Union[_rpc_pb2.HashResponse, _abc.Awaitable[_rpc_pb2.HashResponse]]:
         """Hash computes the hash of whole backend keyspace,
         including key, lease, and other buckets in storage.
         This is designed for testing ONLY!
@@ -449,7 +447,7 @@ class MaintenanceServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.HashKVRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.HashKVResponse | _abc.Awaitable[_rpc_pb2.HashKVResponse]:
+    ) -> _typing.Union[_rpc_pb2.HashKVResponse, _abc.Awaitable[_rpc_pb2.HashKVResponse]]:
         """HashKV computes the hash of all MVCC keys up to a given revision.
         It only iterates "key" bucket in backend storage.
         """
@@ -459,7 +457,7 @@ class MaintenanceServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.SnapshotRequest,
         context: _ServicerContext,
-    ) -> _abc.Iterator[_rpc_pb2.SnapshotResponse] | _abc.AsyncIterator[_rpc_pb2.SnapshotResponse]:
+    ) -> _typing.Union[_abc.Iterator[_rpc_pb2.SnapshotResponse], _abc.AsyncIterator[_rpc_pb2.SnapshotResponse]]:
         """Snapshot sends a snapshot of the entire backend from a member over a stream to a client."""
 
     @_abc_1.abstractmethod
@@ -467,7 +465,7 @@ class MaintenanceServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.MoveLeaderRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.MoveLeaderResponse | _abc.Awaitable[_rpc_pb2.MoveLeaderResponse]:
+    ) -> _typing.Union[_rpc_pb2.MoveLeaderResponse, _abc.Awaitable[_rpc_pb2.MoveLeaderResponse]]:
         """MoveLeader requests current leader node to transfer its leadership to transferee."""
 
     @_abc_1.abstractmethod
@@ -475,13 +473,13 @@ class MaintenanceServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.DowngradeRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.DowngradeResponse | _abc.Awaitable[_rpc_pb2.DowngradeResponse]:
+    ) -> _typing.Union[_rpc_pb2.DowngradeResponse, _abc.Awaitable[_rpc_pb2.DowngradeResponse]]:
         """Downgrade requests downgrades, verifies feasibility or cancels downgrade
         on the cluster version.
         Supported since etcd 3.5.
         """
 
-def add_MaintenanceServicer_to_server(servicer: MaintenanceServicer, server: _grpc.Server | _aio.Server) -> None: ...
+def add_MaintenanceServicer_to_server(servicer: MaintenanceServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...
 
 class AuthStub:
     @_typing.overload
@@ -567,7 +565,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthEnableRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthEnableResponse | _abc.Awaitable[_rpc_pb2.AuthEnableResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthEnableResponse, _abc.Awaitable[_rpc_pb2.AuthEnableResponse]]:
         """AuthEnable enables authentication."""
 
     @_abc_1.abstractmethod
@@ -575,7 +573,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthDisableRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthDisableResponse | _abc.Awaitable[_rpc_pb2.AuthDisableResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthDisableResponse, _abc.Awaitable[_rpc_pb2.AuthDisableResponse]]:
         """AuthDisable disables authentication."""
 
     @_abc_1.abstractmethod
@@ -583,7 +581,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthStatusRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthStatusResponse | _abc.Awaitable[_rpc_pb2.AuthStatusResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthStatusResponse, _abc.Awaitable[_rpc_pb2.AuthStatusResponse]]:
         """AuthStatus displays authentication status."""
 
     @_abc_1.abstractmethod
@@ -591,7 +589,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthenticateRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthenticateResponse | _abc.Awaitable[_rpc_pb2.AuthenticateResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthenticateResponse, _abc.Awaitable[_rpc_pb2.AuthenticateResponse]]:
         """Authenticate processes an authenticate request."""
 
     @_abc_1.abstractmethod
@@ -599,7 +597,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthUserAddRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthUserAddResponse | _abc.Awaitable[_rpc_pb2.AuthUserAddResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthUserAddResponse, _abc.Awaitable[_rpc_pb2.AuthUserAddResponse]]:
         """UserAdd adds a new user. User name cannot be empty."""
 
     @_abc_1.abstractmethod
@@ -607,7 +605,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthUserGetRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthUserGetResponse | _abc.Awaitable[_rpc_pb2.AuthUserGetResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthUserGetResponse, _abc.Awaitable[_rpc_pb2.AuthUserGetResponse]]:
         """UserGet gets detailed user information."""
 
     @_abc_1.abstractmethod
@@ -615,7 +613,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthUserListRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthUserListResponse | _abc.Awaitable[_rpc_pb2.AuthUserListResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthUserListResponse, _abc.Awaitable[_rpc_pb2.AuthUserListResponse]]:
         """UserList gets a list of all users."""
 
     @_abc_1.abstractmethod
@@ -623,7 +621,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthUserDeleteRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthUserDeleteResponse | _abc.Awaitable[_rpc_pb2.AuthUserDeleteResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthUserDeleteResponse, _abc.Awaitable[_rpc_pb2.AuthUserDeleteResponse]]:
         """UserDelete deletes a specified user."""
 
     @_abc_1.abstractmethod
@@ -631,7 +629,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthUserChangePasswordRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthUserChangePasswordResponse | _abc.Awaitable[_rpc_pb2.AuthUserChangePasswordResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthUserChangePasswordResponse, _abc.Awaitable[_rpc_pb2.AuthUserChangePasswordResponse]]:
         """UserChangePassword changes the password of a specified user."""
 
     @_abc_1.abstractmethod
@@ -639,7 +637,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthUserGrantRoleRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthUserGrantRoleResponse | _abc.Awaitable[_rpc_pb2.AuthUserGrantRoleResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthUserGrantRoleResponse, _abc.Awaitable[_rpc_pb2.AuthUserGrantRoleResponse]]:
         """UserGrant grants a role to a specified user."""
 
     @_abc_1.abstractmethod
@@ -647,7 +645,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthUserRevokeRoleRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthUserRevokeRoleResponse | _abc.Awaitable[_rpc_pb2.AuthUserRevokeRoleResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthUserRevokeRoleResponse, _abc.Awaitable[_rpc_pb2.AuthUserRevokeRoleResponse]]:
         """UserRevokeRole revokes a role of specified user."""
 
     @_abc_1.abstractmethod
@@ -655,7 +653,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthRoleAddRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthRoleAddResponse | _abc.Awaitable[_rpc_pb2.AuthRoleAddResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthRoleAddResponse, _abc.Awaitable[_rpc_pb2.AuthRoleAddResponse]]:
         """RoleAdd adds a new role. Role name cannot be empty."""
 
     @_abc_1.abstractmethod
@@ -663,7 +661,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthRoleGetRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthRoleGetResponse | _abc.Awaitable[_rpc_pb2.AuthRoleGetResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthRoleGetResponse, _abc.Awaitable[_rpc_pb2.AuthRoleGetResponse]]:
         """RoleGet gets detailed role information."""
 
     @_abc_1.abstractmethod
@@ -671,7 +669,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthRoleListRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthRoleListResponse | _abc.Awaitable[_rpc_pb2.AuthRoleListResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthRoleListResponse, _abc.Awaitable[_rpc_pb2.AuthRoleListResponse]]:
         """RoleList gets lists of all roles."""
 
     @_abc_1.abstractmethod
@@ -679,7 +677,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthRoleDeleteRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthRoleDeleteResponse | _abc.Awaitable[_rpc_pb2.AuthRoleDeleteResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthRoleDeleteResponse, _abc.Awaitable[_rpc_pb2.AuthRoleDeleteResponse]]:
         """RoleDelete deletes a specified role."""
 
     @_abc_1.abstractmethod
@@ -687,7 +685,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthRoleGrantPermissionRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthRoleGrantPermissionResponse | _abc.Awaitable[_rpc_pb2.AuthRoleGrantPermissionResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthRoleGrantPermissionResponse, _abc.Awaitable[_rpc_pb2.AuthRoleGrantPermissionResponse]]:
         """RoleGrantPermission grants a permission of a specified key or range to a specified role."""
 
     @_abc_1.abstractmethod
@@ -695,7 +693,7 @@ class AuthServicer(metaclass=_abc_1.ABCMeta):
         self,
         request: _rpc_pb2.AuthRoleRevokePermissionRequest,
         context: _ServicerContext,
-    ) -> _rpc_pb2.AuthRoleRevokePermissionResponse | _abc.Awaitable[_rpc_pb2.AuthRoleRevokePermissionResponse]:
+    ) -> _typing.Union[_rpc_pb2.AuthRoleRevokePermissionResponse, _abc.Awaitable[_rpc_pb2.AuthRoleRevokePermissionResponse]]:
         """RoleRevokePermission revokes a key or range permission of a specified role."""
 
-def add_AuthServicer_to_server(servicer: AuthServicer, server: _grpc.Server | _aio.Server) -> None: ...
+def add_AuthServicer_to_server(servicer: AuthServicer, server: _typing.Union[_grpc.Server, _aio.Server]) -> None: ...

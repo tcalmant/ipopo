@@ -68,7 +68,12 @@ dev = [
 
 [tool.ruff]
 line-length = 110
-extend-exclude = ["pelix/rsa/providers/discovery/etcd3/rpc"]
+extend-exclude = [
+  "*_pb2.py",
+  "*_pb2.pyi",
+  "*_pb2_grpc.py",
+  "*_pb2_grpc.pyi",
+]
 
 [tool.ruff.lint]
 extend-select = ["I"]

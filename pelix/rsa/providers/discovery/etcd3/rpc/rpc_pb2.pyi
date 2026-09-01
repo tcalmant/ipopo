@@ -3,26 +3,21 @@
 isort:skip_file
 """
 
-import builtins as _builtins
-import sys
-import typing as _typing
 from collections import abc as _abc
-
 from google.protobuf import descriptor as _descriptor
 from google.protobuf import message as _message
 from google.protobuf.internal import containers as _containers
 from google.protobuf.internal import enum_type_wrapper as _enum_type_wrapper
-
 from pelix.rsa.providers.discovery.etcd3.rpc import auth_pb2 as _auth_pb2
 from pelix.rsa.providers.discovery.etcd3.rpc import kv_pb2 as _kv_pb2
+import builtins as _builtins
+import sys
+import typing as _typing
 
 if sys.version_info >= (3, 11):
-    from typing import Never as _Never
-    from typing import TypeAlias as _TypeAlias
+    from typing import TypeAlias as _TypeAlias, Never as _Never
 else:
-    from typing import TypeAlias as _TypeAlias
-
-    from typing_extensions import Never as _Never
+    from typing_extensions import TypeAlias as _TypeAlias, Never as _Never
 
 DESCRIPTOR: _descriptor.FileDescriptor
 
@@ -1019,10 +1014,10 @@ class WatchResponse(_message.Message):
     compact_revision: _builtins.int
     """compact_revision is set to the minimum index if a watcher tries to watch
     at a compacted index.
-    
+
     This happens when creating a watcher at a compacted revision or the watcher cannot
     catch up with the progress of the key-value store.
-    
+
     The client should treat the watcher as canceled and should not try to create any
     watcher with the same start_revision again.
     """
