@@ -1,5 +1,25 @@
 # Release Notes
 
+## iPOPO 3.2.3
+
+:::{admonition} Release Date
+:class: info
+
+Unreleased
+:::
+
+### Remote
+
+* The gRPC code used by the etcd3 discovery provider has been regenerated from
+  the upstream etcd `.proto` files. Those files now live in the `proto` folder,
+  outside the `pelix` package, and are compiled by `proto/generate.sh`, which
+  runs [buf](https://buf.build/) in a container
+* The `pelix.rsa.providers.discovery.etcd3.etcdrpc` package has been replaced by
+  `pelix.rsa.providers.discovery.etcd3.rpc`. This is a breaking change for the
+  code importing the generated modules directly, which is not expected outside
+  of the provider itself
+* The generated code now requires a `protobuf` runtime 6.33.2 or newer
+
 ## iPOPO 3.2.2
 
 :::{admonition} Release Date
