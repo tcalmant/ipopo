@@ -1,0 +1,14 @@
+version: v1
+managed:
+  enabled: true
+plugins:
+  # gencode to generate protos for 6.x
+  - plugin: buf.build/protocolbuffers/python:v33.2
+    out: .
+  # gencode from first grpcio version that supports Python 14
+  - plugin: buf.build/grpc/python:v1.75.1
+    out: .
+  - name: mypy
+    out: .
+  - name: mypy_grpc
+    out: .
