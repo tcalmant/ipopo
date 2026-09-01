@@ -25,6 +25,9 @@ Two kinds of managed services exist:
    `chapter 104 <https://docs.osgi.org/specification/osgi.cmpn/8.1.0/service.cm.html>`_
    of the OSGi Compendium Services Specification.
 
+.. note:: iPOPO components can be created, configured and killed from
+   ConfigurationAdmin: see :ref:`ipopo_configadmin`.
+
 .. note:: This page is highly inspired from the
    `Configuration Admin tutorial <https://web.archive.org/web/20200229033154/http://felix.apache.org/documentation/subprojects/apache-felix-config-admin.html>`_
    from the `Apache Felix project <https://felix.apache.org/documentation/index.html>`_.

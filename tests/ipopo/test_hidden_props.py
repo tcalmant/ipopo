@@ -95,6 +95,37 @@ class HiddenPropTest(unittest.TestCase):
 
         self.assertNotIn("hidden.prop", details["properties"])
 
+    def test_hidden_reconfigure_dot_override(self):
+        """
+        Tests that a hidden property can be updated confidentially through
+        reconfigure() by prefixing its name with a dot, while its plain name
+        is still ignored
+        """
+        context = self.framework.get_bundle_context()
+
+        with use_ipopo(context) as ipopo:
+            svc = ipopo.instantiate(self.module.FACTORY_HIDDEN_PROPS, NAME_A)
+
+        self.assertEqual(svc.hidden, "hidden")
+
+        # A plain name is ignored
+        with use_ipopo(context) as ipopo:
+            ipopo.reconfigure(NAME_A, {"hidden.prop": "ignored"})
+
+        self.assertEqual(svc.hidden, "hidden")
+
+        # A dot-prefixed name updates the hidden property
+        with use_ipopo(context) as ipopo:
+            ipopo.reconfigure(NAME_A, {".hidden.prop": "rotated"})
+
+        self.assertEqual(svc.hidden, "rotated")
+
+        # ... and still doesn't become public
+        with use_ipopo(context) as ipopo:
+            details = ipopo.get_instance_details(NAME_A)
+
+        self.assertNotIn("hidden.prop", details["properties"])
+
 
 # ------------------------------------------------------------------------------
 

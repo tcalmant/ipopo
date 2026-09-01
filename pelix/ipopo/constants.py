@@ -26,7 +26,7 @@ Defines some iPOPO constants
 """
 
 import contextlib
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from typing import Any, Protocol, cast
 
 from pelix.constants import BundleException, Specification
@@ -78,6 +78,9 @@ HANDLER_PROVIDES = "ipopo.provides"
 
 HANDLER_PROPERTY = "ipopo.properties"
 """ The @Property handler ID """
+
+HANDLER_CONFIGADMIN = "ipopo.configadmin"
+""" The @RequiresConfiguration handler ID """
 
 # ------------------------------------------------------------------------------
 
@@ -181,6 +184,34 @@ updated
 
 # ------------------------------------------------------------------------------
 
+IPOPO_CONFIGADMIN_FACTORY_PID = "pelix.ipopo.component"
+"""
+Factory PID handled by the iPOPO ConfigurationAdmin bridge: each factory
+configuration created with this PID describes a component instance
+"""
+
+IPOPO_CONFIG_FACTORY_NAME = "ipopo.factory.name"
+""" Configuration property: name of the iPOPO factory to instantiate """
+
+IPOPO_CONFIG_UPDATE_POLICY = "ipopo.update.policy"
+"""
+Configuration property: how a component reacts to the update of its
+configuration, either ``reconfigure`` (default) or ``restart``
+"""
+
+UPDATE_POLICY_RECONFIGURE = "reconfigure"
+""" Update policy: the properties of the live component are updated in place """
+
+UPDATE_POLICY_RESTART = "restart"
+"""
+Update policy: the component created from a factory configuration is killed
+then instantiated again. A component using ``@RequiresConfiguration`` is only
+invalidated then validated again, so that its ``@Validate`` callback sees the
+new properties
+"""
+
+# ------------------------------------------------------------------------------
+
 
 class IPopoEvent:
     """
@@ -280,6 +311,22 @@ class IPopoService(Protocol):
         :raise ValueError: The given name or factory name is invalid, or an
                            instance with the given name already exists
         :raise Exception: Something wrong occurred in the factory
+        """
+        ...
+
+    def reconfigure(self, name: str, properties: dict[str, Any]) -> None:
+        """
+        Updates the properties of a running component. The given properties are
+        merged into the current ones: entries that are not given are left
+        unchanged. The name of the instance can't be modified. A property
+        declared with ``@HiddenProperty`` is ignored unless its name is given
+        prefixed with a dot (e.g. ``.password`` to update the property
+        declared as ``password``), in which case its value is updated without
+        ever becoming public.
+
+        :param name: Name of the component to reconfigure
+        :param properties: The properties to update
+        :raise ValueError: Invalid component name
         """
         ...
 
@@ -402,6 +449,19 @@ class IPopoService(Protocol):
         """
         ...
 
+    def get_instance_properties(self, name: str) -> dict[str, Any]:
+        """
+        Returns a copy of the properties of the given component instance, with
+        their real value: contrary to ``get_instance_details()``, the values
+        are not converted to their string representation. The properties
+        declared with ``@HiddenProperty`` are not returned.
+
+        :param name: The name of a component instance
+        :return: A dictionary: property name -> value
+        :raise ValueError: Invalid component name
+        """
+        ...
+
     def get_instance_details(self, name: str) -> dict[str, Any]:
         """
         Retrieves a snapshot of the given component instance.
@@ -460,6 +520,9 @@ class IPopoService(Protocol):
         * ``name``: The factory name
         * ``bundle``: The Bundle object of the bundle providing the factory
         * ``properties``: Copy of the components properties defined by the factory
+        * ``hidden_properties``: Copy of the declared default values of the
+          properties declared with ``@HiddenProperty`` (never their current,
+          possibly confidential, runtime value)
         * ``requirements``: List of the requirements defined by the factory
 
           * ``id``: Requirement ID (field where it is injected)
@@ -496,6 +559,29 @@ class IPopoWaitingList(Protocol):
         :param properties: Component properties
         :raise ValueError: Component name already reserved in the queue
         :raise Exception: Error instantiating the component
+        """
+        ...
+
+    def update(
+        self, component: str, properties: dict[str, Any], removed: Iterable[str] | None = None
+    ) -> None:
+        """
+        Updates the properties of a queued component. The given properties are
+        merged into the current ones: entries that are not given are left
+        unchanged. If the component is already instantiated, its properties are
+        updated in place.
+
+        The names given in ``removed`` are dropped from the queued properties,
+        so that the next instantiation of the component uses the value declared
+        by its factory. A value given for them in ``properties`` is still
+        applied to the running component, which lets the caller give back their
+        declared value right away.
+
+        :param component: A component name
+        :param properties: The properties to update
+        :param removed: Names of the properties to drop from the queue
+        :raise KeyError: Unknown component
+        :raise ValueError: The waiting list has no bundle context
         """
         ...
 

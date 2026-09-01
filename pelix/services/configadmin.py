@@ -25,7 +25,6 @@ ConfigurationAdmin implementation
     limitations under the License.
 
 TODO: Stabilize implementation of managed service factories
-FIXME: Add tests for the configuration of managed service factories
 """
 
 import json
@@ -278,6 +277,14 @@ class Configuration(services.Configuration):
         """
         return self.__updated and not self.__deleted
 
+    def is_deleted(self) -> bool:
+        """
+        Checks if this configuration has been deleted
+
+        :return: True if the deletion of this configuration has been started
+        """
+        return self.__deleted
+
     def __properties_update(self, properties: dict[str, Any] | None) -> bool:
         """
         Internal update of configuration properties. Does not notifies the
@@ -355,10 +362,23 @@ class Configuration(services.Configuration):
         :raise IOError: Error storing the configuration
         """
         with self.__lock:
+            if self.__deleted:
+                # The configuration has been deleted while the caller was
+                # working on it: don't store its properties again
+                return
+
             # Update properties
-            if self.__properties_update(properties):
-                # Update configurations, if something changed
+            changed = self.__properties_update(properties)
+
+        # Notify outside of the lock: it is synchronous and the callback can
+        # call back into this or another Configuration object
+        if changed:
+            try:
                 cast(ConfigurationAdmin, self.__config_admin)._update(self)
+            except ValueError:
+                # Deleted concurrently while we were about to notify:
+                # nothing left to update
+                pass
 
     def delete(self, directory_updated: bool = False) -> None:
         """
@@ -372,21 +392,43 @@ class Configuration(services.Configuration):
                 # Nothing to do
                 return
 
-            # Update status
+            updated = self.__updated
+            pid = self.__pid
+
+            error: Exception | None = None
+            try:
+                # Remove the file while still holding the lock and before
+                # flagging this configuration as deleted: as long as the file
+                # is there, a lookup must find this object, else it would
+                # reload the file and give back a duplicate configuration
+                self.__persistence.delete(pid)
+            except Exception as ex:  # noqa: BLE001
+                # The deletion goes on: the notification and the clean up below
+                # must happen anyway, else the services would keep working with
+                # a deleted configuration. The error is given back to the
+                # caller once everything else is done
+                error = ex
+
+            # Update status: this configuration is now hidden from its users
+            # and its PID can be taken by a new one
             self.__deleted = True
 
-            # Notify ConfigurationAdmin, notify services only if the
-            # configuration had been updated before
-            cast(ConfigurationAdmin, self.__config_admin)._delete(self, self.__updated, directory_updated)
+        # Notify ConfigurationAdmin outside of the lock: notification is
+        # synchronous and services only if the configuration had been
+        # updated before; the callback can call back into this or another
+        # Configuration object
+        cast(ConfigurationAdmin, self.__config_admin)._delete(self, updated, directory_updated)
 
-            # Remove the file
-            self.__persistence.delete(self.__pid)
-
+        with self.__lock:
             # Clean up
             if self.__properties:
                 self.__properties.clear()
 
             self.__pid = ""
+
+        if error is not None:
+            # Tell the caller that the persisted configuration is still there
+            raise error
 
     def matches(self, ldap_filter: ldapfilter.LdapFilterOrCriteria | None) -> bool:
         """
@@ -444,9 +486,25 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
 
         :param pid: PID of the configuration
         :return: The configuration with the given PID
-        :raise KeyError: Unknown PID
+        :raise KeyError: Unknown or deleted PID
         """
-        return self.__configurations[pid]
+        return self.__get_alive(pid)
+
+    def __get_alive(self, pid: str) -> Configuration:
+        """
+        Retrieves the configuration with the given PID, ignoring the ones which
+        are being deleted: their PID is still reserved, as their file is being
+        removed, but they are already gone for their users
+
+        :param pid: PID of the configuration
+        :return: The configuration with the given PID
+        :raise KeyError: Unknown or deleted PID
+        """
+        configuration = self.__configurations[pid]
+        if configuration.is_deleted():
+            raise KeyError(f"Deleted configuration: {pid}")
+
+        return configuration
 
     def get_factory_configurations(self, factory_pid: str) -> set[Configuration]:
         """
@@ -455,7 +513,8 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
         :param factory_pid: A factory PID
         :return: The set of matching configuration
         """
-        return set(self.__factories.get(factory_pid, []))
+        with self.__lock:
+            return set(self.__factories.get(factory_pid, []))
 
     def list_configurations(
         self, ldap_filter: None | str | ldapfilter.LdapFilterOrCriteria = None
@@ -468,7 +527,8 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
         :raise ValueError: Invalid LDAP filter
         """
         if not ldap_filter:
-            return set(self.__configurations.values())
+            # matches() already ignores the deleted configurations
+            return {config for config in self.__configurations.values() if not config.is_deleted()}
 
         # Using an LDAP filter
         ldap_filter = ldapfilter.get_ldap_filter(ldap_filter)
@@ -493,8 +553,9 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
         :raise ValueError: Invalid PID or persistence
         """
         with self.__lock:
-            if pid in self.__configurations:
-                raise KeyError("Already known configuration: {pid}")
+            known = self.__configurations.get(pid)
+            if known is not None and not known.is_deleted():
+                raise KeyError(f"Already known configuration: {pid}")
             elif not pid:
                 raise ValueError("Configuration with an empty PID")
             elif pid in self.__factories:
@@ -524,8 +585,13 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
         :raise IOError: Error writing down the configuration
         """
         with self.__lock:
-            # Update properties directly
-            self.__configurations[pid].update(properties)
+            # Look for the configuration (raises KeyError if unknown)
+            configuration = self.__get_alive(pid)
+
+        # Update outside of the lock: the managed services are notified in this
+        # thread and can call back into the directory, which uses a
+        # non-reentrant lock
+        configuration.update(properties)
 
     def delete(self, pid: str) -> None:
         """
@@ -536,23 +602,41 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
         :raise IOError: Error deleting the configuration file
         """
         with self.__lock:
-            # Remove from the configuration dictionary
-            config = self.__configurations.pop(pid)
+            # Look up the configuration (raises KeyError if unknown); do not
+            # remove it from the dictionary yet. A configuration which is
+            # already being deleted must be found here: this method is called
+            # back by Configuration.delete() itself
+            config = self.__configurations[pid]
 
-            # Remove from the factory PIDs set
-            factory_pid = config.get_factory_pid()
-            if factory_pid:
-                try:
-                    factory_configs = self.__factories[factory_pid]
-                    factory_configs.remove(config)
-                    if not factory_configs:
-                        del self.__factories[factory_pid]
-                except KeyError:
-                    # Wasn't a known factory configuration
-                    _logger.warning("Trying to delete configuration from unknown factory %s", factory_pid)
-
-            # Delete the configuration object
+        try:
+            # Delete the configuration object outside of the lock (see
+            # update()): notification is synchronous and can call back into the
+            # directory
             config.delete(True)
+        finally:
+            # Clean up even if the persistence service failed to remove the
+            # stored configuration: the configuration object is deleted anyway
+            with self.__lock:
+                # Now that teardown (including the persisted file removal) is
+                # complete, forget about this configuration. Removing it
+                # earlier would let a lookup treat the PID as "unknown to the
+                # directory but still persisted" and recreate a duplicate
+                # configuration. A new configuration can have taken this PID in
+                # the meantime: it must be kept
+                if self.__configurations.get(pid) is config:
+                    del self.__configurations[pid]
+
+                # Remove from the factory PIDs set
+                factory_pid = config.get_factory_pid()
+                if factory_pid:
+                    try:
+                        factory_configs = self.__factories[factory_pid]
+                        factory_configs.discard(config)
+                        if not factory_configs:
+                            del self.__factories[factory_pid]
+                    except KeyError:
+                        # Wasn't a known factory configuration
+                        _logger.warning("Trying to delete configuration from unknown factory %s", factory_pid)
 
 
 # ------------------------------------------------------------------------------
@@ -643,10 +727,13 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
 
             # Validation flag
             self.__validated = True
+            set_up = self._controller
 
-            # If the controller is on, set up the main service
-            if self._controller:
-                self.__set_up()
+        # If the controller is on, set up the main service. This is done
+        # outside the lock: the notification of the services is synchronous
+        # and can call back into ConfigurationAdmin
+        if set_up:
+            self.__set_up()
 
     @Invalidate
     def _invalidate(self, _: "BundleContext") -> None:
@@ -769,8 +856,6 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         """
         Updates the managed services for the given PIDs.
 
-        This method should be called inside a locked block.
-
         :param pids: List of PIDs of configurations to load & update
         """
         for pid in pids:
@@ -819,8 +904,10 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         :param pid: Service Persistent ID
         :param svc: Managed service
         """
-        configuration = self.get_configuration(pid)
-        if configuration.is_valid():
+        # Don't use get_configuration(): it would create an empty configuration
+        # for a service which has never been configured
+        configuration = self.__find_configuration(pid)
+        if configuration is not None and configuration.is_valid():
             # Valid configuration found, update the service
             assert self._pool is not None
             self._pool.enqueue(svc.updated, configuration.get_properties())
@@ -904,30 +991,28 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         :param configuration: The updated configuration
         """
         with self.__lock:
-            future = None
-            assert self._pool is not None
-
             # Get configuration data
             factory_pid = configuration.get_factory_pid()
             pid = configuration.get_pid()
             properties = configuration.get_properties()
 
+            factories: list[services.IManagedServiceFactory] = []
+            managed: list[services.IManagedService] = []
             if factory_pid:
                 # Get the associated factories
                 factories = self.__get_matching_factories(factory_pid)
-                if factories:
-                    # Call them from the pool
-                    future = self._pool.enqueue(self.__notify_factories, factories, pid, properties)
             else:
-                # Called corresponding managed services
-                managed = self.__get_matching_services(configuration.get_pid())
-                if managed:
-                    # Call them from the pool
-                    future = self._pool.enqueue(self.__notify_services, managed, properties)
+                # Get the corresponding managed services
+                managed = self.__get_matching_services(pid)
 
-        if future is not None:
-            # Wait for the end of the notification, outside the lock
-            future.result()
+        # Notify the services in the calling thread, outside the lock: giving
+        # the notification to the pool and waiting for its result would block
+        # forever if the caller holds a lock the notified service needs, e.g.
+        # the iPOPO instances registry
+        if factories:
+            self.__notify_factories(factories, pid, properties)
+        elif managed:
+            self.__notify_services(managed, properties)
 
     def _delete(self, configuration: Configuration, notify_services: bool, directory_updated: bool) -> None:
         """
@@ -940,9 +1025,6 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         :param directory_updated: If True, do not update the directory
         """
         with self.__lock:
-            future = None
-            assert self._pool is not None
-
             factory_pid = configuration.get_factory_pid()
             pid = configuration.get_pid()
 
@@ -950,23 +1032,22 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
             if not directory_updated:
                 self._directory.delete(pid)
 
+            factories: list[services.IManagedServiceFactory] = []
+            managed: list[services.IManagedService] = []
             if notify_services:
                 if factory_pid:
                     # Get the associated factories
                     factories = self.__get_matching_factories(factory_pid)
-                    if factories:
-                        # Call them from the pool
-                        future = self._pool.enqueue(self.__notify_factories_delete, factories, pid)
                 else:
-                    # Called corresponding managed services
+                    # Get the corresponding managed services
                     managed = self.__get_matching_services(pid)
-                    if managed:
-                        # Call them from the pool
-                        future = self._pool.enqueue(self.__notify_services, managed, None)
 
-        if future is not None:
-            # Wait for the end of the notification, outside the lock
-            future.result()
+        # Notify the services in the calling thread, outside the lock (see
+        # _update() for the reason)
+        if factories:
+            self.__notify_factories_delete(factories, pid)
+        elif managed:
+            self.__notify_services(managed, None)
 
     def create_factory_configuration(self, factory_pid: str) -> services.Configuration:
         """
@@ -996,12 +1077,13 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
             # Create the new factory configuration
             return self._directory.add(pid, None, self._persistences[0], factory_pid)
 
-    def get_configuration(self, pid: str) -> services.Configuration:
+    def __find_configuration(self, pid: str) -> services.Configuration | None:
         """
-        Get an existing Configuration object from the persistent store, or
-        create a new Configuration object.
+        Looks for an existing configuration, in the directory then in the
+        persistence services, without creating one
 
-        :param pid: PID of the factory
+        :param pid: PID of a configuration
+        :return: The configuration with that PID, None if there is none
         :raise IOError: File not found/readable
         """
         with self.__lock:
@@ -1014,18 +1096,30 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
 
             for persistence in self._persistences[:]:
                 if persistence.exists(pid):
-                    # Load first existing one
+                    # Load the first existing one
                     properties = persistence.load(pid)
-                    break
-            else:
-                # New configuration, with the best ranked persistence
-                properties = {}
-                persistence = self._persistences[0]
 
-            # Take care of stored factory PID
-            factory_pid = properties.get(services.CONFIG_PROP_FACTORY_PID)
+                    # Take care of stored factory PID
+                    factory_pid = properties.get(services.CONFIG_PROP_FACTORY_PID)
+                    return self._directory.add(pid, properties, persistence, factory_pid)
 
-            return self._directory.add(pid, properties, persistence, factory_pid)
+            return None
+
+    def get_configuration(self, pid: str) -> services.Configuration:
+        """
+        Get an existing Configuration object from the persistent store, or
+        create a new Configuration object.
+
+        :param pid: PID of the factory
+        :raise IOError: File not found/readable
+        """
+        with self.__lock:
+            configuration = self.__find_configuration(pid)
+            if configuration is not None:
+                return configuration
+
+            # New configuration, with the best ranked persistence
+            return self._directory.add(pid, {}, self._persistences[0])
 
     def list_configurations(
         self, ldap_filter: None | str | ldapfilter.LdapFilterOrCriteria = None
@@ -1287,8 +1381,13 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
                         # Update the configuration
                         self._directory.update(pid, properties)
                     except KeyError:
-                        # Configuration does not exist yet, create it
-                        self._directory.add(pid, properties, self)
+                        # Configuration does not exist yet: create it empty,
+                        # then update it, as the creation alone doesn't notify
+                        # the managed services. The factory PID must be given
+                        # at creation, else the configuration would never
+                        # reach the managed service factories
+                        factory_pid = properties.get(services.CONFIG_PROP_FACTORY_PID)
+                        self._directory.add(pid, None, self, factory_pid).update(properties)
                 except (OSError, KeyError, ValueError) as ex:
                     # Log other errors
                     _logger.error("Error updating %s: %s", pid, ex)

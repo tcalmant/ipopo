@@ -1,6 +1,6 @@
 # Release Notes
 
-## iPOPO 3.2.3
+## iPOPO 3.x.x
 
 :::{admonition} Release Date
 :class: info
@@ -19,6 +19,34 @@ Unreleased
   code importing the generated modules directly, which is not expected outside
   of the provider itself
 * The generated code now requires a `protobuf` runtime 6.33.2 or newer
+
+### iPOPO
+
+* Components can now be managed by ConfigurationAdmin, with the new
+  `pelix.ipopo.configadmin` bundle
+  ([#112](https://github.com/tcalmant/ipopo/issues/112)):
+* Added `IPopoService.reconfigure(name, properties)`, to update the properties
+  of a running component from the outside.
+* Added `IPopoWaitingList.update(component, properties, removed)`, to change the
+  properties of a component of the waiting list.
+* Added `IPopoService.get_instance_properties(name)`, which returns the
+  properties of a component with their real value, where
+  `get_instance_details(name)` converts them to their string representation
+* The iPOPO waiting list no longer holds its lock while instantiating, killing
+  or reconfiguring a component: the callbacks of a component can call back into
+  the waiting list from another thread
+
+### Services
+
+* Fixed a deadlock in FileInstall: the notification of a folder listener could
+  block the invalidation of the service
+* Fixed a deadlock in ConfigurationAdmin during the update and the deletion of
+  a configuration.
+
+### Tests
+
+* Added tests for the configuration of ConfigurationAdmin managed service
+  factories
 
 ## iPOPO 3.2.2
 

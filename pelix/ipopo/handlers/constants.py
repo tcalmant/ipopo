@@ -65,6 +65,12 @@ Represents the 'properties' kind of handler, which manipulates the component
 to notify property changes.
 """
 
+KIND_CONFIGURATION = "configuration"
+"""
+Represents the 'configuration' kind of handler, which feeds the component with
+the properties of a ConfigurationAdmin configuration.
+"""
+
 KIND_DEPENDENCY = "dependency"
 """
 Represents the 'dependency' kind of handler.

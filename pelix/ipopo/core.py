@@ -725,6 +725,27 @@ class _IPopoService(IPopoService):
 
         return instance
 
+    def reconfigure(self, name: str, properties: dict[str, Any]) -> None:
+        """
+        Updates the properties of a running component. The given properties are
+        merged into the current ones: entries that are not given are left
+        unchanged. The name of the instance and the hidden properties can't be
+        modified.
+
+        :param name: Name of the component to reconfigure
+        :param properties: The properties to update
+        :raise ValueError: Invalid component name
+        """
+        with self.__instances_lock:
+            try:
+                stored_instance = self.__instances[name]
+            except KeyError:
+                raise ValueError(f"Unknown component instance '{name}'")
+
+        # Reconfigure outside of the registry lock: the callbacks it triggers
+        # can call back into the iPOPO service, which would take that lock
+        stored_instance.reconfigure(properties)
+
     def retry_erroneous(self, name: str, properties_update: dict[str, Any] | None = None) -> int:
         """
         Removes the ERRONEOUS state of the given component, and retries a validation
@@ -958,6 +979,34 @@ class _IPopoService(IPopoService):
             result.sort()
             return result
 
+    def get_instance_properties(self, name: str) -> dict[str, Any]:
+        """
+        Returns a copy of the properties of the given component instance, with
+        their real value: contrary to ``get_instance_details()``, the values
+        are not converted to their string representation. The hidden
+        properties are not returned.
+
+        :param name: The name of a component instance
+        :return: A dictionary: property name -> value
+        :raise ValueError: Invalid component name
+        """
+        if not is_string(name):
+            raise ValueError("Component name must be a string")
+
+        with self.__instances_lock:
+            try:
+                stored_instance = self.__instances[name]
+            except KeyError:
+                raise ValueError(f"Unknown component: {name}")
+
+            with stored_instance._lock:
+                context = stored_instance.context
+                if context is None:
+                    # Component has been killed
+                    raise ValueError(f"Unknown component: {name}")
+
+                return context.properties.copy()
+
     def get_instance_details(self, name: str) -> dict[str, Any]:
         """
         Retrieves a snapshot of the given component instance.
@@ -1090,6 +1139,9 @@ class _IPopoService(IPopoService):
         * ``name``: The factory name
         * ``bundle``: The Bundle object of the bundle providing the factory
         * ``properties``: Copy of the components properties defined by the factory
+        * ``hidden_properties``: Copy of the declared default values of the
+          properties declared with ``@HiddenProperty`` (never their current,
+          possibly confidential, runtime value)
         * ``requirements``: List of the requirements defined by the factory
 
           * ``id``: Requirement ID (field where it is injected)
@@ -1130,6 +1182,11 @@ class _IPopoService(IPopoService):
                 prop_name: context.properties.get(prop_name)
                 for prop_name in context.properties_fields.values()
             }
+
+            # Declared default values of the properties declared with
+            # @HiddenProperty (never their current, possibly confidential,
+            # runtime value)
+            result["hidden_properties"] = dict(context.hidden_properties)
 
             # Requirements (list of dictionaries)
             handler_requires = cast(

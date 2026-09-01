@@ -147,6 +147,13 @@ CONFIG_PROP_FACTORY_PID = "service.factoryPid"
 CONFIG_PROP_BUNDLE_LOCATION = "service.bundleLocation"
 """ Configuration property: bound location (not used yet) """
 
+CONFIG_ADMIN_PROPERTIES = frozenset((CONFIG_PROP_PID, CONFIG_PROP_FACTORY_PID, CONFIG_PROP_BUNDLE_LOCATION))
+"""
+Entries which describe a configuration itself: ConfigurationAdmin adds them to
+the properties it gives to managed services, they don't come from the
+administrator
+"""
+
 
 class Configuration(Protocol):
     """
