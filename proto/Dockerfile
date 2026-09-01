@@ -4,6 +4,6 @@ RUN apk add --update --no-cache \
     python3 \
     py3-pip \
     && \
-  rm -rf /var/cache/apk/* && pip3 install --break-system-packages mypy-protobuf
+  rm -rf /var/cache/apk/* && pip3 install --break-system-packages mypy-protobuf==5.1.0
 
 ENTRYPOINT ["/usr/local/bin/buf"]
