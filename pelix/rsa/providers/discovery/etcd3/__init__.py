@@ -247,7 +247,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
 
     async def _get_key_value(self, key: str) -> str:
         await self._connected_event.wait()
-        resp = await rpc_pb2_grpc.KVStub(self._channel).Range(rpc_pb2.RangeRequest(key=to_bytes(key)))
+        resp = await rpc_pb2_grpc.KVStub(self._get_channel()).Range(rpc_pb2.RangeRequest(key=to_bytes(key)))
         if resp.kvs and len(resp.kvs) > 0:
             return str(resp.kvs.pop().value, self._encoding)
         raise KeyError(f"No value found for key={key}")
@@ -423,9 +423,24 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         )
 
     async def _putKV(self, key, value) -> rpc_pb2.PutResponse:
-        return await rpc_pb2_grpc.KVStub(self._channel).Put(
+        if self._lease_id is None:
+            raise ValueError("No lease has been granted: the provider is not connected")
+
+        return await rpc_pb2_grpc.KVStub(self._get_channel()).Put(
             rpc_pb2.PutRequest(key=to_bytes(key), value=to_bytes(value), lease=self._lease_id)
         )
+
+    def _get_channel(self) -> grpc.aio.Channel:
+        """
+        Returns the gRPC channel, set up during the connection
+
+        :return: The gRPC channel
+        :raise ValueError: The provider is not connected
+        """
+        if self._channel is None:
+            raise ValueError("No gRPC channel: the provider is not connected")
+
+        return self._channel
 
     def _create_async_channel(self) -> grpc.aio.Channel:
         target = f"{self._hostname}:{self._port}"
@@ -437,7 +452,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
             return grpc.aio.insecure_channel(target, self._grpc_options, self._grpc_compression)
 
     async def _request_lease(self) -> None:
-        resp = await rpc_pb2_grpc.LeaseStub(self._channel).LeaseGrant(
+        resp = await rpc_pb2_grpc.LeaseStub(self._get_channel()).LeaseGrant(
             rpc_pb2.LeaseGrantRequest(TTL=self._lease_ttl)
         )
         if resp.error:
@@ -459,7 +474,9 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
                     else:
                         return
 
-            async for resp in rpc_pb2_grpc.LeaseStub(self._channel).LeaseKeepAlive(generate_ka_request()):
+            async for resp in rpc_pb2_grpc.LeaseStub(self._get_channel()).LeaseKeepAlive(
+                generate_ka_request()
+            ):
                 if resp.ID == self._lease_id and resp.TTL:
                     self._lease_ttl = resp.TTL
 
@@ -482,7 +499,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         kp = self._get_key_prefix()
         kp_bytes = to_bytes(kp)
         kp_range_end_bytes = to_bytes(f"{kp}\\0")
-        range_resp = await rpc_pb2_grpc.KVStub(self._channel).Range(
+        range_resp = await rpc_pb2_grpc.KVStub(self._get_channel()).Range(
             rpc_pb2.RangeRequest(key=kp_bytes, range_end=kp_range_end_bytes)
         )
         for kv in range_resp.kvs:
@@ -491,7 +508,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         await self._putKV(self._get_session_key(), self._session_id)
 
         try:
-            async for watch_response in rpc_pb2_grpc.WatchStub(self._channel).Watch(
+            async for watch_response in rpc_pb2_grpc.WatchStub(self._get_channel()).Watch(
                 self._generate_watch_request(
                     rpc_pb2.WatchCreateRequest(key=kp_bytes, range_end=kp_range_end_bytes), None
                 )
@@ -520,7 +537,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
 
     async def _delete_range(self, key: str) -> rpc_pb2.DeleteRangeResponse:
         await self._connected_event.wait()
-        return await rpc_pb2_grpc.KVStub(self._channel).DeleteRange(
+        return await rpc_pb2_grpc.KVStub(self._get_channel()).DeleteRange(
             rpc_pb2.DeleteRangeRequest(key=to_bytes(key), range_end=to_bytes(f"{key}\\0"))
         )
 
@@ -537,7 +554,7 @@ class Etcd3EndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
 
             await self._delete_range(self._get_session_path())
             _logger.debug(f"session_id={self._session_id} range deleted")
-            await rpc_pb2_grpc.LeaseStub(self._channel).LeaseRevoke(
+            await rpc_pb2_grpc.LeaseStub(self._get_channel()).LeaseRevoke(
                 rpc_pb2.LeaseRevokeRequest(ID=self._lease_id)
             )
             _logger.debug(f"session_id={self._session_id} lease_id={self._lease_id} revoked")
