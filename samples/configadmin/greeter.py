@@ -1,0 +1,105 @@
+#!/usr/bin/env python
+# -- Content-Encoding: UTF-8 --
+"""
+Components managed by ConfigurationAdmin
+
+:author: Thomas Calmant
+:copyright: Copyright 2026, Thomas Calmant
+:license: Apache License 2.0
+:version: 1.0.0
+
+..
+
+    Copyright 2026 Thomas Calmant
+
+    Licensed under the Apache License, Version 2.0 (the "License");
+    you may not use this file except in compliance with the License.
+    You may obtain a copy of the License at
+
+        https://www.apache.org/licenses/LICENSE-2.0
+
+    Unless required by applicable law or agreed to in writing, software
+    distributed under the License is distributed on an "AS IS" BASIS,
+    WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+    See the License for the specific language governing permissions and
+    limitations under the License.
+"""
+
+import logging
+
+from pelix.framework import BundleContext
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    Instantiate,
+    Invalidate,
+    Property,
+    RequiresConfiguration,
+    Validate,
+)
+
+# ------------------------------------------------------------------------------
+
+# Module version
+__version_info__ = (1, 0, 0)
+__version__ = ".".join(str(x) for x in __version_info__)
+
+# Documentation strings format
+__docformat__ = "restructuredtext en"
+
+# ------------------------------------------------------------------------------
+
+FACTORY_GREETER = "sample-greeter-factory"
+""" Name of the factory instantiated from ConfigurationAdmin """
+
+PID_BANNER = "sample.banner"
+""" PID of the configuration of the banner component """
+
+_logger = logging.getLogger(__name__)
+
+# ------------------------------------------------------------------------------
+
+
+@ComponentFactory(FACTORY_GREETER)
+@Property("_name", "name", "world")
+@Property("_language", "language", "en")
+class Greeter:
+    """
+    Component instantiated by ConfigurationAdmin: each factory configuration
+    of the "pelix.ipopo.component" PID naming this factory creates one of them
+    """
+
+    _name: str
+    _language: str
+
+    @Validate
+    def validate(self, _: BundleContext) -> None:
+        """
+        Component validated
+        """
+        _logger.info("%s, %s!", "Bonjour" if self._language == "fr" else "Hello", self._name)
+
+    @Invalidate
+    def invalidate(self, _: BundleContext) -> None:
+        """
+        Component invalidated
+        """
+        _logger.info("Goodbye, %s!", self._name)
+
+
+@ComponentFactory("sample-banner-factory")
+@Property("_text", "text", "<no banner>")
+@RequiresConfiguration(PID_BANNER)
+@Instantiate("sample-banner")
+class Banner:
+    """
+    Component which waits for its configuration before being validated
+    """
+
+    _text: str
+
+    @Validate
+    def validate(self, _: BundleContext) -> None:
+        """
+        Component validated
+        """
+        _logger.info("Banner: %s", self._text)

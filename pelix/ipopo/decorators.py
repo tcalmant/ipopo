@@ -741,6 +741,13 @@ class HiddenProperty(Property):
     This decorator has the same handler, accepts the same parameters and
     follows the same rules as the :class:`Property` decorator.
 
+    A hidden property can't be updated through a call to
+    :meth:`~pelix.ipopo.constants.IPopoService.reconfigure` or through
+    ConfigurationAdmin using its declared name: a matching entry is ignored.
+    It can still be updated confidentially by prefixing its name with a dot,
+    e.g. ``.some.password`` to update the property declared as
+    ``some.password``: the new value is applied but never becomes public.
+
     :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_PROPERTY`
 
     :Example:
@@ -1528,6 +1535,101 @@ class Temporal(Requires):
         if not context.completed:
             config = context.set_handler_default(self.HANDLER_ID, {})
             config[self._field] = (self._requirement, self._timeout)
+        return clazz
+
+
+# ------------------------------------------------------------------------------
+
+
+class RequiresConfiguration:
+    """
+    The ``@RequiresConfiguration`` decorator binds the component to a
+    ConfigurationAdmin configuration: the properties of that configuration are
+    injected into the component properties, and, unless the requirement is
+    optional, the component stays invalid as long as no valid configuration is
+    available.
+
+    It requires the ``pelix.ipopo.handlers.configadmin`` bundle to be installed,
+    else the components of the decorated factory stay in the waiting list.
+
+    :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_CONFIGADMIN`
+
+    :Example:
+
+      .. code-block:: python
+
+          @ComponentFactory()
+          @Property("_name", "name", "world")
+          @RequiresConfiguration("sample.hello")
+          @Instantiate("hello")
+          class Bar:
+              # This component is validated only once the "sample.hello"
+              # configuration exists. Its entries are then injected in the
+              # component properties, i.e. "name" here.
+              pass
+    """
+
+    HANDLER_ID = constants.HANDLER_CONFIGADMIN
+    """ ID of the handler configured by this decorator """
+
+    def __init__(
+        self,
+        pid: str | None = None,
+        optional: bool = False,
+        update_policy: str = constants.UPDATE_POLICY_RECONFIGURE,
+    ) -> None:
+        """
+        :param pid: PID of the configuration to use. If None, the value of the
+                    ``service.pid`` property of the component is used
+        :param optional: If True, the component is validated even if no
+                         configuration is available
+        :param update_policy: Either ``reconfigure`` (default), to update the
+                              properties of the live component, or ``restart``,
+                              to invalidate it before applying them, so that
+                              its ``@Validate`` callback is called again
+        :raise TypeError: A parameter has an invalid type
+        :raise ValueError: An argument is incorrect
+        """
+        if pid is not None:
+            if not is_string(pid):
+                raise TypeError("Configuration PID must be a string")
+
+            pid = pid.strip()
+            if not pid:
+                raise ValueError("Configuration PID can't be empty")
+
+        if update_policy not in (
+            constants.UPDATE_POLICY_RECONFIGURE,
+            constants.UPDATE_POLICY_RESTART,
+        ):
+            raise ValueError(f"Unknown update policy: {update_policy}")
+
+        self.__pid = pid
+        self.__optional = bool(optional)
+        self.__update_policy = update_policy
+
+    def __call__(self, clazz: type[T]) -> type[T]:
+        """
+        Stores the configuration requirement in the factory context
+
+        :param clazz: The class to decorate
+        :return: The decorated class
+        :raise TypeError: If *clazz* is not a type
+        """
+        if not inspect.isclass(clazz):
+            raise TypeError(f"@RequiresConfiguration can decorate only classes, not '{type(clazz).__name__}'")
+
+        context = get_factory_context(clazz)
+        if not context.completed:
+            context.set_handler(
+                self.HANDLER_ID,
+                {
+                    "pid": self.__pid,
+                    "optional": self.__optional,
+                    "update_policy": self.__update_policy,
+                },
+            )
+
         return clazz
 
 

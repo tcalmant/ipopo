@@ -10,18 +10,25 @@ import json
 import os
 import shutil
 import tempfile
+import threading
 import time
 import unittest
+from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, cast
 
 import pelix.framework
-from pelix import services
+from pelix import constants, services
 from pelix.internals.registry import ServiceReference
-from pelix.services.configadmin import JsonPersistence
+from pelix.services.configadmin import (
+    ConfigurationDirectory,
+    IConfigurationAdminDirectory,
+    JsonPersistence,
+)
 from pelix.utilities import use_service
 
 if TYPE_CHECKING:
     from .configadmin_bundle import Configurable
+    from .configadmin_factory_bundle import ConfigurableFactory
 
 # ------------------------------------------------------------------------------
 
@@ -364,6 +371,22 @@ class ManagedServiceTest(unittest.TestCase):
             self.assertIsNone(svc.value, "Value has been set")
             self.assertFalse(svc.deleted, "Configuration considered as deleted")
 
+    def testNoPhantomConfiguration(self) -> None:
+        """
+        Registering a managed service for a PID which has no configuration
+        must not create one
+        """
+        self.assertFalse(list(self.config.list_configurations()))
+
+        # Start the test bundle: it registers a managed service
+        self.bundle.start()
+        self.pause()
+
+        self.assertFalse(
+            [config.get_pid() for config in self.config.list_configurations()],
+            "A configuration has been created out of thin air",
+        )
+
     def testEarlyConfig(self) -> None:
         """
         Tests the behaviour if a configuration is already set when the managed
@@ -477,6 +500,665 @@ class ManagedServiceTest(unittest.TestCase):
             # The flag must have been set
             self.check_call_count(svc, 1)
             self.assertTrue(svc.deleted, "Configuration considered as deleted")
+
+
+# ------------------------------------------------------------------------------
+
+
+class ManagedServiceFactoryTest(unittest.TestCase):
+    """
+    Tests the behavior of managed service factories
+    """
+
+    framework: pelix.framework.Framework
+    config_ref: ServiceReference[services.IConfigurationAdmin] | None
+    config: services.IConfigurationAdmin
+
+    def setUp(self) -> None:
+        """
+        Sets up the test
+        """
+        self.framework = pelix.framework.create_framework(
+            ("pelix.ipopo.core", "pelix.services.configadmin"), {"configuration.folder": conf_folder}
+        )
+        self.addCleanup(self.framework.delete, True)
+        self.framework.start()
+        context = self.framework.get_bundle_context()
+
+        # Get the ConfigAdmin service
+        self.config_ref = context.get_service_reference(services.IConfigurationAdmin)
+        assert self.config_ref is not None
+        self.config = context.get_service(self.config_ref)
+
+        # Install the test bundle (don't start it)
+        self.bundle = context.install_bundle("tests.services.configadmin_factory_bundle")
+        self.factory_pid = self.bundle.get_module().FACTORY_PID
+
+        # Remove existing configurations
+        for config in self.config.list_configurations():
+            config.delete()
+
+    def tearDown(self) -> None:
+        """
+        Cleans up for next test
+        """
+        # Remove existing configurations
+        for config in self.config.list_configurations():
+            config.delete()
+
+        # Release the service
+        if self.config_ref is not None:
+            self.framework.get_bundle_context().unget_service(self.config_ref)
+            self.config_ref = None
+
+        pelix.framework.FrameworkFactory.delete_framework()
+        self.config = None  # type: ignore
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """
+        Cleans up after all tests have been executed
+        """
+        shutil.rmtree(conf_folder, ignore_errors=True)
+
+    def get_ref(self) -> ServiceReference[services.IManagedServiceFactory]:
+        """
+        Retrieves the reference to the managed service factory provided by the
+        test bundle
+        """
+        return self.bundle.get_registered_services()[0]
+
+    def pause(self) -> None:
+        """
+        Small pause to let the task pool notify the services
+        """
+        time.sleep(0.2)
+
+    def testFactoryConfigurations(self) -> None:
+        """
+        The factory must be notified of the configurations created before and
+        after its registration
+        """
+        # Configuration created before the factory is registered
+        early = self.config.create_factory_configuration(self.factory_pid)
+        early.update({"config.value": 21})
+
+        self.bundle.start()
+        self.pause()
+
+        with use_service(self.framework.get_bundle_context(), self.get_ref()) as svc:
+            svc = cast("ConfigurableFactory", svc)
+
+            self.assertEqual(list(svc.configurations), [early.get_pid()])
+            self.assertEqual(svc.configurations[early.get_pid()]["config.value"], 21)
+
+            # The automatic properties must be there
+            self.assertEqual(
+                svc.configurations[early.get_pid()][services.CONFIG_PROP_FACTORY_PID],
+                self.factory_pid,
+            )
+            self.assertEqual(svc.configurations[early.get_pid()][services.CONFIG_PROP_PID], early.get_pid())
+
+            # Configuration created after the factory is registered
+            late = self.config.create_factory_configuration(self.factory_pid)
+            late.update({"config.value": 42})
+            self.pause()
+
+            self.assertEqual(len(svc.configurations), 2)
+            self.assertEqual(svc.configurations[late.get_pid()]["config.value"], 42)
+
+            # Update of an existing configuration
+            svc.reset()
+            late.update({"config.value": 43})
+            self.pause()
+
+            self.assertEqual(svc.call_count, 1)
+            self.assertEqual(svc.configurations[late.get_pid()]["config.value"], 43)
+
+            # Deletion
+            svc.reset()
+            late_pid = late.get_pid()
+            late.delete()
+            self.pause()
+
+            self.assertEqual(svc.deleted_pids, [late_pid])
+            self.assertNotIn(late_pid, svc.configurations)
+
+    def testNoUpdateBeforeProperties(self) -> None:
+        """
+        A configuration which has never been updated must not be notified
+        """
+        self.config.create_factory_configuration(self.factory_pid)
+
+        self.bundle.start()
+        self.pause()
+
+        with use_service(self.framework.get_bundle_context(), self.get_ref()) as svc:
+            svc = cast("ConfigurableFactory", svc)
+            self.assertEqual(svc.configurations, {})
+            self.assertEqual(svc.call_count, 0)
+
+
+# ------------------------------------------------------------------------------
+
+
+class _ReentrantService(services.IManagedService):
+    """
+    Managed service which calls back into ConfigurationAdmin from its
+    notification
+    """
+
+    def __init__(self, config_admin: services.IConfigurationAdmin) -> None:
+        """
+        :param config_admin: The ConfigurationAdmin service
+        """
+        self.__config_admin = config_admin
+        self.__thread: threading.Thread | None = None
+
+        self.call_count = 0
+
+        # True if the last notification let another thread use the directory
+        self.directory_free = False
+
+    def __create_configuration(self) -> None:
+        """
+        Makes a call which needs the configurations directory
+        """
+        self.__config_admin.create_factory_configuration("test.reentrant.factory")
+
+    def updated(self, properties: dict[str, Any] | None) -> None:
+        """
+        Called by the ConfigurationAdmin service
+        """
+        self.call_count += 1
+
+        # Call back into ConfigurationAdmin from another thread: a direct call
+        # would deadlock if the directory is locked, whereas this one is only
+        # delayed until this notification returns
+        self.__thread = threading.Thread(target=self.__create_configuration, daemon=True)
+        self.__thread.start()
+        self.__thread.join(5)
+        self.directory_free = not self.__thread.is_alive()
+
+    def reset(self) -> bool:
+        """
+        Waits for the end of the call back of the last notification and resets
+        the flags
+
+        :return: True if the call back is over
+        """
+        thread, self.__thread = self.__thread, None
+        if thread is not None:
+            thread.join(10)
+            if thread.is_alive():
+                return False
+
+        self.call_count = 0
+        self.directory_free = False
+        return True
+
+
+class ConfigurationDirectoryTest(unittest.TestCase):
+    """
+    Tests the locking of the configurations directory
+    """
+
+    PID = "test.reentrant"
+
+    def setUp(self) -> None:
+        """
+        Sets up the test
+        """
+        self.framework = pelix.framework.create_framework(
+            ("pelix.ipopo.core", "pelix.services.configadmin"), {"configuration.folder": conf_folder}
+        )
+        self.addCleanup(self.framework.delete, True)
+        self.framework.start()
+        self.context = self.framework.get_bundle_context()
+
+        config_ref = self.context.get_service_reference(services.IConfigurationAdmin)
+        assert config_ref is not None
+        self.config = self.context.get_service(config_ref)
+
+        directory_ref = self.context.get_service_reference(IConfigurationAdminDirectory)
+        assert directory_ref is not None
+        self.directory = self.context.get_service(directory_ref)
+
+        # Register the service before the configuration is valid: it is not
+        # notified yet
+        self.service = _ReentrantService(self.config)
+        configuration = self.config.get_configuration(self.PID)
+        self.context.register_service(
+            services.IManagedService, self.service, {constants.SERVICE_PID: self.PID}
+        )
+
+        # Make the configuration valid. Nothing holds the directory lock here,
+        # so this first notification always goes through
+        configuration.update({"answer": 0})
+        self.assertTrue(self.service.reset(), "Notification of the first update didn't return")
+
+    def tearDown(self) -> None:
+        """
+        Cleans up for next test
+        """
+        self.service.reset()
+        pelix.framework.FrameworkFactory.delete_framework()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """
+        Cleans up after all tests have been executed
+        """
+        shutil.rmtree(conf_folder, ignore_errors=True)
+
+    def testUpdateNotifiesOutsideOfTheLock(self) -> None:
+        """
+        A managed service notified of an update must be able to call back into
+        ConfigurationAdmin
+        """
+        self.directory.update(self.PID, {"answer": 42})
+
+        self.assertEqual(self.service.call_count, 1)
+        self.assertTrue(self.service.directory_free, "Directory locked while notifying an update")
+
+    def testDeleteNotifiesOutsideOfTheLock(self) -> None:
+        """
+        A managed service notified of a deletion must be able to call back into
+        ConfigurationAdmin
+        """
+        self.directory.delete(self.PID)
+
+        self.assertEqual(self.service.call_count, 1)
+        self.assertTrue(self.service.directory_free, "Directory locked while notifying a deletion")
+
+
+# ------------------------------------------------------------------------------
+
+
+class _WatchingService(services.IManagedService):
+    """
+    Managed service which looks at ConfigurationAdmin while it is notified of
+    the deletion of its configuration
+    """
+
+    def __init__(
+        self,
+        config_admin: services.IConfigurationAdmin,
+        directory: IConfigurationAdminDirectory,
+        pid: str,
+    ) -> None:
+        """
+        :param config_admin: The ConfigurationAdmin service
+        :param directory: The configurations directory
+        :param pid: PID of the followed configuration
+        """
+        self.__config_admin = config_admin
+        self.__directory = directory
+        self.__pid = pid
+
+        # Number of notified deletions
+        self.deletions = 0
+
+        # What ConfigurationAdmin showed during the deletion
+        self.listed_pids: set[str] = set()
+        self.directory_lookup: services.Configuration | None = None
+        self.replacement: services.Configuration | None = None
+
+    def updated(self, properties: dict[str, Any] | None) -> None:
+        """
+        Called by the ConfigurationAdmin service
+        """
+        if properties is not None:
+            return
+
+        self.deletions += 1
+        self.listed_pids = {config.get_pid() for config in self.__config_admin.list_configurations()}
+
+        try:
+            self.directory_lookup = self.__directory.get_configuration(self.__pid)
+        except KeyError:
+            self.directory_lookup = None
+
+        # A new configuration must be usable for this PID right away
+        self.replacement = self.__config_admin.get_configuration(self.__pid)
+
+
+class DeletedConfigurationTest(unittest.TestCase):
+    """
+    Tests the visibility of a configuration which is being deleted
+    """
+
+    PID = "test.deleted"
+
+    def setUp(self) -> None:
+        """
+        Sets up the test
+        """
+        self.framework = pelix.framework.create_framework(
+            ("pelix.ipopo.core", "pelix.services.configadmin"), {"configuration.folder": conf_folder}
+        )
+        self.addCleanup(self.framework.delete, True)
+        self.framework.start()
+        self.context = self.framework.get_bundle_context()
+
+        config_ref = self.context.get_service_reference(services.IConfigurationAdmin)
+        assert config_ref is not None
+        self.config = self.context.get_service(config_ref)
+
+        directory_ref = self.context.get_service_reference(IConfigurationAdminDirectory)
+        assert directory_ref is not None
+        self.directory = self.context.get_service(directory_ref)
+
+        self.service = _WatchingService(self.config, self.directory, self.PID)
+        self.context.register_service(
+            services.IManagedService, self.service, {constants.SERVICE_PID: self.PID}
+        )
+
+        # Make the configuration valid, so that its deletion is notified
+        self.config.get_configuration(self.PID).update({"answer": 42})
+
+    def tearDown(self) -> None:
+        """
+        Cleans up for next test
+        """
+        pelix.framework.FrameworkFactory.delete_framework()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """
+        Cleans up after all tests have been executed
+        """
+        shutil.rmtree(conf_folder, ignore_errors=True)
+
+    def testDeletedConfigurationIsHidden(self) -> None:
+        """
+        A configuration which is being deleted must not be given back by
+        ConfigurationAdmin, and its PID must be usable again right away
+        """
+        self.directory.delete(self.PID)
+        self.assertEqual(self.service.deletions, 1)
+
+        # The dying configuration was already gone for its users
+        self.assertNotIn(self.PID, self.service.listed_pids)
+        self.assertIsNone(self.service.directory_lookup)
+
+        # The configuration created in the meantime must have survived the end
+        # of the deletion
+        replacement = self.service.replacement
+        assert replacement is not None
+        self.assertIsNone(replacement.get_properties())
+        self.assertIs(self.directory.get_configuration(self.PID), replacement)
+
+
+class _MemoryPersistence(services.IConfigurationAdminPersistence):
+    """
+    Persistence service which keeps the configurations in memory
+    """
+
+    def __init__(self) -> None:
+        """
+        Sets up members
+        """
+        self.storage: dict[str, dict[str, Any]] = {}
+
+    def get_pids(self) -> Iterable[str]:
+        """
+        Returns the PIDs of the stored configurations
+        """
+        return list(self.storage)
+
+    def exists(self, pid: str) -> bool:
+        """
+        Checks if a configuration is stored
+        """
+        return pid in self.storage
+
+    def load(self, pid: str) -> dict[str, Any]:
+        """
+        Loads a stored configuration
+        """
+        return self.storage[pid].copy()
+
+    def store(self, pid: str, properties: dict[str, Any]) -> None:
+        """
+        Stores a configuration
+        """
+        self.storage[pid] = properties.copy()
+
+    def delete(self, pid: str) -> bool:
+        """
+        Forgets a stored configuration
+        """
+        return self.storage.pop(pid, None) is not None
+
+
+class _FailingPersistence(_MemoryPersistence):
+    """
+    Persistence service which refuses to delete its configurations
+    """
+
+    def delete(self, pid: str) -> bool:
+        """
+        Always fails to delete the configuration
+        """
+        raise OSError(f"Can't delete {pid}")
+
+
+class _LookupPersistence(_MemoryPersistence):
+    """
+    Persistence service which looks for the configuration it is deleting: at
+    that point, the configuration is still stored
+    """
+
+    def __init__(self) -> None:
+        """
+        Sets up members
+        """
+        super().__init__()
+
+        # The ConfigurationAdmin service, given by the test
+        self.config_admin: services.IConfigurationAdmin | None = None
+
+        # What ConfigurationAdmin gave back during the deletion
+        self.lookup: services.Configuration | None = None
+
+    def delete(self, pid: str) -> bool:
+        """
+        Looks for the configuration, then forgets it
+        """
+        if self.config_admin is not None and self.lookup is None:
+            # Look only once: the lookup itself can start a deletion
+            self.lookup = self.config_admin.get_configuration(pid)
+
+        return super().delete(pid)
+
+
+class _DeletionCounter(services.IManagedService):
+    """
+    Managed service which counts the deletions of its configuration
+    """
+
+    def __init__(self) -> None:
+        """
+        Sets up members
+        """
+        self.deletions = 0
+
+    def updated(self, properties: dict[str, Any] | None) -> None:
+        """
+        Called by the ConfigurationAdmin service
+        """
+        if properties is None:
+            self.deletions += 1
+
+
+class PersistenceErrorTest(unittest.TestCase):
+    """
+    Tests the deletion of a configuration when the persistence service fails
+    """
+
+    PID = "test.persistence.error"
+
+    def setUp(self) -> None:
+        """
+        Sets up the test
+        """
+        self.framework = pelix.framework.create_framework(
+            ("pelix.ipopo.core",), {"configuration.folder": conf_folder}
+        )
+        self.addCleanup(self.framework.delete, True)
+        self.framework.start()
+        self.context = self.framework.get_bundle_context()
+
+        # Register the services before ConfigurationAdmin is started: the best
+        # ranked persistence is the one used for the new configurations
+        self.persistence = _FailingPersistence()
+        self.context.register_service(
+            services.IConfigurationAdminPersistence,
+            self.persistence,
+            {constants.SERVICE_RANKING: 1000},
+        )
+
+        self.service = _DeletionCounter()
+        self.context.register_service(
+            services.IManagedService, self.service, {constants.SERVICE_PID: self.PID}
+        )
+
+        self.context.install_bundle("pelix.services.configadmin").start()
+
+        config_ref = self.context.get_service_reference(services.IConfigurationAdmin)
+        assert config_ref is not None
+        self.config = self.context.get_service(config_ref)
+
+        directory_ref = self.context.get_service_reference(IConfigurationAdminDirectory)
+        assert directory_ref is not None
+        self.directory = self.context.get_service(directory_ref)
+
+    def tearDown(self) -> None:
+        """
+        Cleans up for next test
+        """
+        pelix.framework.FrameworkFactory.delete_framework()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """
+        Cleans up after all tests have been executed
+        """
+        shutil.rmtree(conf_folder, ignore_errors=True)
+
+    def testDeletionErrorStillNotifies(self) -> None:
+        """
+        A persistence error must be given back to the caller, but must not stop
+        the deletion of the configuration
+        """
+        configuration = self.config.get_configuration(self.PID)
+        configuration.update({"answer": 42})
+        self.assertIn(self.PID, self.persistence.storage, "The test persistence wasn't used")
+
+        self.assertRaises(OSError, configuration.delete)
+
+        # The managed service has been notified and the configuration is gone
+        self.assertEqual(self.service.deletions, 1)
+        self.assertFalse(configuration.is_valid())
+        self.assertRaises(KeyError, self.directory.get_configuration, self.PID)
+
+    def testDirectoryDeletionErrorCleansUp(self) -> None:
+        """
+        A persistence error must not stop the directory from forgetting the
+        configuration it deletes
+        """
+        factory_pid = f"{self.PID}.factory"
+        configuration = self.config.create_factory_configuration(factory_pid)
+        configuration.update({"answer": 42})
+
+        pid = configuration.get_pid()
+        self.assertIn(pid, self.persistence.storage, "The test persistence wasn't used")
+
+        self.assertRaises(OSError, self.directory.delete, pid)
+
+        # The configuration is gone, even though it is still stored
+        directory = cast(ConfigurationDirectory, self.directory)
+        self.assertFalse(directory.exists(pid), "Configuration still in the directory")
+        self.assertRaises(KeyError, self.directory.get_configuration, pid)
+        self.assertEqual(
+            self.directory.get_factory_configurations(factory_pid),
+            set(),
+            "Configuration still associated to its factory",
+        )
+
+
+# ------------------------------------------------------------------------------
+
+
+class DeletionLookupTest(unittest.TestCase):
+    """
+    Tests the lookup of a configuration while it is being deleted
+    """
+
+    PID = "test.deletion.lookup"
+
+    def setUp(self) -> None:
+        """
+        Sets up the test
+        """
+        self.framework = pelix.framework.create_framework(
+            ("pelix.ipopo.core",), {"configuration.folder": conf_folder}
+        )
+        self.addCleanup(self.framework.delete, True)
+        self.framework.start()
+        self.context = self.framework.get_bundle_context()
+
+        # Register the persistence before ConfigurationAdmin is started: the
+        # best ranked one is used for the new configurations
+        self.persistence = _LookupPersistence()
+        self.context.register_service(
+            services.IConfigurationAdminPersistence,
+            self.persistence,
+            {constants.SERVICE_RANKING: 1000},
+        )
+
+        self.context.install_bundle("pelix.services.configadmin").start()
+
+        config_ref = self.context.get_service_reference(services.IConfigurationAdmin)
+        assert config_ref is not None
+        self.config = self.context.get_service(config_ref)
+        self.persistence.config_admin = self.config
+
+        directory_ref = self.context.get_service_reference(IConfigurationAdminDirectory)
+        assert directory_ref is not None
+        self.directory = self.context.get_service(directory_ref)
+
+    def tearDown(self) -> None:
+        """
+        Cleans up for next test
+        """
+        pelix.framework.FrameworkFactory.delete_framework()
+
+    @classmethod
+    def tearDownClass(cls) -> None:
+        """
+        Cleans up after all tests have been executed
+        """
+        shutil.rmtree(conf_folder, ignore_errors=True)
+
+    def testLookupDuringDeletion(self) -> None:
+        """
+        A lookup made while the configuration is being removed from the
+        persistence must give back that configuration, not a copy loaded from
+        its stored properties
+        """
+        configuration = self.config.get_configuration(self.PID)
+        configuration.update({"answer": 42})
+        self.assertIn(self.PID, self.persistence.storage, "The test persistence wasn't used")
+
+        configuration.delete()
+
+        self.assertIs(self.persistence.lookup, configuration, "A duplicate configuration was created")
+
+        # The deletion went through
+        self.assertNotIn(self.PID, self.persistence.storage, "Configuration still stored")
+        self.assertRaises(KeyError, self.directory.get_configuration, self.PID)
 
 
 # ------------------------------------------------------------------------------
@@ -667,6 +1349,54 @@ class FileInstallTest(unittest.TestCase):
             svc = cast("Configurable", svc)
             self.check_call_count(svc, 1)
             self.assertTrue(svc.deleted, "Configuration not deleted")
+
+    def testAddFactoryConfiguration(self) -> None:
+        """
+        A configuration file added in the watched folder must reach the managed
+        service factories, not only the managed services
+        """
+        context = self.framework.get_bundle_context()
+
+        # Install and start the managed service factory
+        factory_bundle = context.install_bundle("tests.services.configadmin_factory_bundle")
+        factory_bundle.start()
+        factory_pid = factory_bundle.get_module().FACTORY_PID
+        factory_ref = factory_bundle.get_registered_services()[0]
+
+        # Start file install
+        self.start_fileinstall()
+
+        # Get the watched folder
+        persistence_ref = context.get_service_reference(services.IConfigurationAdminPersistence)
+        assert persistence_ref is not None
+        folder = persistence_ref.get_property(services.PROP_FILEINSTALL_FOLDER)
+
+        # Write a factory configuration file
+        pid = f"{factory_pid}-fileinstall"
+        filepath = os.path.join(folder, pid + ".config.js")
+        self.addCleanup(os.remove, filepath)
+
+        with open(filepath, "w") as filep:
+            json.dump(
+                {
+                    services.CONFIG_PROP_PID: pid,
+                    services.CONFIG_PROP_FACTORY_PID: factory_pid,
+                    "config.value": 42,
+                },
+                filep,
+            )
+
+        # Wait for the folder to be polled
+        for _ in range(30):
+            time.sleep(0.2)
+            with use_service(context, factory_ref) as svc:
+                if cast("ConfigurableFactory", svc).configurations:
+                    break
+
+        with use_service(context, factory_ref) as svc:
+            svc = cast("ConfigurableFactory", svc)
+            self.assertIn(pid, svc.configurations, "Managed service factory not notified")
+            self.assertEqual(svc.configurations[pid]["config.value"], 42)
 
 
 # ------------------------------------------------------------------------------

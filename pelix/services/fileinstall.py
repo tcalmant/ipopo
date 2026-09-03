@@ -121,19 +121,22 @@ class FileInstall(services.FileInstall):
         """
         with self.__lock:
             # Stop all threads
-            for event in set(self.__stoppers.values()):
-                event.set()
-
-            # Wait for them
-            for thread in set(self.__threads.values()):
-                thread.join()
-
-            # Stop the task pool
-            self.__pool.stop()
+            stoppers = set(self.__stoppers.values())
+            threads = set(self.__threads.values())
 
             # Clean up
             self.__stoppers.clear()
             self.__threads.clear()
+
+        for event in stoppers:
+            event.set()
+
+        # Wait for the threads and stop the pool outside the lock: a
+        # notification being sent needs that lock to reach its listeners
+        for thread in threads:
+            thread.join()
+
+        self.__pool.stop()
 
     @BindField("_listeners")
     def _bind_listener(

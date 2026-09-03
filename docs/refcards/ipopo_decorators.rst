@@ -68,6 +68,7 @@ Requirements
 .. autoclass:: RequiresBroadcast
 .. autoclass:: RequiresMap
 .. autoclass:: RequiresVarFilter
+.. autoclass:: RequiresConfiguration
 
 
 Instance definition

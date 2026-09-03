@@ -10,6 +10,7 @@ bundles
 services
 ipopo
 ipopo_decorators
+ipopo_configadmin
 init_config
 log
 http

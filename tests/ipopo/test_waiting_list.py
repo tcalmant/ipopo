@@ -188,6 +188,132 @@ class WaitingListTest(unittest.TestCase):
         # The original instance must still be there
         self.assertTrue(ipopo.is_registered_instance(module.BASIC_INSTANCE), "Instance has been killed")
 
+    def testUpdateQueuedComponent(self):
+        """
+        An update of a queued component must be merged into its properties,
+        as it is for a running one
+        """
+        assert self.framework is not None
+        assert self.waiting is not None
+
+        # Add the component to the waiting list, before iPOPO is there
+        self.waiting.add(FACTORY_A, NAME_A, {"kept": 1, "changed": 2})
+
+        # Only mention one of the properties
+        self.waiting.update(NAME_A, {"changed": 3, "added": 4})
+
+        # Install iPOPO and the component bundle
+        ipopo = install_ipopo(self.framework)
+        install_bundle(self.framework)
+
+        self.assertTrue(ipopo.is_registered_instance(NAME_A), "Instance not there")
+
+        properties = ipopo.get_instance_details(NAME_A)["properties"]
+        self.assertEqual(properties["kept"], "1", "Untouched property has been lost")
+        self.assertEqual(properties["changed"], "3", "Property has not been updated")
+        self.assertEqual(properties["added"], "4", "Property has not been added")
+
+    def testUpdateRemovedProperties(self):
+        """
+        The properties named in "removed" must be dropped from the queue, so
+        that the factory gives them their declared value again
+        """
+        assert self.framework is not None
+        assert self.waiting is not None
+
+        # Add the component to the waiting list, before iPOPO is there
+        self.waiting.add(FACTORY_A, NAME_A, {"kept": 1, "dropped": 2})
+
+        # Drop a property, giving it the value the factory would give it
+        self.waiting.update(NAME_A, {"dropped": None}, {"dropped"})
+
+        # Install iPOPO and the component bundle
+        ipopo = install_ipopo(self.framework)
+        install_bundle(self.framework)
+
+        self.assertTrue(ipopo.is_registered_instance(NAME_A), "Instance not there")
+
+        properties = ipopo.get_instance_properties(NAME_A)
+        self.assertEqual(properties["kept"], 1, "Untouched property has been lost")
+        self.assertNotIn("dropped", properties, "Property has not been dropped")
+
+    def testUpdateUnknownComponent(self):
+        """
+        Updating a component which is not in the waiting list must raise a
+        KeyError
+        """
+        assert self.waiting is not None
+        self.assertRaises(KeyError, self.waiting.update, NAME_A, {"name": "value"})
+
+    def testUpdateDuringInstantiation(self):
+        """
+        An update which happens while the component is being instantiated must
+        not be lost: its reconfiguration is ignored, as the component is not
+        registered yet
+        """
+        assert self.framework is not None
+        assert self.waiting is not None
+
+        # Install iPOPO and the component bundle
+        ipopo = install_ipopo(self.framework)
+        install_bundle(self.framework)
+
+        waiting = self.waiting
+        original_instantiate = ipopo.instantiate
+
+        def racing_instantiate(factory, name, properties=None):
+            """
+            Updates the queued properties before the component is registered
+            """
+            # Race only once
+            ipopo.instantiate = original_instantiate
+            waiting.update(NAME_A, {"changed": 3})
+            return original_instantiate(factory, name, properties)
+
+        ipopo.instantiate = racing_instantiate
+
+        self.waiting.add(FACTORY_A, NAME_A, {"kept": 1, "changed": 2})
+        self.assertTrue(ipopo.is_registered_instance(NAME_A), "Instance not there")
+
+        properties = ipopo.get_instance_properties(NAME_A)
+        self.assertEqual(properties["kept"], 1, "Untouched property has been lost")
+        self.assertEqual(properties["changed"], 3, "Concurrent update has been lost")
+
+    def testAddDuringRemoval(self):
+        """
+        A component queued again while the previous one is being killed must
+        stay instantiated
+        """
+        assert self.framework is not None
+        assert self.waiting is not None
+
+        # Install iPOPO and the component bundle
+        ipopo = install_ipopo(self.framework)
+        install_bundle(self.framework)
+
+        self.waiting.add(FACTORY_A, NAME_A, {})
+        self.assertTrue(ipopo.is_registered_instance(NAME_A), "Instance not there")
+
+        waiting = self.waiting
+        original_kill = ipopo.kill
+
+        def racing_kill(name):
+            """
+            Queues the component again before it is killed
+            """
+            # Race only once
+            ipopo.kill = original_kill
+
+            # The component is still running: this add() only queues it back,
+            # which is what the removal must take into account
+            waiting.add(FACTORY_A, NAME_A, {})
+            return original_kill(name)
+
+        ipopo.kill = racing_kill
+
+        self.waiting.remove(NAME_A)
+        self.assertTrue(ipopo.is_registered_instance(NAME_A), "Queued component has been killed")
+
 
 # ------------------------------------------------------------------------------
 

@@ -31,6 +31,7 @@ components.
 # Standard library
 import logging
 import threading
+from collections.abc import Iterable
 from typing import Any
 
 # Pelix
@@ -113,6 +114,29 @@ class IPopoWaitingListImpl(IPopoWaitingList):
             except Exception:
                 # Other error
                 _logger.exception("Error instantiating component %s from factory %s", component, factory)
+            else:
+                with self.__lock:
+                    removed_concurrently = self.__names.get(component) != factory
+                    queued = self.__queue.get(factory, {}).get(component)
+
+                if removed_concurrently:
+                    # remove() raced with this instantiation: its kill()
+                    # attempt failed because the component didn't exist yet.
+                    # Finish the job now that it does
+                    try:
+                        with use_ipopo(self.__context) as ipopo_svc:
+                            ipopo_svc.kill(component)
+                    except (BundleException, ValueError):
+                        pass
+                elif queued is not None and queued is not properties:
+                    # update() raced with this instantiation: it stored a new
+                    # dictionary and its reconfigure() call was lost, as the
+                    # component didn't exist yet. Apply the new properties now
+                    try:
+                        ipopo.reconfigure(component, queued)
+                    except ValueError:
+                        # Component killed in the meantime
+                        pass
 
     def _start(self) -> None:
         """
@@ -225,13 +249,65 @@ class IPopoWaitingListImpl(IPopoWaitingList):
             self.__names[component] = factory
             self.__queue.setdefault(factory, {})[component] = properties
 
-            try:
-                with use_ipopo(self.__context) as ipopo:
-                    # Try to instantiate the component right now
-                    self._try_instantiate(ipopo, factory, component)
-            except BundleException:
-                # iPOPO not yet started
-                pass
+        # Instantiate outside of the lock: the callbacks of the component can
+        # call back into this service from another thread
+        try:
+            with use_ipopo(self.__context) as ipopo:
+                # Try to instantiate the component right now
+                self._try_instantiate(ipopo, factory, component)
+        except BundleException:
+            # iPOPO not yet started
+            pass
+
+    def update(
+        self, component: str, properties: dict[str, Any], removed: Iterable[str] | None = None
+    ) -> None:
+        """
+        Updates the properties of a queued component. The given properties are
+        merged into the current ones: entries that are not given are left
+        unchanged. If the component is already instantiated, its properties are
+        updated in place.
+
+        The names given in ``removed`` are dropped from the queued properties,
+        so that the next instantiation of the component uses the value declared
+        by its factory. A value given for them in ``properties`` is still
+        applied to the running component, which lets the caller give back their
+        declared value right away.
+
+        :param component: A component name
+        :param properties: The properties to update
+        :param removed: Names of the properties to drop from the queue
+        :raise KeyError: Unknown component
+        :raise ValueError: The waiting list has no bundle context
+        """
+        if self.__context is None:
+            raise ValueError("Missing context for iPOPO waiting list")
+
+        with self.__lock:
+            # Find its factory (raises KeyError if the component is unknown)
+            factory = self.__names[component]
+
+            # Keep the merged properties for the next instantiation. Store a
+            # new dictionary: the queued one belongs to the caller of add()
+            queued = {**self.__queue[factory][component], **properties}
+            for key in removed or ():
+                queued.pop(key, None)
+
+            self.__queue[factory][component] = queued
+
+        # Reconfigure outside of the lock (see add())
+        try:
+            with use_ipopo(self.__context) as ipopo:
+                # Update the running component, if any
+                ipopo.reconfigure(component, properties)
+        except BundleException:
+            # iPOPO not yet started
+            pass
+        except ValueError:
+            # Component is not instantiated: this is the normal state of a
+            # component waiting for its factory, the properties above will be
+            # given to it when it is created
+            pass
 
     def remove(self, component: str) -> None:
         """
@@ -254,14 +330,25 @@ class IPopoWaitingListImpl(IPopoWaitingList):
                 # No more component for this factory
                 del self.__queue[factory]
 
-            # Kill the component
-            try:
-                with use_ipopo(self.__context) as ipopo:
-                    # Try to instantiate the component right now
+        # Kill the component outside of the lock (see add())
+        try:
+            with use_ipopo(self.__context) as ipopo:
+                try:
                     ipopo.kill(component)
-            except (BundleException, ValueError):
-                # iPOPO not yet started or component not instantiated
-                pass
+                except ValueError:
+                    # Component not instantiated
+                    pass
+
+                with self.__lock:
+                    new_factory = self.__names.get(component)
+
+                if new_factory is not None and not ipopo.is_registered_instance(component):
+                    # add() raced with this removal: the kill() above destroyed
+                    # the component it had just instantiated. Create it again
+                    self._try_instantiate(ipopo, new_factory, component)
+        except BundleException:
+            # iPOPO not yet started
+            pass
 
 
 # ------------------------------------------------------------------------------

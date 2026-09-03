@@ -72,6 +72,7 @@ class StoredInstance:
     # Try to reduce memory footprint (stored instances)
     __slots__ = (
         "__all_handlers",
+        "__warned_hidden",
         "_controllers_state",
         "_handlers",
         "_ipopo_service",
@@ -142,6 +143,10 @@ class StoredInstance:
 
         # Stack track of validation error
         self.error_trace: str | None = None
+
+        # Hidden properties an update has already been refused for: the
+        # configuration of a component is resent as a whole on every update
+        self.__warned_hidden: set[str] = set()
 
         # Store the bundle context
         self.bundle_context: BundleContext = self.context.get_bundle_context()
@@ -270,6 +275,72 @@ class StoredInstance:
             self.__safe_handlers_callback(
                 handlers_const.Handler.on_property_change, name, old_value, new_value
             )
+
+    def reconfigure(self, properties: dict[str, Any], restart: bool = False) -> None:
+        """
+        Updates the properties of this component. The given properties are
+        merged into the current ones: entries that are not given are left
+        unchanged. The name of the instance can't be modified.
+
+        The properties declared with ``@HiddenProperty`` are ignored: they are
+        given to the component once, when it is created, and are kept out of
+        the reach of the other handlers and of the component details. To
+        update a hidden property's value confidentially, prefix its name with
+        a dot, e.g. ``.password`` to update the property declared as
+        ``password``: the value is applied but still never becomes public.
+
+        :param properties: The properties to update
+        :param restart: If True, invalidate the component before applying the
+                        properties: it is validated again once they are set
+        """
+        with self._lock:
+            if self.context is None:
+                # Component has been killed
+                return
+
+            if restart:
+                # Invalidate in the same lock acquisition as the update:
+                # another thread must not validate the component again with
+                # its previous properties
+                self.invalidate(True)
+
+            hidden = self.context.factory_context.hidden_properties
+            current = self.context.properties
+            for name, new_value in properties.items():
+                if name == constants.IPOPO_INSTANCE_NAME:
+                    # The instance name is read-only
+                    continue
+
+                if name.startswith(".") and name[1:] in hidden:
+                    # Explicit, confidential update of a hidden property:
+                    # apply it through the same path the component itself
+                    # would use, so it still never becomes a public property
+                    hidden_name = name[1:]
+                    setter_name = f"{constants.IPOPO_HIDDEN_PROPERTY_PREFIX}{constants.IPOPO_SETTER_SUFFIX}"
+                    setter = getattr(self.instance, setter_name, None)
+                    if setter is not None:
+                        setter(self.instance, hidden_name, new_value)
+                    continue
+
+                if name in hidden:
+                    # Never make a hidden property public. Warn only once:
+                    # the whole configuration of a component is given back on
+                    # each of its updates
+                    if name not in self.__warned_hidden:
+                        self.__warned_hidden.add(name)
+                        self._logger.warning(
+                            "%s: ignoring the update of the hidden property %s",
+                            self.name,
+                            name,
+                        )
+                    continue
+
+                old_value = current.get(name)
+                if new_value != old_value:
+                    current[name] = new_value
+                    self.update_property(name, old_value, new_value)
+
+            self.check_lifecycle()
 
     def update_hidden_property(self, name: str, old_value: Any, new_value: Any) -> None:
         """
