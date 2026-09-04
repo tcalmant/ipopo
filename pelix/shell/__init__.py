@@ -61,7 +61,7 @@ SERVICE_SHELL_COMMAND = "pelix.shell.command"
 Shell commands service, for auto-registration (white board pattern).
 
 * get_namespace(): returns the name space of the handler
-* get_methods(): returns a command name → method dictionary
+* get_methods(): returns a list of (command name, method) tuples
 """
 
 SERVICE_SHELL_UTILS = "pelix.shell.utilities"

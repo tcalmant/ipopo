@@ -138,7 +138,7 @@ A Managed Service Factory needs to provide the
        def __init__(self):
            self.existing = {}
 
-       def updated(pid, props):
+       def updated(self, pid, props):
            """
            Called when a configuration has been created or updated
            """
@@ -149,9 +149,9 @@ A Managed Service Factory needs to provide the
                # Create the service
                svc = self.create_instance()
                svc.configure(props)
-               self.existing[pid] = service
+               self.existing[pid] = svc
 
-       def deleted(pid):
+       def deleted(self, pid):
            """
            Called when a configuration has been deleted
            """

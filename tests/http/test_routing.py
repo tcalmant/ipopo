@@ -263,6 +263,91 @@ class HttpRoutingTests(unittest.TestCase):
             self.assertEqual(router.called_path, path or "/")
             self.assertEqual(router.prefix, prefix)
 
+    def test_dispatch_root_vs_typed_param(self) -> None:
+        """
+        A root route ("" / "/") and a single top-level typed <param> route on the same
+        dispatcher must not collide: every route marker is optional in the compiled
+        pattern, so the root path also matches the parameterized route with its
+        parameter absent, and that must not be preferred over the route which needs no
+        parameter at all (previously crashed with a missing-argument TypeError instead
+        of a 500, since the parameterized route "won" the tie-break with the parameter
+        silently missing from the call).
+        """
+
+        class Servlet(routing.RestDispatcher):
+            def __init__(self) -> None:
+                self.called: str | None = None
+                super().__init__()
+
+            @routing.HttpGet("")
+            @routing.HttpGet("/")
+            def list_root(
+                self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse
+            ) -> None:
+                self.called = "root"
+                response.send_content(200, "root")
+
+            @routing.HttpGet("/<item_id:int>")
+            def get_item(
+                self,
+                request: AbstractHTTPServletRequest,
+                response: AbstractHTTPServletResponse,
+                item_id: int,
+            ) -> None:
+                self.called = f"item:{item_id}"
+                response.send_content(200, f"item:{item_id}")
+
+        prefix = f"/routing{random.randint(0, 100)}"
+        router = Servlet()
+        self.http.register_servlet(prefix, router)
+
+        for path in ("", "/"):
+            router.called = None
+            code, data = self.get_http_page(uri=f"{prefix}{path}")
+            self.assertEqual(code, 200)
+            self.assertEqual(to_str(data), "root")
+            self.assertEqual(router.called, "root")
+
+        code, data = self.get_http_page(uri=f"{prefix}/42")
+        self.assertEqual(code, 200)
+        self.assertEqual(to_str(data), "item:42")
+        self.assertEqual(router.called, "item:42")
+
+    def test_dispatch_optional_param_with_default(self) -> None:
+        """
+        A single route whose method parameter has a Python default must still be
+        callable with that parameter absent (root of the servlet): the fix for the
+        collision above must not break this legitimate, pre-existing use of the
+        "every marker is optional" behaviour.
+        """
+
+        class Servlet(routing.RestDispatcher):
+            def __init__(self) -> None:
+                self.called: str | None = None
+                super().__init__()
+
+            @routing.HttpGet("/<item_id:int>")
+            def get_item(
+                self,
+                request: AbstractHTTPServletRequest,
+                response: AbstractHTTPServletResponse,
+                item_id: int | None = None,
+            ) -> None:
+                self.called = f"item:{item_id}"
+                response.send_content(200, f"item:{item_id}")
+
+        prefix = f"/routing{random.randint(0, 100)}"
+        router = Servlet()
+        self.http.register_servlet(prefix, router)
+
+        code, data = self.get_http_page(uri=f"{prefix}/")
+        self.assertEqual(code, 200)
+        self.assertEqual(to_str(data), "item:None")
+
+        code, data = self.get_http_page(uri=f"{prefix}/7")
+        self.assertEqual(code, 200)
+        self.assertEqual(to_str(data), "item:7")
+
     def test_methods(self) -> None:
         """
         Tests the methods filters
