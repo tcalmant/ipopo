@@ -27,23 +27,28 @@ Configuration properties
 
 All implementations of the HTTP service must support the following properties:
 
-========================= ======= =============================================
-Property                  Default Description
-========================= ======= =============================================
-pelix.http.address        0.0.0.0 The address the HTTP server is bound to
-pelix.http.port           8080    The port the HTTP server is bound to
-pelix.http.debug          False   If set, error pages sent to the clients
-                                  contain the stack trace of the error
-pelix.http.max_body_size  1048576 Maximum size, in bytes, of the body of a
-                                  request. A request with a bigger body is
-                                  answered with a 413 error code. A value
-                                  lesser than or equal to 0 removes the limit
-pelix.http.socket_timeout 60      Timeout, in seconds, of the sockets handling
-                                  the requests. A client which takes longer to
-                                  send its request gets a 408 error code. A
-                                  value lesser than or equal to 0 removes the
-                                  timeout
-========================= ======= =============================================
+=============================== ======= ========================================
+Property                        Default Description
+=============================== ======= ========================================
+pelix.http.address              0.0.0.0 The address the HTTP server is bound to
+pelix.http.port                 8080    The port the HTTP server is bound to
+pelix.http.debug                False   If set, error pages sent to the clients
+                                        contain the stack trace of the error
+pelix.http.max_body_size        1048576 Maximum size, in bytes, of the body of a
+                                        request. A request with a bigger body is
+                                        answered with a 413 error code. A value
+                                        lesser than or equal to 0 removes the
+                                        limit
+pelix.http.socket_timeout       60      Timeout, in seconds, of the sockets
+                                        handling the requests. A client which
+                                        takes longer to send its request gets a
+                                        408 error code. A value lesser than or
+                                        equal to 0 removes the timeout
+pelix.http.case_sensitive_paths True    If set, servlet paths are matched
+                                        case-sensitively, as URI paths are
+                                        defined to be. Unset it to restore the
+                                        folding of earlier releases
+=============================== ======= ========================================
 
 .. versionadded:: 3.2.2
    ``pelix.http.max_body_size`` and ``pelix.http.socket_timeout``.
@@ -52,11 +57,44 @@ pelix.http.socket_timeout 60      Timeout, in seconds, of the sockets handling
    and a request without a ``Content-Length`` header blocked its handling
    thread until the client closed the connection.
 
+.. versionadded:: 3.3.0
+   ``pelix.http.case_sensitive_paths``.
+
 .. note:: ``pelix.http.socket_timeout`` is only applied by the synchronous HTTP
    service.
 
    The asynchronous service accepts the property, as it is common to all the
    implementations, but leaves the timeouts of the connections to ``aiohttp``.
+
+Request paths
+-------------
+
+Before a servlet is looked for, the path of a request is normalized: its query
+string is removed, it is percent-decoded, its repeated slashes are collapsed
+and its ``.`` and ``..`` segments are resolved.
+A request whose path holds a control character, or resolves above the root, is
+answered with a 400 error code and never reaches a servlet.
+
+The same normalized path is used to find the servlet and to compute what
+:meth:`~pelix.http.AbstractHTTPServletRequest.get_path` and
+:meth:`~pelix.http.AbstractHTTPServletRequest.get_sub_path` return, so the
+router and the servlet can never disagree about what was requested.
+
+Servlet paths are matched **case-sensitively**: ``/admin`` and ``/Admin`` are
+two different resources, as RFC 3986 defines them to be.
+
+.. versionchanged:: 3.3.0
+   Paths used to be matched after being lowered, and were neither decoded nor
+   resolved. A servlet was given the original path while the server routed on
+   the folded one, so a check made on the path a servlet received could be
+   evaded by changing its case.
+
+.. warning:: A decoded path segment never holds a separator, but it can hold
+   anything else the client encoded.
+
+   A servlet mapping a segment onto a file system, a database key or another
+   name space still has to validate it. The server normalizes the structure of
+   the path; it cannot know what a segment means to the servlet.
 
 .. warning:: ``pelix.http.debug`` must be kept unset in production.
 

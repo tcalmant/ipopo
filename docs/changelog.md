@@ -48,6 +48,51 @@ Unreleased
 * Added tests for the configuration of ConfigurationAdmin managed service
   factories
 
+### HTTP service
+
+* Request paths are now normalized (decoded, collapsed, resolved) before
+  routing, and `get_path()` / `get_sub_path()` return that normalized path
+* A malformed or out-of-root path now gets a 400 error instead of reaching a
+  servlet
+* The Remote Services dispatcher servlet now routes on its relative path
+  instead of counting segments
+* The asynchronous HTTP service now carries the caller's context variables
+  into the servlet it dispatches to
+
+### Utilities
+
+* `ThreadPool` now runs each task in a copy of its caller's context instead
+  of the previous task's
+
+### Authentication and authorization
+
+A new `pelix.security` package adds a transport-neutral notion of a caller:
+identity, groups, roles and permissions. See its reference card for details.
+
+* `pelix.security`: core beans, service specifications (`Authenticator`,
+  `MembershipProvider`, `Authorizer`, `Authorization`) and the current
+  subject
+* `pelix.security.decorators`: declarative `@Allow*`, `@DenyAll` and
+  `@RunAs` decorators
+* `pelix.security.core`: the identity and authorization pipeline
+* `pelix.security.htpasswd`: authentication against Apache `.htpasswd` /
+  `.htgroup` files
+* `pelix.security.policy`: roles and permissions from a TOML file
+
+Nothing is permissive by default.
+
+### Dependencies
+
+* Added `tomli` (Python 3.10 only) and the optional `bcrypt` extra
+
+### Security
+
+All versions up to 3.2.2 are affected.
+
+* Servlet paths are now matched case-sensitively (breaking change: see
+  `pelix.http.case_sensitive_paths` to opt out)
+* Servlet paths are no longer vulnerable to path traversal
+
 ## iPOPO 3.2.2
 
 :::{admonition} Release Date

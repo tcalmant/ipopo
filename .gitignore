@@ -63,3 +63,8 @@ _build/
 # Jupyter Notebooks
 .ipynb_checkpoints/
 *.ipynb
+
+# Temporary folders
+/tmp
+/temp
+/work

@@ -246,6 +246,52 @@ class DispatcherTest(unittest.TestCase):
         self.assertEqual(status, 200)
         self.assertEqual(response, json.dumps(self.framework_uid))
 
+    def _raw_http_get(self, uri: str) -> tuple[int, str]:
+        """
+        Makes a HTTP GET request on the given URI, without any normalization on
+        the client side: the whole point is what the server does with it
+
+        :param uri: The full request URI
+        :return: A (status, response string) tuple
+        """
+        conn = httplib.HTTPConnection("localhost", self.port)
+        conn.request("GET", uri)
+        result = conn.getresponse()
+        data = result.read()
+        conn.close()
+        return result.status, to_str(data)
+
+    def testActionIsNotShiftedByThePathShape(self) -> None:
+        """
+        The action is read from the servlet-relative path, which is normalized.
+
+        It used to be cut out of the raw path by counting segments, so a dot
+        segment shifted it: ``/endpoints/../framework`` listed the end points.
+        Both the normalization and the switch to the sub path close this, and
+        the test pins the result of the two together.
+        """
+        prefix = self.servlet_path.rstrip("/")
+        for uri in (
+            f"{prefix}/framework",
+            f"{prefix}//framework",
+            f"{prefix}/./framework",
+            f"{prefix}/endpoints/../framework",
+        ):
+            with self.subTest(uri=uri):
+                status, response = self._raw_http_get(uri)
+                self.assertEqual(status, 200, f"{uri} did not reach the framework action")
+                self.assertEqual(response, json.dumps(self.framework_uid))
+
+    def testEmptyActionIsNotAnError(self) -> None:
+        """
+        A request on the servlet root used to raise an IndexError, answered as
+        a 500, instead of telling the client its request was incomplete
+        """
+        prefix = self.servlet_path.rstrip("/")
+        for uri in (prefix, f"{prefix}/"):
+            with self.subTest(uri=uri):
+                self.assertEqual(self._raw_http_get(uri)[0], 404)
+
     def testListEndpoints(self) -> None:
         """
         Checks if the list of endpoints is correctly given

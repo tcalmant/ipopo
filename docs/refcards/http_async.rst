@@ -24,21 +24,40 @@ Configuration properties
 The asynchronous HTTP service supports the same properties as the basic HTTP
 service, described in :ref:`its reference card <refcard_http>`:
 
-========================= ======= =============================================
-Property                  Default Description
-========================= ======= =============================================
-pelix.http.address        0.0.0.0 The address the HTTP server is bound to
-pelix.http.port           8080    The port the HTTP server is bound to
-pelix.http.debug          False   If set, error pages sent to the clients
-                                  contain the stack trace of the error
-pelix.http.max_body_size  1048576 Maximum size, in bytes, of the body of a
-                                  request. A request with a bigger body is
-                                  answered with a 413 error code. A value
-                                  lesser than or equal to 0 removes the limit
-pelix.http.socket_timeout 60      Accepted for compatibility with the basic
-                                  HTTP service, but not applied: the timeouts
-                                  of the connections are left to ``aiohttp``
-========================= ======= =============================================
+=============================== ======= ========================================
+Property                        Default Description
+=============================== ======= ========================================
+pelix.http.address              0.0.0.0 The address the HTTP server is bound to
+pelix.http.port                 8080    The port the HTTP server is bound to
+pelix.http.debug                False   If set, error pages sent to the clients
+                                        contain the stack trace of the error
+pelix.http.max_body_size        1048576 Maximum size, in bytes, of the body of a
+                                        request. A request with a bigger body is
+                                        answered with a 413 error code. A value
+                                        lesser than or equal to 0 removes the
+                                        limit
+pelix.http.socket_timeout       60      Accepted for compatibility with the
+                                        basic HTTP service, but not applied: the
+                                        timeouts of the connections are left to
+                                        ``aiohttp``
+pelix.http.case_sensitive_paths True    If set, servlet paths are matched
+                                        case-sensitively, as URI paths are
+                                        defined to be. Unset it to restore the
+                                        folding of earlier releases
+=============================== ======= ========================================
+
+.. versionadded:: 3.3.0
+   ``pelix.http.case_sensitive_paths``.
+
+Request paths are normalized exactly as they are by the synchronous service:
+see :ref:`its reference card <refcard_http>`.
+Both services now give the router the same raw request target, so they agree on
+the path a servlet is given.
+
+.. versionchanged:: 3.3.0
+   The asynchronous service used to route on the path ``aiohttp`` had already
+   decoded, while the synchronous one routed on the raw target. The two could
+   therefore resolve the same request differently.
 
 Instantiation
 -------------
@@ -92,6 +111,16 @@ Synchronous Servlet service
 
 This service is compatible with the synchronous servlets of the HTTP service.
 See :ref:`refcard_http` for more information on the synchronous servlets.
+
+A synchronous servlet is handled in a thread pool, but it runs in a copy of the
+context (see :mod:`contextvars`) of the request which triggered it: a context
+variable set before the dispatch is visible to ``do_GET()`` and the like.
+What the servlet sets stays in that copy: it reaches neither the event loop nor
+the next request handled by the same thread.
+
+.. versionchanged:: 3.3.0
+   The context variables of the request used to be dropped, the servlet running
+   in whatever context the worker thread of the pool happened to hold.
 
 Asynchronous Servlet service
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^

@@ -14,7 +14,7 @@ from pelix import http
 from pelix.framework import Framework, FrameworkFactory
 from pelix.http._base import AbstractHttpService, compute_sub_path, normalize_request_path
 from pelix.http.basic import HttpServiceImpl
-from tests.http.utils import DEFAULT_HOST, get_http_page, install_ipopo, instantiate_server
+from tests.http.utils import DEFAULT_HOST, get_http_code, get_http_page, install_ipopo, instantiate_server
 
 # ------------------------------------------------------------------------------
 
@@ -26,13 +26,24 @@ __version__ = ".".join(str(x) for x in __version_info__)
 
 class SimpleServlet:
     """
-    A servlet which does nothing: only its identity matters here
+    A servlet which does nothing: only its identity and the paths it has been
+    bound to matter here
     """
+
+    def __init__(self) -> None:
+        self.bound: list[str] = []
 
     def do_GET(self, request: Any, response: Any) -> None:
         """
         Does nothing
         """
+
+    def bound_to(self, path: str, parameters: dict[str, Any]) -> bool:
+        """
+        Records the path the servlet has been bound to
+        """
+        self.bound.append(path)
+        return True
 
 
 def get_services() -> list[tuple[str, AbstractHttpService]]:
@@ -89,13 +100,75 @@ class NormalizeRequestPathTest(unittest.TestCase):
         self.assertEqual(normalize_request_path("/path/"), "/path/")
         self.assertEqual(normalize_request_path("/path/?a=1"), "/path/")
 
-    def test_is_idempotent(self) -> None:
+    def test_is_idempotent_on_its_own_result(self) -> None:
         """
-        Normalizing an already normalized path must not change it
+        Normalizing an already normalized path must not change it.
+
+        Note that the normalization is not idempotent on a *raw* path: it
+        decodes, so applying it twice would decode twice. It is called once,
+        on the raw path given by the client.
         """
-        for raw in ("/", "/a/b", "/a/b/", "/a%2Fb"):
+        for raw in ("/", "/a/b", "/a/b/", "/a b"):
             with self.subTest(raw=raw):
                 self.assertEqual(normalize_request_path(normalize_request_path(raw)), raw)
+
+        # Decoding really is applied only once
+        self.assertEqual(normalize_request_path("/a%2520b"), "/a%20b")
+        self.assertEqual(normalize_request_path(normalize_request_path("/a%2520b")), "/a b")
+
+    def test_percent_encoding_is_decoded(self) -> None:
+        """
+        The path is decoded before being routed, so that the servlet and the
+        router can never disagree about what was requested
+        """
+        for raw, expected in (
+            ("/a%20b", "/a b"),
+            ("/%61%62", "/ab"),
+            ("/files/a%2Fb", "/files/a/b"),
+            ("/%2E/a", "/a"),
+        ):
+            with self.subTest(raw=raw):
+                self.assertEqual(normalize_request_path(raw), expected)
+
+    def test_dot_segments_are_resolved(self) -> None:
+        """
+        The ``.`` and ``..`` segments must be resolved before routing
+        """
+        for raw, expected in (
+            ("/a/./b", "/a/b"),
+            ("/public/../admin", "/admin"),
+            ("/public/%2e%2e/admin", "/admin"),
+            ("/public/%2E%2E%2Fadmin", "/admin"),
+            ("/a/b/../c/", "/a/c/"),
+            ("/a/..%2fb", "/b"),
+            ("/a/b/..", "/a"),
+        ):
+            with self.subTest(raw=raw):
+                self.assertEqual(normalize_request_path(raw), expected)
+
+    def test_escaping_the_root_is_refused(self) -> None:
+        """
+        A path resolving above the root must be refused, not clamped to it
+        """
+        for raw in (
+            "/..",
+            "/../..",
+            "/a/../..",
+            "/%2e%2e",
+            "/%2e%2e%2f%2e%2e%2fetc/passwd",
+            "/a/../../b",
+        ):
+            with self.subTest(raw=raw):
+                self.assertRaises(ValueError, normalize_request_path, raw)
+
+    def test_control_characters_are_refused(self) -> None:
+        """
+        A decoded path must not hold a control character: a NUL byte truncates
+        a path for anything calling into C
+        """
+        for raw in ("/a%00b", "/a\x00b", "/a%0Ab", "/a%7Fb", "/a%1fb"):
+            with self.subTest(raw=raw):
+                self.assertRaises(ValueError, normalize_request_path, raw)
 
 
 class ComputeSubPathTest(unittest.TestCase):
@@ -200,6 +273,132 @@ class ResolveRequestTest(unittest.TestCase):
                         self.assertIs(routing.servlet, servlet)
                         self.assertEqual(routing.path, reference.path)
                         self.assertEqual(routing.prefix, reference.prefix)
+
+
+class RefusedPathTest(unittest.TestCase):
+    """
+    Tests the paths the router refuses before looking for a servlet
+    """
+
+    def test_traversal_is_resolved_before_routing(self) -> None:
+        """
+        A path walking back into a servlet must reach that servlet, and the
+        servlet must be given the resolved path
+        """
+        servlet = SimpleServlet()
+        for name, service in get_services():
+            with self.subTest(service=name):
+                service.register_servlet("/admin", servlet)
+
+                for raw in ("/public/../admin/x", "/public/%2e%2e/admin/x"):
+                    with self.subTest(raw=raw):
+                        routing = service.resolve_request(raw)
+                        self.assertIs(routing.servlet, servlet)
+                        self.assertEqual(routing.prefix, "/admin")
+                        self.assertEqual(routing.path, "/admin/x")
+                        self.assertIsNone(routing.error)
+
+    def test_escaping_the_root_is_a_bad_request(self) -> None:
+        """
+        A path escaping the root is refused with a 400, without any servlet
+        being looked for
+        """
+        servlet = SimpleServlet()
+        for name, service in get_services():
+            with self.subTest(service=name):
+                service.register_servlet("/test", servlet)
+
+                for raw in ("/..", "/test/../..", "/%2e%2e%2f%2e%2e%2fetc/passwd"):
+                    with self.subTest(raw=raw):
+                        routing = service.resolve_request(raw)
+                        self.assertEqual(routing.error, 400)
+                        self.assertIsNone(routing.servlet)
+
+    def test_control_characters_are_a_bad_request(self) -> None:
+        """
+        A control character in the decoded path is refused with a 400
+        """
+        for name, service in get_services():
+            with self.subTest(service=name):
+                routing = service.resolve_request("/test%00/sub")
+                self.assertEqual(routing.error, 400)
+                self.assertIsNone(routing.servlet)
+
+
+class CaseSensitivityTest(unittest.TestCase):
+    """
+    Tests the case-sensitive matching of the servlet paths
+    """
+
+    def test_paths_are_case_sensitive(self) -> None:
+        """
+        URI paths are case-sensitive: /Admin and /admin are two resources
+        """
+        servlet = SimpleServlet()
+        for name, service in get_services():
+            with self.subTest(service=name):
+                service.register_servlet("/admin", servlet)
+
+                self.assertIsNotNone(service.get_servlet("/admin/x"))
+                for raw in ("/Admin/x", "/ADMIN/x", "/aDmIn/x"):
+                    with self.subTest(raw=raw):
+                        self.assertIsNone(service.get_servlet(raw))
+
+    def test_registration_keeps_its_case(self) -> None:
+        """
+        A servlet registered on a mixed-case path keeps it, and is reachable
+        on that exact path only. This is what the JSON-RPC, XML-RPC and
+        JABSORB-RPC transports rely on: they advertise the path they declared.
+        """
+        for name, service in get_services():
+            with self.subTest(service=name):
+                # A fresh servlet per service: bound_to is recorded on it
+                servlet = SimpleServlet()
+                self.assertTrue(service.register_servlet("/JSON-RPC", servlet))
+
+                self.assertEqual(service.get_registered_paths(), ["/JSON-RPC"])
+                self.assertIsNotNone(service.get_servlet("/JSON-RPC"))
+                self.assertIsNone(service.get_servlet("/json-rpc"))
+
+                # The servlet has been told the path it asked for
+                self.assertEqual(servlet.bound, ["/JSON-RPC"])
+
+    def test_two_cases_are_two_servlets(self) -> None:
+        """
+        Two paths differing only by their case must not collide
+        """
+        lower = SimpleServlet()
+        upper = SimpleServlet()
+        for name, service in get_services():
+            with self.subTest(service=name):
+                self.assertTrue(service.register_servlet("/admin", lower))
+                self.assertTrue(service.register_servlet("/Admin", upper))
+
+                found_lower = service.get_servlet("/admin")
+                found_upper = service.get_servlet("/Admin")
+                assert found_lower is not None
+                assert found_upper is not None
+                self.assertIs(found_lower[0], lower)
+                self.assertIs(found_upper[0], upper)
+
+    def test_folding_can_be_restored(self) -> None:
+        """
+        The escape hatch property restores the behaviour of earlier versions
+        """
+        servlet = SimpleServlet()
+        for name, service in get_services():
+            with self.subTest(service=name):
+                service._case_sensitive_paths = False
+                service.register_servlet("/Admin", servlet)
+
+                # Registered folded, reachable in any case
+                self.assertEqual(service.get_registered_paths(), ["/admin"])
+                for raw in ("/admin", "/Admin", "/ADMIN"):
+                    with self.subTest(raw=raw):
+                        self.assertIsNotNone(service.get_servlet(raw))
+
+                self.assertTrue(service.unregister("/ADMIN"))
+                self.assertEqual(service.get_registered_paths(), [])
 
 
 class ServletRegistryTest(unittest.TestCase):
@@ -373,6 +572,9 @@ class EndToEndPathTest(unittest.TestCase):
 
     framework: Framework
 
+    http_bundle: str = "pelix.http.basic"
+    http_factory: str = http.FACTORY_HTTP_BASIC
+
     def setUp(self) -> None:
         """
         Starts a framework with an HTTP server on a random port
@@ -382,9 +584,9 @@ class EndToEndPathTest(unittest.TestCase):
 
         ipopo = install_ipopo(self.framework)
         context = self.framework.get_bundle_context()
-        context.install_bundle("pelix.http.basic").start()
+        context.install_bundle(self.http_bundle).start()
 
-        self.http_svc = instantiate_server(ipopo, http.FACTORY_HTTP_BASIC, "test-http-paths", port=0)
+        self.http_svc = instantiate_server(ipopo, self.http_factory, "test-http-paths", port=0)
         self.port = self.http_svc.get_access()[1]
 
         # Two servlets, one nested in the other
@@ -455,6 +657,93 @@ class EndToEndPathTest(unittest.TestCase):
                 code, content = get_http_page(self.port, DEFAULT_HOST, uri)
                 self.assertEqual(code, 200)
                 self.assertEqual(content.decode("utf-8"), f"inner|/test/inner|{expected}")
+
+    def test_paths_are_case_sensitive(self) -> None:
+        """
+        A request differing from the registration only by its case must not
+        reach that servlet
+        """
+        for uri in ("/Test/inner/x", "/TEST/INNER/x"):
+            with self.subTest(uri=uri):
+                self.assertEqual(get_http_code(self.port, DEFAULT_HOST, uri), 404)
+
+    def test_case_does_not_reach_the_deepest_servlet(self) -> None:
+        """
+        Changing the case of a nested servlet must fall back to the shallower
+        one rather than reach the nested servlet anyway. This is the bypass:
+        the router used to fold the path while the servlet saw the original.
+        """
+        code, content = get_http_page(self.port, DEFAULT_HOST, "/test/Inner/x")
+        self.assertEqual(code, 200)
+        self.assertEqual(content.decode("utf-8"), "root|/test|/Inner/x")
+
+    def test_traversal_is_resolved_before_routing(self) -> None:
+        """
+        A path walking back into a servlet reaches it, and the servlet is given
+        the resolved path: the router and the servlet can never disagree
+        """
+        for uri in (
+            "/test/inner/../inner/x",
+            "/test/sub/../inner/x",
+            "/test/inner/%2e%2e/inner/x",
+            "/test/inner/..%2finner/x",
+        ):
+            with self.subTest(uri=uri):
+                code, content = get_http_page(self.port, DEFAULT_HOST, uri)
+                self.assertEqual(code, 200, f"{uri} did not reach a servlet")
+                self.assertEqual(content.decode("utf-8"), "inner|/test/inner|/x")
+
+    def test_traversal_out_of_a_servlet(self) -> None:
+        """
+        Walking out of the deepest servlet must move the request to the
+        shallower one, not leave a ".." in the sub path
+        """
+        code, content = get_http_page(self.port, DEFAULT_HOST, "/test/inner/../x")
+        self.assertEqual(code, 200)
+        self.assertEqual(content.decode("utf-8"), "root|/test|/x")
+
+    def test_percent_encoding_reaches_the_servlet_decoded(self) -> None:
+        """
+        The servlet is given a decoded sub path
+        """
+        for uri, expected in (
+            ("/test/inner/a%20b", "/a b"),
+            ("/test/inner/a%2Fb", "/a/b"),
+            ("/test/inner/%61%62", "/ab"),
+        ):
+            with self.subTest(uri=uri):
+                code, content = get_http_page(self.port, DEFAULT_HOST, uri)
+                self.assertEqual(code, 200)
+                self.assertEqual(content.decode("utf-8"), f"inner|/test/inner|{expected}")
+
+    def test_escaping_the_root_is_a_bad_request(self) -> None:
+        """
+        A path escaping the root is refused with a 400, not a 404: it is the
+        request which is malformed, not the resource which is missing
+        """
+        for uri in ("/..", "/test/../../x", "/%2e%2e%2f%2e%2e%2fetc/passwd"):
+            with self.subTest(uri=uri):
+                self.assertEqual(get_http_code(self.port, DEFAULT_HOST, uri), 400)
+
+    def test_control_character_is_a_bad_request(self) -> None:
+        """
+        A NUL byte in the decoded path is refused
+        """
+        self.assertEqual(get_http_code(self.port, DEFAULT_HOST, "/test/inner/a%00b"), 400)
+
+
+@unittest.skipIf(importlib.util.find_spec("aiohttp") is None, "aiohttp library not available")
+class AsyncEndToEndPathTest(EndToEndPathTest):
+    """
+    Runs the routing tests over the asynchronous server.
+
+    This is not redundant: the two servers give the router a different string
+    (the raw target here, an already decoded one before this was fixed), so the
+    decoding half of the normalization is only covered on this side.
+    """
+
+    http_bundle = "pelix.http.basic_async"
+    http_factory = http.FACTORY_HTTP_ASYNC
 
 
 # ------------------------------------------------------------------------------

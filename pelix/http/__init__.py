@@ -106,6 +106,17 @@ Avoids a slow client to keep a request handling thread busy forever. A value
 lesser than or equal to 0 removes the timeout.
 """
 
+# ... case sensitivity of the servlet paths
+HTTP_CASE_SENSITIVE_PATHS = "pelix.http.case_sensitive_paths"
+"""
+Whether servlet paths are matched case-sensitively (boolean, True by default).
+
+URI paths are case-sensitive (RFC 3986), so ``/Admin`` and ``/admin`` are two
+different resources. Setting this property to False restores the folding of
+earlier versions, in which they were the same one: it is provided only to give
+an existing deployment time to spell its paths as it registers them.
+"""
+
 # HTTP servlet constants
 HTTP_SERVLET = "pelix.http.servlet"
 """ HTTP Servlet service specification """
@@ -309,7 +320,13 @@ class AbstractHTTPServletRequest(ABC):
     @abstractmethod
     def get_path(self) -> str:
         """
-        Returns the request full path
+        Returns the request full path, normalized.
+
+        The path is percent-decoded, its query string is removed, its repeated
+        slashes are collapsed and its ``.`` and ``..`` segments are resolved.
+        A segment therefore never holds a separator. Everything else the client
+        encoded reaches the servlet unchanged, so a servlet mapping a segment
+        onto a file system or another name space still has to validate it.
 
         :return: A request full path (string)
         """
@@ -318,7 +335,10 @@ class AbstractHTTPServletRequest(ABC):
     @abstractmethod
     def get_prefix_path(self) -> str:
         """
-        Returns the path to the servlet root
+        Returns the path to the servlet root, as the servlet was registered.
+
+        Servlet paths are matched case-sensitively unless
+        :const:`HTTP_CASE_SENSITIVE_PATHS` says otherwise.
 
         :return: A request path (string)
         """
@@ -327,7 +347,10 @@ class AbstractHTTPServletRequest(ABC):
     @abstractmethod
     def get_sub_path(self) -> str:
         """
-        Returns the servlet-relative path, i.e. after the prefix
+        Returns the servlet-relative path, i.e. after the prefix.
+
+        It is cut out of the path :meth:`get_path` returns, so it carries the
+        same guarantees.
 
         :return: A request path (string)
         """
@@ -543,7 +566,13 @@ class AbstractAsyncHTTPServletRequest(ABC):
     @abstractmethod
     def get_path(self) -> str:
         """
-        Returns the request full path
+        Returns the request full path, normalized.
+
+        The path is percent-decoded, its query string is removed, its repeated
+        slashes are collapsed and its ``.`` and ``..`` segments are resolved.
+        A segment therefore never holds a separator. Everything else the client
+        encoded reaches the servlet unchanged, so a servlet mapping a segment
+        onto a file system or another name space still has to validate it.
 
         :return: A request full path (string)
         """
@@ -552,7 +581,10 @@ class AbstractAsyncHTTPServletRequest(ABC):
     @abstractmethod
     def get_prefix_path(self) -> str:
         """
-        Returns the path to the servlet root
+        Returns the path to the servlet root, as the servlet was registered.
+
+        Servlet paths are matched case-sensitively unless
+        :const:`HTTP_CASE_SENSITIVE_PATHS` says otherwise.
 
         :return: A request path (string)
         """
@@ -561,7 +593,10 @@ class AbstractAsyncHTTPServletRequest(ABC):
     @abstractmethod
     def get_sub_path(self) -> str:
         """
-        Returns the servlet-relative path, i.e. after the prefix
+        Returns the servlet-relative path, i.e. after the prefix.
+
+        It is cut out of the path :meth:`get_path` returns, so it carries the
+        same guarantees.
 
         :return: A request path (string)
         """

@@ -100,6 +100,7 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         :param max_body_size: Maximum accepted size of the body, in bytes
         """
         self._handler = request_handler
+        self._full_path = full_path
         self._prefix = prefix
         self.max_body_size = max_body_size
 
@@ -134,9 +135,9 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
 
     def get_path(self) -> str:
         """
-        Retrieves the request full path
+        Retrieves the request full path, normalized
         """
-        return self._handler.path
+        return self._full_path
 
     def get_prefix_path(self) -> str:
         """
@@ -284,6 +285,10 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
         # Get the corresponding servlet
         routing = self._service.resolve_request(self.path)
+        if routing.error is not None:
+            # The path itself has been refused: no servlet is looked for
+            return self.send_bad_path_response
+
         servlet = routing.servlet
         if servlet is not None and hasattr(servlet, name):
             # Prepare the helpers
@@ -314,7 +319,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
             return wrapper
 
         # Return the super implementation if needed
-        return self.send_no_servlet_response
+        return lambda: self.send_no_servlet_response(routing.path)
 
     def log_error(self, format: str, *args: Any, **kwargs: Any) -> None:
         """
@@ -328,13 +333,23 @@ class _RequestHandler(BaseHTTPRequestHandler):
         """
         self._service.log(logging.DEBUG, '"%s" %s', self.requestline, code)
 
-    def send_no_servlet_response(self) -> None:
+    def send_no_servlet_response(self, path: str) -> None:
         """
         Default response sent when no servlet is found for the requested path
+
+        :param path: The normalized path the servlet was looked for
         """
         # Use the helper to send the error page
         response = _HTTPServletResponse(self)
-        response.send_content(404, self._service.make_not_found_page(self.path))
+        response.send_content(404, self._service.make_not_found_page(path))
+
+    def send_bad_path_response(self) -> None:
+        """
+        Response sent when the requested path has been refused, before any
+        servlet has been looked for
+        """
+        response = _HTTPServletResponse(self)
+        response.send_content(400, "<html><body><h1>Bad Request</h1></body></html>")
 
     def send_too_large_response(
         self, response: http.AbstractHTTPServletResponse, error: http.BodyTooLargeError
