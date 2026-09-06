@@ -17,7 +17,7 @@ __pycache__/
 .vscode
 
 # Python build
-.venv/
+.venv*/
 build/
 dist/
 iPOPO.egg-info/
@@ -68,3 +68,9 @@ _build/
 /tmp
 /temp
 /work
+
+# Local configuration files
+*.local.*
+
+# Environment variables
+.env
