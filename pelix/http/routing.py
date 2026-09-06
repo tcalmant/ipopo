@@ -224,6 +224,9 @@ class RestDispatcher(Servlet):
         # function -> arg name -> arg converter
         self.__methods_args: dict[Callable[..., None], dict[str, Callable[[str], Any] | None]] = {}
 
+        # function -> names of its arguments which have a Python default value
+        self.__methods_optional_args: dict[Callable[..., None], set[str]] = {}
+
         # Find all REST methods
         self._setup_rest_dispatcher()
 
@@ -283,16 +286,33 @@ class RestDispatcher(Servlet):
             if not match:
                 continue
 
-            # Count the number of valid arguments
+            # Count the number of valid arguments. Every route marker is optional in
+            # the compiled pattern (see __convert_route), so a group can match with no
+            # captured value at all: that must count as 0, not as a supplied argument,
+            # or a route with an unset parameter would out-score a route that never
+            # needed that parameter in the first place (e.g. "/<id:int>" beating ""
+            # on a request for the bare prefix).
             method_args = self.__methods_args[method]
+            optional_args = self.__methods_optional_args.get(method, set())
             nb_valid_args = 0
+            viable = True
             for name in method_args:
                 try:
-                    match.group(name)
-                    nb_valid_args += 1
+                    value = match.group(name)
                 except IndexError:
-                    # Argument not found
-                    pass
+                    # Not part of this particular route variant: nothing to count
+                    continue
+
+                if value is not None:
+                    nb_valid_args += 1
+                elif name not in optional_args:
+                    # The pattern matched but left a required argument (no Python
+                    # default) empty: this method cannot be called without it, so this
+                    # route cannot be a candidate, no matter how it would score
+                    viable = False
+
+            if not viable:
+                continue
 
             if nb_valid_args > max_valid_args:
                 # Found a better match
@@ -354,6 +374,14 @@ class RestDispatcher(Servlet):
             except AttributeError:
                 # Not a REST method
                 continue
+
+            if method not in self.__methods_optional_args:
+                arg_spec = get_method_arguments(method)
+                defaults = arg_spec.defaults or []
+                # Defaults apply to the trailing arguments, in order (regular Python
+                # semantics for a function signature)
+                first_optional = len(arg_spec.args) - len(defaults)
+                self.__methods_optional_args[method] = set(arg_spec.args[first_optional:])
 
             for route in config["routes"]:
                 pattern, arguments = self.__convert_route(route)
