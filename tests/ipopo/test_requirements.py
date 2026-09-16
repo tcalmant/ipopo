@@ -539,6 +539,72 @@ class RequirementTest(unittest.TestCase):
         self.assertListEqual([IPopoEvent.INVALIDATED], compo.states, "Component not invalidated...")
         compo.reset()
 
+    def testRequiresMapAllowNoneArrivalKeyCollision(self):
+        """
+        Regression test: SimpleDependency.on_service_arrival must reject a
+        service whose key is already in use, even when allow_none=True.
+
+        (Operator-precedence bug: "A and B or C" instead of "A and (B or C)"
+        made the dedup check a no-op whenever allow_none was True.)
+        """
+        module = install_bundle(self.framework)
+        context = self.framework.get_bundle_context()
+
+        compo = self.ipopo.instantiate(module.FACTORY_MAP, "map.component")
+        compo.reset()
+
+        # First service takes the "single.key" == 10 slot in single_none
+        # (allow_none=True, aggregate=False)
+        svc_a = object()
+        reg_a = context.register_service(module.MAP_SPEC_TEST, svc_a, {"single.key": 10})
+        self.assertDictEqual({10: svc_a}, compo.single_none, "First service not injected in single_none")
+
+        # A second service sharing the same key must be rejected instead of
+        # silently overwriting the first one
+        svc_b = object()
+        reg_b = context.register_service(module.MAP_SPEC_TEST, svc_b, {"single.key": 10})
+        self.assertDictEqual(
+            {10: svc_a},
+            compo.single_none,
+            "Second service silently overwrote the first (allow_none precedence bug)",
+        )
+
+        reg_a.unregister()
+        reg_b.unregister()
+
+    def testRequiresMapAllowNoneModifyKeyCollision(self):
+        """
+        Regression test: SimpleDependency.on_service_modify must reject a
+        property update that collides with an already-used key, even when
+        allow_none=True.
+
+        (Operator-precedence bug: "A or B and C" instead of "(A or B) and C"
+        made the dedup check a no-op whenever the new value was not None.)
+        """
+        module = install_bundle(self.framework)
+        context = self.framework.get_bundle_context()
+
+        compo = self.ipopo.instantiate(module.FACTORY_MAP, "map.component")
+        compo.reset()
+
+        svc_a = object()
+        reg_a = context.register_service(module.MAP_SPEC_TEST, svc_a, {"single.key": 1})
+        svc_b = object()
+        reg_b = context.register_service(module.MAP_SPEC_TEST, svc_b, {"single.key": 2})
+        self.assertDictEqual({1: svc_a, 2: svc_b}, compo.single_none, "Services not injected correctly")
+
+        # Move svc_b's key onto svc_a's: the collision must be rejected, i.e.
+        # svc_b must be considered gone instead of silently overwriting
+        # svc_a's slot
+        reg_b.set_properties({"single.key": 1})
+        self.assertDictEqual(
+            {1: svc_a},
+            compo.single_none,
+            "Modified service silently overwrote the collision slot (allow_none precedence bug)",
+        )
+
+        reg_a.unregister()
+
     def test_immediate_rebind(self):
         """
         Tests the immediate_rebind flag of @Requires

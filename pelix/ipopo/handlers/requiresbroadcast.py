@@ -450,6 +450,7 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
                 return False
 
             # Copy the list, just in case we have a side effect
+            any_success = False
             for svc in list(self._services.values()):
                 try:
                     # Find the element to call
@@ -470,6 +471,8 @@ class BroadcastDependency(constants.DependencyHandler, ServiceListener):
                         if self._trace_ex:
                             # Log it
                             self._logger.exception("Exception occurred")
+                    else:
+                        any_success = True
 
-            # Service have been notified (or failed silently): return True
-            return True
+            # True only if at least one underlying call actually succeeded
+            return any_success

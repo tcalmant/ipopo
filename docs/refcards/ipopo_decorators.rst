@@ -70,6 +70,37 @@ Requirements
 .. autoclass:: RequiresVarFilter
 .. autoclass:: RequiresConfiguration
 
+Comparison with OSGi Declarative Services
+__________________________________________
+
+OSGi Declarative Services exposes a single reference type, configured by a
+``policy`` (static or dynamic) and a ``policy-option`` (greedy or reluctant)
+attribute. iPOPO spreads those same binding behaviors across several
+specialized decorators instead of unifying them as attributes:
+
+.. list-table::
+   :header-rows: 1
+   :widths: 20 45 35
+
+   * - Decorator
+     - Rebinds when...
+     - Closest DS analogue
+   * - :class:`Requires`
+     - a bound service is lost (keeps ties, doesn't rebind on a better match
+       becoming available)
+     - ``policy-option="reluctant"`` (default)
+   * - :class:`RequiresBest`
+     - a higher-ranked match appears, even replacing an already bound
+       service
+     - ``policy-option="greedy"``
+   * - :class:`RequiresVarFilter`
+     - a referenced component property used by its filter changes
+     - ConfigAdmin-driven ``target`` reference property
+   * - :class:`Temporal`
+     - (no DS equivalent: adds a grace period before a lost dependency
+       actually invalidates the component)
+     - *(iPOPO-only extension)*
+
 
 Instance definition
 ^^^^^^^^^^^^^^^^^^^

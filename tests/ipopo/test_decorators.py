@@ -12,7 +12,6 @@ import unittest
 
 from pelix.framework import FrameworkFactory
 from pelix.ipopo import constants, decorators
-from tests import log_off, log_on
 from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
@@ -266,6 +265,30 @@ class DecoratorsTest(unittest.TestCase):
         # Ensure the instantiation was not inherited
         self.assertNotIn(instance_name, child_context.get_instances(), "Instance kept in child")
 
+        # Re-applying @ComponentFactory on an already manipulated class must raise
+        self.assertRaises(decorators.FactoryManipulationError, decorators.ComponentFactory(), DummyClass)
+
+    def testFactoryManipulationErrors(self):
+        """
+        Tests that component-defining decorators reject a class that has
+        already been manipulated by @ComponentFactory (i.e. applied out of
+        order, since @ComponentFactory must be the topmost decorator)
+        """
+
+        for decorator in (
+            decorators.Property("_field", "name"),
+            decorators.HiddenProperty("_field", "name"),
+            decorators.Provides("spec"),
+            decorators.Requires("_field", "spec"),
+            decorators.RequiresConfiguration(),
+        ):
+
+            @decorators.ComponentFactory()
+            class DummyClass:
+                pass
+
+            self.assertRaises(decorators.FactoryManipulationError, decorator, DummyClass)
+
     def testInstantiate(self):
         """
         Tests the @Instantiate decorator
@@ -296,10 +319,8 @@ class DecoratorsTest(unittest.TestCase):
         # 1st injection
         decorators.Instantiate("test", {"id": 1})(DummyClass)
 
-        # 2nd injection: nothing happens
-        log_off()
-        decorators.Instantiate("test", {"id": 2})(DummyClass)
-        log_on()
+        # 2nd injection: rejected, first definition kept
+        self.assertRaises(NameError, decorators.Instantiate("test", {"id": 2}), DummyClass)
 
         # Get the factory context
         context = decorators.get_factory_context(DummyClass)
@@ -464,6 +485,16 @@ class DecoratorsTest(unittest.TestCase):
             # Invalid target
             for invalid in (None, method, 123):
                 self.assertRaises(TypeError, decorator("field", "spec"), invalid)
+
+            # More than one specification
+            self.assertRaises(ValueError, decorator, "field", ["spec.1", "spec.2"])
+
+            # Applied on an already manipulated class
+            @decorators.ComponentFactory()
+            class DummyClass:
+                pass
+
+            self.assertRaises(decorators.FactoryManipulationError, decorator("field", "spec"), DummyClass)
 
     def test_requires_map(self):
         """

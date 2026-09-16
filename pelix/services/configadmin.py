@@ -351,12 +351,16 @@ class Configuration(services.Configuration):
         These system properties are all of type String.
 
         If the corresponding Managed Service/Managed Service Factory is
-        registered, its updated method must be called asynchronously.
+        registered, its updated method is called synchronously, from the
+        calling thread (unlike the spec's asynchronous delivery: this avoids
+        deadlocks when the caller already holds a lock the handler needs).
         Else, this callback is delayed until aforementioned registration
         occurs.
 
-        Also initiates an asynchronous call to all ConfigurationListeners with
-        a ConfigurationEvent.CM_UPDATED event.
+        Unlike the Configuration Admin Service spec (104.4), this
+        implementation does not support ConfigurationListener/
+        ConfigurationEvent notifications: there is no call to
+        ConfigurationListeners here.
 
         :param properties: the new set of properties for this configuration
         :raise IOError: Error storing the configuration

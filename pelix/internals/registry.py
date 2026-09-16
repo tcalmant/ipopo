@@ -1316,8 +1316,9 @@ class ServiceRegistry:
 
             if new_filter is not None:
                 # Prepare a generator, as we might not need a complete
-                # walk-through
-                refs_set = iter({ref for ref in refs_set if new_filter.matches(ref.get_properties())})
+                # walk-through. Filtering must preserve the ranking/service.id
+                # order of refs_set, so use a generator, not a set (unordered).
+                refs_set = (ref for ref in refs_set if new_filter.matches(ref.get_properties()))
 
             if only_one:
                 # Return the first element in the list/generator

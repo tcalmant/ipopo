@@ -28,7 +28,6 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 import inspect
 import logging
 import threading
-import types
 from collections.abc import Callable, Iterable
 from typing import (
     Any,
@@ -64,6 +63,17 @@ __docformat__ = "restructuredtext en"
 _logger = logging.getLogger("ipopo.decorators")
 
 # ------------------------------------------------------------------------------
+
+
+class FactoryManipulationError(ValueError):
+    """
+    Raised when a component-defining decorator (:class:`Property`,
+    :class:`HiddenProperty`, :class:`Provides`, :class:`Requires` and its
+    subclasses, :class:`RequiresConfiguration`) is applied to a factory class
+    that has already been manipulated by :class:`ComponentFactory`, which
+    must always be the topmost (last applied) decorator; or when
+    :class:`ComponentFactory` itself is applied twice to the same class.
+    """
 
 
 def get_factory_context(cls: type[Any]) -> FactoryContext:
@@ -450,21 +460,14 @@ class Instantiate:
         :param factory_class: The factory class to instantiate
         :return: The decorated factory class
         :raise TypeError: The given object is not a class
+        :raise NameError: An instance with the same name has already been declared on this class
         """
         if not inspect.isclass(factory_class):
             raise TypeError(f"@Instantiate can decorate only classes, not '{type(factory_class).__name__}'")
 
         # Store the instance in the factory context
         context = get_factory_context(factory_class)
-        try:
-            context.add_instance(self.__name, self.__properties)
-
-        except NameError:
-            _logger.warning(
-                "Component '%s' defined twice, new definition ignored",
-                self.__name,
-            )
-
+        context.add_instance(self.__name, self.__properties)
         return factory_class
 
 
@@ -527,6 +530,7 @@ class ComponentFactory:
         :param factory_class: The class to decorate
         :return: The decorated class
         :raise TypeError: The given object is not a class
+        :raise FactoryManipulationError: The class has already been manipulated
         """
         if not inspect.isclass(factory_class):
             raise TypeError(
@@ -570,11 +574,10 @@ class ComponentFactory:
                     None,
                 )
         else:
-            # Manipulation already applied: do nothing more
-            _logger.error(
-                "%s has already been manipulated with the name '%s'. Keeping the old name.",
-                get_method_description(factory_class),
-                context.name,
+            # Manipulation already applied
+            raise FactoryManipulationError(
+                f"{get_method_description(factory_class)} has already been manipulated with the "
+                f"name '{context.name}'"
             )
 
         return factory_class
@@ -693,6 +696,7 @@ class Property:
         :param clazz: The class to decorate
         :return: The decorated class
         :raise TypeError: If *clazz* is not a type
+        :raise FactoryManipulationError: The class has already been manipulated
         """
         if not inspect.isclass(clazz):
             raise TypeError(f"@Property can decorate only classes, not '{type(clazz).__name__}'")
@@ -700,12 +704,9 @@ class Property:
         # Get the factory context
         context = get_factory_context(clazz)
         if context.completed:
-            # Do nothing if the class has already been manipulated
-            _logger.warning(
-                "@Property: Already manipulated class: %s",
-                get_method_description(clazz),
+            raise FactoryManipulationError(
+                f"@Property: Already manipulated class: {get_method_description(clazz)}"
             )
-            return clazz
 
         # If the initial value is not given, use the value stored in the field
         if self._value is None:
@@ -772,6 +773,7 @@ class HiddenProperty(Property):
         :param clazz: The class to decorate
         :return: The decorated class
         :raise TypeError: If *clazz* is not a type
+        :raise FactoryManipulationError: The class has already been manipulated
         """
         if not inspect.isclass(clazz):
             raise TypeError(f"@HiddenProperty can decorate only classes, not '{type(clazz).__name__}'")
@@ -779,12 +781,9 @@ class HiddenProperty(Property):
         # Get the factory context
         context = get_factory_context(clazz)
         if context.completed:
-            # Do nothing if the class has already been manipulated
-            _logger.warning(
-                "@HiddenProperty: Already manipulated class: %s",
-                get_method_description(clazz),
+            raise FactoryManipulationError(
+                f"@HiddenProperty: Already manipulated class: {get_method_description(clazz)}"
             )
-            return clazz
 
         # If the initial value is not given, use the value stored in the field
         if self._value is None:
@@ -918,6 +917,26 @@ class Provides:
                   # Implementation of the "reset" service: publish the service
                   # again
                   self._svc_flag = True
+
+      A specification can also be a ``typing.Protocol`` decorated with
+      :func:`~pelix.constants.Specification`, which is the preferred style for
+      new code (it gives IDE/type-checking support on both the provider and
+      the consumer side, see :class:`Requires`):
+
+      .. code-block:: python
+
+          from typing import Protocol
+          from pelix.constants import Specification
+
+          @Specification("hello.world")
+          class HelloWorld(Protocol):
+              def greet(self, name: str) -> None: ...
+
+          @ComponentFactory()
+          @Provides(HelloWorld)
+          class Foo:
+              def greet(self, name: str) -> None:
+                  print("Hello,", name, "!")
     """
 
     HANDLER_ID = constants.HANDLER_PROVIDES
@@ -971,6 +990,7 @@ class Provides:
         :param clazz: The class to decorate
         :return: The decorated class
         :raise TypeError: If *clazz* is not a type or if the service factory methods are missing
+        :raise FactoryManipulationError: The class has already been manipulated
         """
         if not inspect.isclass(clazz):
             raise TypeError(f"@Provides can decorate only classes, not '{type(clazz).__name__}'")
@@ -978,12 +998,9 @@ class Provides:
         # Get the factory context
         context = get_factory_context(clazz)
         if context.completed:
-            # Do nothing if the class has already been manipulated
-            _logger.warning(
-                "@Provides: Already manipulated class: %s",
-                get_method_description(clazz),
+            raise FactoryManipulationError(
+                f"@Provides: Already manipulated class: {get_method_description(clazz)}"
             )
-            return clazz
 
         # Avoid duplicates (but keep the order)
         filtered_specs = []
@@ -1078,6 +1095,28 @@ class Requires:
                     optional=False, spec_filter='(language=fr)')
           class Bar:
               pass
+
+      A specification can also be a ``typing.Protocol`` decorated with
+      :func:`~pelix.constants.Specification`, which is the preferred style for
+      new code (it gives IDE/type-checking support: ``self._hello`` is typed
+      as ``HelloWorld`` instead of ``Any``):
+
+      .. code-block:: python
+
+          from typing import Protocol
+          from pelix.constants import Specification
+
+          @Specification("hello.world")
+          class HelloWorld(Protocol):
+              def greet(self, name: str) -> None: ...
+
+          @ComponentFactory()
+          @Requires('_hello', HelloWorld)
+          class Foo:
+              _hello: HelloWorld
+
+              def call(self):
+                  self._hello.greet("World")
     """
 
     HANDLER_ID = constants.HANDLER_REQUIRES
@@ -1107,6 +1146,9 @@ class Requires:
         The ``field`` and ``specification`` parameters are mandatory.
         By default, a requirement is neither aggregated nor optional
         (both are set to ``False``) and no specification filter is used.
+
+        :raise TypeError: Invalid field or specification type
+        :raise ValueError: Invalid field, or more than one specification given
         """
         if not field:
             raise ValueError("Empty field name.")
@@ -1121,7 +1163,10 @@ class Requires:
 
         # Be sure that there is only one required specification
         specifications = _get_specifications(specification)
-        self._multi_specs = len(specifications) > 1
+        if len(specifications) > 1:
+            raise ValueError(
+                f"Only one specification can be required for field '{field}', got: {specifications}"
+            )
 
         # Construct the requirement object
         self._requirement = Requirement(
@@ -1139,28 +1184,17 @@ class Requires:
         :param clazz: The class to decorate
         :return: The decorated class
         :raise TypeError: If *clazz* is not a type
+        :raise FactoryManipulationError: The class has already been manipulated
         """
         if not inspect.isclass(clazz):
             raise TypeError(f"@{type(self).__name__} can decorate only classes, not '{type(clazz).__name__}'")
 
-        if self._multi_specs:
-            _logger.warning(
-                "%s: Only one specification can be required: %s -> %s",
-                type(self).__name__,
-                clazz.__name__,
-                self._field,
-            )
-
         # Set up the property in the class
         context = get_factory_context(clazz)
         if context.completed:
-            # Do nothing if the class has already been manipulated
-            _logger.warning(
-                "@%s: Already manipulated class: %s",
-                type(self).__name__,
-                get_method_description(clazz),
+            raise FactoryManipulationError(
+                f"@{type(self).__name__}: Already manipulated class: {get_method_description(clazz)}"
             )
-            return clazz
 
         # Store the requirement information
         config = context.set_handler_default(self.HANDLER_ID, {})
@@ -1381,6 +1415,15 @@ class RequiresBroadcast(Requires):
     Unlike :class:`Requires`, the parameter ``optional`` is set to ``True`` by
     default. Also, the ``aggregate`` argument is not available, the behaviour
     of this handler is to broadcast to all matching services.
+
+    The proxied call returns ``True`` if at least one bound service call
+    completed without raising, and ``False`` if no service is bound or if
+    every bound service call raised. With the default flags
+    (``muffle_exceptions=True``, ``trace_exceptions=True``), a raised
+    exception is only traced in the logs, never propagated to the caller, but
+    it still counts as a failed call for that service when computing the
+    returned boolean. Set ``muffle_exceptions=False`` if the caller must
+    observe the exception itself instead of relying on this return value.
 
     :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_REQUIRES_BROADCAST`
 
@@ -1615,20 +1658,25 @@ class RequiresConfiguration:
         :param clazz: The class to decorate
         :return: The decorated class
         :raise TypeError: If *clazz* is not a type
+        :raise FactoryManipulationError: The class has already been manipulated
         """
         if not inspect.isclass(clazz):
             raise TypeError(f"@RequiresConfiguration can decorate only classes, not '{type(clazz).__name__}'")
 
         context = get_factory_context(clazz)
-        if not context.completed:
-            context.set_handler(
-                self.HANDLER_ID,
-                {
-                    "pid": self.__pid,
-                    "optional": self.__optional,
-                    "update_policy": self.__update_policy,
-                },
+        if context.completed:
+            raise FactoryManipulationError(
+                f"@RequiresConfiguration: Already manipulated class: {get_method_description(clazz)}"
             )
+
+        context.set_handler(
+            self.HANDLER_ID,
+            {
+                "pid": self.__pid,
+                "optional": self.__optional,
+                "update_policy": self.__update_policy,
+            },
+        )
 
         return clazz
 
@@ -1911,7 +1959,7 @@ def Update(
     :param method: The decorated method
     :raise TypeError: The decorated element is not a valid function
     """
-    if not isinstance(method, types.FunctionType):
+    if not inspect.isroutine(method):
         raise TypeError("@Update can only be applied on functions")
 
     # Tests the number of parameters
@@ -1958,7 +2006,7 @@ def Unbind(
     :param method: The decorated method
     :raise TypeError: The decorated element is not a valid function
     """
-    if not isinstance(method, types.FunctionType):
+    if not inspect.isroutine(method):
         raise TypeError("@Unbind can only be applied on functions")
 
     # Tests the number of parameters
@@ -2049,7 +2097,7 @@ class ValidateComponent:
         :param method: The validation method
         :raise TypeError: The decorated element is not a valid function
         """
-        if not isinstance(method, types.FunctionType):
+        if not inspect.isroutine(method):
             raise TypeError("@ValidateComponent can only be applied on functions")
 
         # Tests the number of parameters
@@ -2090,7 +2138,7 @@ class InvalidateComponent(ValidateComponent):
         :param method: The invalidation method
         :raise TypeError: The decorated element is not a valid function
         """
-        if not isinstance(method, types.FunctionType):
+        if not inspect.isroutine(method):
             raise TypeError("@InvalidateComponent can only be applied on functions")
 
         # Tests the number of parameters
@@ -2214,7 +2262,7 @@ def PostRegistration(
     :param method: The decorated method
     :raise TypeError: The decorated element is not a valid function
     """
-    if not isinstance(method, types.FunctionType):
+    if not inspect.isroutine(method):
         raise TypeError("@PostRegistration can only be applied on functions")
 
     # Tests the number of parameters
@@ -2262,7 +2310,7 @@ def PostUnregistration(
     :param method: The decorated method
     :raise TypeError: The decorated element is not a valid function
     """
-    if not isinstance(method, types.FunctionType):
+    if not inspect.isroutine(method):
         raise TypeError("@PostUnregistration can only be applied on functions")
 
     # Tests the number of parameters

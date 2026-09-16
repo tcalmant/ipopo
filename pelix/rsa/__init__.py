@@ -1038,9 +1038,11 @@ def create_uuid_uri() -> str:
 
 def time_since_epoch() -> int:
     """
-    Gives a timestamp floored to last second
+    Gives the current timestamp in milliseconds since the epoch, as expected
+    by the ECF_ENDPOINT_TIMESTAMP property (see get_current_time_millis,
+    used the same way in remoteserviceadmin.py to set that same property).
     """
-    return int(time.time() - 1000)
+    return int(time.time() * 1000)
 
 
 def get_fw_uuid(context: BundleContext) -> str:
