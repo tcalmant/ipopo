@@ -90,7 +90,16 @@ language = "en"
 # List of patterns, relative to source directory, that match files and
 # directories to ignore when looking for source files.
 # This patterns also effect to html_static_path and html_extra_path
-exclude_patterns = ["doc-env", "_build", "Thumbs.db", ".DS_Store", ".gitignore", "requirements.txt"]
+exclude_patterns = [
+    "doc-env",
+    ".venv*/**",
+    "**/.venv*/**",
+    "_build",
+    "Thumbs.db",
+    ".DS_Store",
+    ".gitignore",
+    "requirements.txt",
+]
 
 # URLs the linkcheck builder can't validate:
 # - the sample servers described in the reference cards don't run while
