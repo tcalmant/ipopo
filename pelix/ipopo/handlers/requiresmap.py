@@ -418,7 +418,7 @@ class SimpleDependency(_RuntimeDependency):
             if svc_ref not in self.services:
                 # Get the key property
                 prop_value = svc_ref.get_property(self._key)
-                if prop_value not in self._future_value and prop_value is not None or self._allow_none:
+                if prop_value not in self._future_value and (prop_value is not None or self._allow_none):
                     # Matching new property value
                     service = self._context.get_service(svc_ref)
 
@@ -479,7 +479,7 @@ class SimpleDependency(_RuntimeDependency):
                 service = self.services[svc_ref]
 
                 if old_value != prop_value:
-                    if prop_value is not None or self._allow_none and prop_value not in self._future_value:
+                    if (prop_value is not None or self._allow_none) and prop_value not in self._future_value:
                         # New property accepted and not yet in use
                         del self._future_value[old_value]
                         self._future_value[prop_value] = service
