@@ -346,6 +346,7 @@ class ServicesTest(unittest.TestCase):
         all_refs = context.get_all_service_references(spec, None)
         assert all_refs is not None
         filtered_refs = context.get_all_service_references(spec, "(matches=True)")
+        assert filtered_refs is not None
         self.assertListEqual(all_refs, filtered_refs, "Filtered order differs from ranking order")
 
     def testGetServiceReferencesOwnBundleFiltering(self):
@@ -377,6 +378,7 @@ class ServicesTest(unittest.TestCase):
         # From the echo bundle's own context, none of the "spec" services
         # belong to it: the result must be empty, not leaking a foreign ref.
         refs = bundle_context.get_service_references(spec, None)
+        assert refs is not None
         self.assertListEqual(refs, [], "A foreign reference leaked through get_service_references")
 
     def testGetAllReferences(self):

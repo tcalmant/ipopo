@@ -62,6 +62,20 @@ Provided Services
 Requirements
 ^^^^^^^^^^^^
 
+Unlike OSGi Declarative Services, which exposes a single reference type
+configured by a ``policy`` (static or dynamic) and a ``policy-option``
+(greedy or reluctant), iPOPO spreads these binding behaviors across
+several specialized decorators instead of unifying them as attributes:
+:class:`Requires` rebinds dynamically and keeps its current binding on a
+tie (the reluctant-like default), :class:`RequiresBest` rebinds
+dynamically to the highest-ranked match whenever one becomes available,
+even replacing an already bound service (the greedy-like behavior), and
+:class:`RequiresVarFilter` re-evaluates its filter, and so its binding,
+whenever a referenced component property changes (the closest analogue to
+a ConfigAdmin-driven ``target`` reference property). :class:`Temporal` has
+no Declarative Services equivalent: it is an iPOPO-only extension adding a
+grace period before a lost dependency actually invalidates the component.
+
 .. autoclass:: Requires
 .. autoclass:: Temporal
 .. autoclass:: RequiresBest
