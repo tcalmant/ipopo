@@ -315,6 +315,70 @@ class ServicesTest(unittest.TestCase):
 
         self.assertEqual(ref.get_property("test"), 21, "Extra property not updated")
 
+    def testFilteredRankingOrder(self):
+        """
+        Ensures that get_service_reference(clazz, filter) deterministically
+        returns the highest-ranked (then lowest service.id on ties) matching
+        reference, even when a LDAP filter is given (regression test: the
+        filtered branch used to collect matches in a Python set, discarding
+        the ranking/service.id order maintained by the registry).
+        """
+        context = self.framework.get_bundle_context()
+        spec = "test.filtered.ranking.order"
+
+        # Rankings far enough apart that hash-order coincidence isn't
+        # plausible: register several services, out of ranking order, all
+        # matching the same LDAP filter.
+        for ranking in (10, -500, 300, 0, 1000, -1000, 42):
+            context.register_service(
+                spec,
+                self,
+                {"matches": True, pelix.constants.SERVICE_RANKING: ranking},
+            )
+
+        # The highest ranking (1000) must always win, regardless of set
+        # hashing/iteration order
+        best_ref = context.get_service_reference(spec, "(matches=True)")
+        assert best_ref is not None, "No reference found"
+        self.assertEqual(best_ref.get_property(pelix.constants.SERVICE_RANKING), 1000)
+
+        # Cross-check against the unfiltered order, which was already correct
+        all_refs = context.get_all_service_references(spec, None)
+        assert all_refs is not None
+        filtered_refs = context.get_all_service_references(spec, "(matches=True)")
+        self.assertListEqual(all_refs, filtered_refs, "Filtered order differs from ranking order")
+
+    def testGetServiceReferencesOwnBundleFiltering(self):
+        """
+        Ensures that BundleContext.get_service_references() correctly
+        excludes every reference registered by another bundle, including
+        when at least two consecutive foreign references are found
+        (regression test: the filtering used to mutate the result list with
+        .remove() while iterating over it, a skip-on-remove bug that let the
+        second of two consecutive foreign references survive).
+        """
+        spec = "test.get_service_references.skip_on_remove"
+        context = self.framework.get_bundle_context()
+
+        # Register two services owned by the framework bundle itself: these
+        # are the "foreign" references from the point of view of the echo
+        # bundle installed below, and they are consecutive in ranking/id
+        # order since nothing else is registered under this spec yet.
+        context.register_service(spec, self, {})
+        context.register_service(spec, self, {})
+
+        # Install and start a bundle that registers its own IEchoService:
+        # not under the same spec, but present in the registry so that
+        # find_service_references(None, ...) returns a mixed-owner list.
+        bundle = context.install_bundle(self.test_bundle_name)
+        bundle.start()
+        bundle_context = bundle.get_bundle_context()
+
+        # From the echo bundle's own context, none of the "spec" services
+        # belong to it: the result must be empty, not leaking a foreign ref.
+        refs = bundle_context.get_service_references(spec, None)
+        self.assertListEqual(refs, [], "A foreign reference leaked through get_service_references")
+
     def testGetAllReferences(self):
         """
         Tests get_all_service_references() method

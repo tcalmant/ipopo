@@ -1590,9 +1590,7 @@ class BundleContext:
         """
         refs = self.__framework.find_service_references(clazz, ldap_filter)
         if refs:
-            for ref in refs:
-                if ref.get_bundle() is not self.__bundle:
-                    refs.remove(ref)
+            refs = [ref for ref in refs if ref.get_bundle() is self.__bundle]
         return refs
 
     def install_bundle(self, name: str, path: None | str | pathlib.Path = None) -> Bundle:
