@@ -19,6 +19,10 @@ Unreleased
   code importing the generated modules directly, which is not expected outside
   of the provider itself
 * The generated code now requires a `protobuf` runtime 6.33.2 or newer
+* Fixed `pelix.rsa.time_since_epoch()`: it returned a nonsensical value
+  (`time.time() - 1000`, a timestamp about 16 minutes in the past) instead of
+  the current time in milliseconds expected for the `ECF_ENDPOINT_TIMESTAMP`
+  endpoint property
 
 ### iPOPO
 
@@ -35,6 +39,19 @@ Unreleased
 * The iPOPO waiting list no longer holds its lock while instantiating, killing
   or reconfiguring a component: the callbacks of a component can call back into
   the waiting list from another thread
+* Decorator misuse (`@ComponentFactory` applied twice or out of order, a
+  duplicate `@Instantiate` name, a multi-specification `@Requires`) now raises
+  `FactoryManipulationError`, `ValueError` or `NameError` instead of logging a
+  warning and continuing (breaking change)
+* `RequiresBroadcast.handle_call()` now returns `True` only if at least one
+  bound service's call actually succeeded, instead of `True` as soon as any
+  service was bound regardless of the call outcome (breaking change)
+* Fixed `ServiceRegistry.find_service_references()`: filtering matches used to
+  go through a `set`, which could silently drop the ranking/service ID order
+  of the result
+* Fixed `BundleContext.get_service_references()`: iterating over the result
+  list while removing entries from it could skip references that should have
+  been filtered out
 
 ### Services
 
