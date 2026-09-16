@@ -98,6 +98,7 @@ class _HandlerFactory(constants.HandlerFactory):
                     if explicit_timeout <= 0:
                         explicit_timeout = timeout
                 except (ValueError, TypeError):
+                    _logger.warning("Invalid temporal timeout for field '%s': %s", field, explicit_timeout)
                     explicit_timeout = timeout
 
             if not explicit_filter and not explicit_timeout:
