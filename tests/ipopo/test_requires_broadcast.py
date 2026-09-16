@@ -56,6 +56,18 @@ class SampleEchoService(IEchoService):
         raise KeyError("Oops")
 
 
+class FailingEchoService(SampleEchoService):
+    """
+    Variant whose "echo" member always raises, used to test that a broadcast
+    call's return value tracks actual per-service success
+    """
+
+    def echo(self, value):
+        self.called = True
+        self.value = value
+        raise KeyError("Oops")
+
+
 class RequiresBestTest(unittest.TestCase):
     """
     Tests the "requires best" handler behavior
@@ -360,8 +372,9 @@ class RequiresBestTest(unittest.TestCase):
         svc = SampleEchoService()
         context.register_service(IEchoService, svc, {})
 
-        # Muffled should be fine
-        self.assertTrue(consumer_muffled.service.raise_ex(), "Call should return True")
+        # Muffled: exception is swallowed, but the only bound call raised,
+        # so the return value must report failure
+        self.assertFalse(consumer_muffled.service.raise_ex(), "Call should return False")
         self.assertTrue(svc.raised, "Service not called")
         svc.reset()
 
@@ -371,6 +384,47 @@ class RequiresBestTest(unittest.TestCase):
             consumer_raise.service.raise_ex,
         )
         self.assertTrue(svc.raised, "Service not called")
+
+    def test_exception_return_value(self):
+        """
+        Tests that a broadcast call's return value tracks actual per-service
+        success (at least one call succeeded), not just whether any service
+        was bound
+        """
+        module = install_bundle(self.framework)
+        context = self.framework.get_bundle_context()
+        assert isinstance(context, BundleContext)
+
+        # Instantiate the muffled consumer
+        consumer = self.ipopo.instantiate(module.FACTORY_REQUIRES_BROADCAST, NAME_A)
+
+        # No service bound: must return False
+        self.assertFalse(consumer.service.echo(1), "Call should return False with no bound service")
+
+        # Bind two services that both fail: must return False
+        failing_a = FailingEchoService()
+        failing_b = FailingEchoService()
+        context.register_service(IEchoService, failing_a, {})
+        context.register_service(IEchoService, failing_b, {})
+
+        self.assertFalse(
+            consumer.service.echo(random.randint(1, 100)),
+            "Call should return False when every bound service raised",
+        )
+        self.assertTrue(failing_a.called, "First failing service not called")
+        self.assertTrue(failing_b.called, "Second failing service not called")
+
+        # Bind a well-behaved service alongside the failing ones: at least
+        # one call succeeds, so the call must return True
+        working = SampleEchoService()
+        context.register_service(IEchoService, working, {})
+
+        value = random.randint(1, 100)
+        self.assertTrue(
+            consumer.service.echo(value),
+            "Call should return True when at least one bound service succeeded",
+        )
+        self.assertEqual(working.value, value, "Wrong value given to the working service")
 
     def test_paths(self):
         """

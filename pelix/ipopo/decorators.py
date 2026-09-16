@@ -1416,12 +1416,14 @@ class RequiresBroadcast(Requires):
     default. Also, the ``aggregate`` argument is not available, the behaviour
     of this handler is to broadcast to all matching services.
 
-    With the default flags (``muffle_exceptions=True``, ``trace_exceptions=True``),
-    a broadcast call always reports success (returns ``True``) even if every
-    underlying service call raised an exception: exceptions are only traced in
-    the logs, never propagated nor otherwise signalled to the caller. Set
-    ``muffle_exceptions=False`` if the caller must observe the failure of at
-    least one underlying call.
+    The proxied call returns ``True`` if at least one bound service call
+    completed without raising, and ``False`` if no service is bound or if
+    every bound service call raised. With the default flags
+    (``muffle_exceptions=True``, ``trace_exceptions=True``), a raised
+    exception is only traced in the logs, never propagated to the caller, but
+    it still counts as a failed call for that service when computing the
+    returned boolean. Set ``muffle_exceptions=False`` if the caller must
+    observe the exception itself instead of relying on this return value.
 
     :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_REQUIRES_BROADCAST`
 
