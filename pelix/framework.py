@@ -114,7 +114,7 @@ def walk_modules(path: pathlib.Path) -> Generator[tuple[str, bool], None, None]:
         if not mod_name and file_path.is_dir() and "." not in file_path.name:
             mod_name = file_path.name
             try:
-                dir_contents = sorted(file_path.iterdir(), key=lambda p: (not p.is_dir, p.name))
+                dir_contents = sorted(file_path.iterdir(), key=lambda p: (not p.is_dir(), p.name))
             except OSError:
                 # ignore unreadable directories like import does
                 continue

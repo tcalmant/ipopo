@@ -718,10 +718,12 @@ def get_log_level(level: str | int) -> int | None:
     if isinstance(level, int):
         return level
 
+    level = level.upper()
+
     try:
         return logging.getLevelNamesMapping().get(level)  # type: ignore
     except AttributeError:
-        # Fallback for older Python versions
+        # Fallback for Python 3.10, which lacks getLevelNamesMapping()
         return {
             "CRITICAL": logging.CRITICAL,
             "FATAL": logging.FATAL,
@@ -731,4 +733,4 @@ def get_log_level(level: str | int) -> int | None:
             "INFO": logging.INFO,
             "DEBUG": logging.DEBUG,
             "NOTSET": logging.NOTSET,
-        }.get(level.upper(), None)
+        }.get(level, None)

@@ -56,7 +56,7 @@ XMPP = [
   "slixmpp~=1.12.0; python_version <= '3.10'",
   "slixmpp~=1.15.0; python_version > '3.10'",
 ]
-zeroconf = ["zeroconf>=0.148,<0.151"]
+zeroconf = ["zeroconf>=0.148,<0.152"]
 ZooKeeper = ["kazoo~=2.11.0"]
 yaml = ["pyyaml~=6.0.3"]
 

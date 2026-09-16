@@ -358,7 +358,7 @@ class EndpointSubscriber(abc.ABC):
         result: list[str] = []
         with self._discovered_endpoints_lock:
             for epid, ep in self._discovered_endpoints.items():
-                if ep and sessionid == ep[0]:
+                if sessionid == ep[0]:
                     result.append(epid)
         return result
 
