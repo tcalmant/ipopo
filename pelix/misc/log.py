@@ -30,7 +30,6 @@ import datetime
 import logging
 import sys
 import time
-from collections.abc import Callable, Iterable
 from types import ModuleType
 from typing import Any
 
@@ -47,6 +46,7 @@ from pelix.misc import (
     LogService,
     OptExcInfo,
 )
+from pelix.utilities import get_log_level
 
 # ------------------------------------------------------------------------------
 
@@ -438,15 +438,14 @@ class Activator(ActivatorProto):
         level_value = context.get_property(PROPERTY_LOG_LEVEL)
 
         if level_value:
-            converters: Iterable[Callable[[Any], Any]] = (int, logging.getLevelName)
-            for converter in converters:
-                try:
-                    parsed_level = converter(level_value)
-                    if isinstance(parsed_level, int):
-                        # Got a valid level
-                        return parsed_level
-                except (ValueError, TypeError):
-                    pass
+            try:
+                return int(level_value)
+            except (ValueError, TypeError):
+                pass
+
+            parsed_level = get_log_level(str(level_value))
+            if parsed_level is not None:
+                return parsed_level
 
         # By default, use the INFO level
         return logging.INFO

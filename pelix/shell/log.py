@@ -33,6 +33,7 @@ from pelix.ipopo.decorators import ComponentFactory, Instantiate, PostRegistrati
 from pelix.misc import LogReader, LogService
 from pelix.shell import ShellCommandMethod, ShellCommandsProvider
 from pelix.shell.beans import ShellSession
+from pelix.utilities import get_log_level
 
 # ------------------------------------------------------------------------------
 
@@ -101,7 +102,8 @@ class ShellLogCommand(ShellCommandsProvider):
 
         # Normalize arguments
         if isinstance(level, str):
-            level = logging.getLevelName(level.upper())
+            parsed_level = get_log_level(level)
+            level = parsed_level if parsed_level is not None else logging.WARNING
 
         if not isinstance(level, int):
             level = logging.WARNING
@@ -130,7 +132,8 @@ class ShellLogCommand(ShellCommandsProvider):
         :param words: Message to log
         """
         if isinstance(level, str):
-            level = logging.getLevelName(level.upper())
+            parsed_level = get_log_level(level)
+            level = parsed_level if parsed_level is not None else logging.INFO
 
         if not isinstance(level, int):
             level = logging.INFO
