@@ -32,6 +32,7 @@ from collections.abc import Callable
 from io import IOBase
 from typing import IO, Any, cast
 
+from pelix.security import ANONYMOUS, Subject
 from pelix.utilities import to_bytes, to_str
 
 # ------------------------------------------------------------------------------
@@ -57,15 +58,24 @@ class ShellSession:
     to shell commands
     """
 
-    def __init__(self, io_handler: "IOHandler", initial_vars: dict[str, Any] | None = None) -> None:
+    def __init__(
+        self,
+        io_handler: "IOHandler",
+        initial_vars: dict[str, Any] | None = None,
+        subject: Subject | None = None,
+    ) -> None:
         """
         Sets up the shell session
 
         :param io_handler:  The I/O handler associated to the session
         :param initial_vars: Initial variables
+        :param subject: Who the front end authenticated, None for the anonymous subject
         """
         # Store parameters
         self._io_handler = io_handler
+
+        # Not a session variable: those can be changed by the "set" command
+        self.__subject = subject if subject is not None else ANONYMOUS
 
         if not isinstance(initial_vars, dict):
             initial_vars = {}
@@ -106,6 +116,14 @@ class ShellSession:
         Flush output
         """
         self._io_handler.flush()
+
+    @property
+    def subject(self) -> Subject:
+        """
+        Who the front end authenticated, for the whole session: the anonymous subject
+        when it authenticated nobody
+        """
+        return self.__subject
 
     @property
     def variables(self) -> dict[str, Any]:

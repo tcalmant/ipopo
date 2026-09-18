@@ -6,6 +6,11 @@ iPOPO remote shell
 Provides a remote interface for the Pelix shell that can be accessed using
 telnet or netcat.
 
+Authentication is optional and based on :mod:`pelix.security`: a TLS client
+certificate the security layer maps to a user, or a login and password prompt when
+``pelix.shell.auth.required`` is set. Every command then runs as the authenticated
+subject, or as the anonymous one when authentication is not required.
+
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
@@ -29,11 +34,15 @@ telnet or netcat.
 """
 
 import argparse
+import importlib
 import logging
+import shlex
 import socket
 import socketserver
 import sys
 import threading
+import traceback
+import uuid
 from select import select
 from typing import TYPE_CHECKING, Any, cast
 
@@ -50,6 +59,17 @@ from pelix.ipopo.decorators import (
     Provides,
     Requires,
     Validate,
+)
+from pelix.security import (
+    ANONYMOUS,
+    AuthenticationFailed,
+    Authorization,
+    ClientCertificate,
+    Credentials,
+    Permission,
+    Subject,
+    UsernamePassword,
+    run_as,
 )
 from pelix.shell import beans
 from pelix.shell.console import handle_common_arguments, make_common_parser
@@ -85,6 +105,36 @@ __docformat__ = "restructuredtext en"
 _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
+
+PROP_AUTH_REQUIRED = "pelix.shell.auth.required"
+""" Component property: refuse every command until the client authenticated. Default: False """
+
+PERMISSION_DEBUG = Permission("pelix.shell.debug")
+""" Permission to see the stack trace of an error outside a command """
+
+METHOD_CERTIFICATE = "certificate"
+""" Authentication method of a session opened with a TLS client certificate """
+
+METHOD_PASSWORD = "password"
+""" Authentication method of a session opened with a login and a password """
+
+MAX_LOGIN_ATTEMPTS = 3
+""" Password attempts a connection gets before it is closed """
+
+# ------------------------------------------------------------------------------
+
+
+def _to_bool(value: Any) -> bool:
+    """
+    Reads a boolean component property, which a configuration file may give as a string
+
+    :param value: The property value
+    :return: The boolean it means
+    """
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+
+    return bool(value)
 
 
 class SharedBoolean:
@@ -122,6 +172,10 @@ class RemoteConsole(socketserver.StreamRequestHandler):
     Handles incoming connections and redirect network stream to the Pelix shell
     """
 
+    # Unbuffered: select() only sees the socket, so a line read ahead into a Python
+    # buffer (a password pasted with its login, a piped script) would never be handled
+    rbufsize = 0
+
     def __init__(self, shell_svc: "IPopoRemoteShell", active_flag: SharedBoolean, *args: Any) -> None:
         """
         Sets up members
@@ -154,67 +208,207 @@ class RemoteConsole(socketserver.StreamRequestHandler):
             # disconnect (i.e. "echo stop 0 | nc localhost 9000")
             return False
 
+    def _is_tls(self) -> bool:
+        """
+        Tells whether the client is connected over TLS
+        """
+        return HAS_SSL and isinstance(self.connection, ssl.SSLSocket)
+
+    def _has_pending_data(self) -> bool:
+        """
+        Tells whether data is ready to be read without blocking
+        """
+        if self._is_tls() and cast(ssl.SSLSocket, self.connection).pending():
+            # Already decrypted by the TLS layer: the socket itself may have nothing left
+            return True
+
+        return bool(select([self.connection], [], [], 0.5)[0])
+
+    def read_line(self) -> str | None:
+        """
+        Waits for a line from the client, as long as the server is active.
+
+        :return: The line, with its end of line, or None if the client is gone or the
+                 server is stopping
+        """
+        while self._active.get_value():
+            if not self._has_pending_data():
+                # Nothing to do (poll timed out)
+                continue
+
+            data = self.rfile.readline()
+            if not data:
+                # End of stream (client gone)
+                return None
+
+            # Convert data
+            if isinstance(data, bytes):
+                return data.decode(self._shell.get_encoding(), errors="replace")
+
+            return cast(str, data)
+
+        return None
+
+    def _login(self, client_ip: str) -> Subject | None:
+        """
+        Authenticates the client: first with its TLS certificate, then with a login and
+        a password if authentication is required.
+
+        :param client_ip: The address of the client
+        :return: The subject of the session, or None to close the connection
+        """
+        # Without the security core, a shell which does not require authentication
+        # behaves as it always did, without even a warning about missing authenticators
+        if self._is_tls() and self._shell.is_security_active():
+            certificate = ClientCertificate.from_socket(cast(ssl.SSLSocket, self.connection))
+            if certificate is not None:
+                try:
+                    subject = self._shell.authenticate(certificate, client_ip, METHOD_CERTIFICATE)
+                except AuthenticationFailed:
+                    # The TLS layer verified it: it is simply not mapped to any user
+                    _logger.info(
+                        "Client certificate %s (%s) from %s is not mapped to a user",
+                        certificate.fingerprint,
+                        certificate.subject,
+                        client_ip,
+                    )
+                else:
+                    _logger.info("User %s from %s authenticated by certificate", subject.name, client_ip)
+                    return subject
+
+        if not self._shell.is_auth_required():
+            return ANONYMOUS
+
+        if not self._is_tls():
+            _logger.warning(
+                "Password login prompted to %s over a clear-text connection: "
+                "the password will travel unencrypted",
+                client_ip,
+            )
+
+        for attempt in range(1, MAX_LOGIN_ATTEMPTS + 1):
+            self.send("Login: ")
+            username = self.read_line()
+            if username is None:
+                return None
+
+            self.send("Password: ")
+            password = self.read_line()
+            if password is None:
+                return None
+
+            try:
+                # Only the end of line is removed: a password may start or end with a space
+                subject = self._shell.authenticate(
+                    UsernamePassword(username.strip(), password.rstrip("\r\n")), client_ip, METHOD_PASSWORD
+                )
+            except AuthenticationFailed:
+                # The attempted name is not logged: it is sometimes a password typed too early
+                _logger.warning("Failed login %d/%d from %s", attempt, MAX_LOGIN_ATTEMPTS, client_ip)
+                self.send("Login incorrect\n")
+            else:
+                _logger.info("User %s from %s authenticated by password", subject.name, client_ip)
+                return subject
+
+        _logger.warning("Too many failed logins from %s: closing the connection", client_ip)
+        self.send("Too many failed login attempts.\n")
+        return None
+
+    def _report_error(self, session: beans.ShellSession, client_ip: str, ex: Exception) -> None:
+        """
+        Reports an error which happened outside of a command.
+
+        A stack trace describes the server and the data it handles, so it is only sent
+        to a subject granted the debug permission. It is always logged, with the error ID
+        the client gets instead.
+
+        :param session: The session of the client
+        :param client_ip: The address of the client
+        :param ex: The error
+        """
+        error_id = uuid.uuid4().hex
+        stack = traceback.format_exc()
+        _logger.error(
+            "Error %s in the session of %s from %s:\n%s", error_id, session.subject.name, client_ip, stack
+        )
+
+        if self._shell.is_debug_allowed(session.subject):
+            self.send(f"\nError during last command: {ex}\n")
+            self.send(stack)
+        else:
+            self.send(f"\nError during last command. Error ID: {error_id}\n")
+
+    def _audit(self, session: beans.ShellSession, client_ip: str, line: str) -> None:
+        """
+        Logs a command line about to be executed.
+
+        Only the command name goes to the INFO level: its arguments may be secrets, like
+        the password of a configuration entry.
+
+        :param session: The session of the client
+        :param client_ip: The address of the client
+        :param line: The command line
+        """
+        _logger.info(
+            "User %s from %s ran %s",
+            session.subject.name,
+            client_ip,
+            self._shell.get_command_name(line) or "an unknown command",
+        )
+        _logger.debug("User %s from %s ran: %s", session.subject.name, client_ip, line)
+
     def handle(self) -> None:
         """
         Handles a TCP client
         """
-        _logger.info(
-            "RemoteConsole client connected: [%s]:%d",
-            self.client_address[0],
-            self.client_address[1],
-        )
-
-        # Prepare the session
-        session = beans.ShellSession(
-            beans.IOHandler(self.rfile, self.wfile),
-            {"remote_client_ip": self.client_address[0]},
-        )
-
-        # Print the banner
-        def get_ps1() -> str:
-            """
-            Gets the prompt string from the session of the shell service
-
-            :return: The prompt string
-            """
-            try:
-                ps1_var = session.get("PS1")
-                return str(ps1_var) if ps1_var else ""
-            except KeyError:
-                return self._shell.get_ps1()
-
-        self.send(self._shell.get_banner())
-        self.send(get_ps1())
+        client_ip = self.client_address[0]
+        _logger.info("RemoteConsole client connected: [%s]:%d", client_ip, self.client_address[1])
 
         try:
-            while self._active.get_value():
-                # Wait for data
-                rlist = select([self.connection], [], [], 0.5)[0]
-                if not rlist:
-                    # Nothing to do (poll timed out)
-                    continue
+            # Print the banner
+            self.send(self._shell.get_banner())
 
-                data = self.rfile.readline()
-                if not data:
-                    # End of stream (client gone)
+            # No command at all, not even "help", before the client is authenticated
+            subject = self._login(client_ip)
+            if subject is None:
+                return
+
+            # Prepare the session
+            session = beans.ShellSession(
+                beans.IOHandler(self.rfile, self.wfile),
+                {"remote_client_ip": client_ip},
+                subject,
+            )
+
+            def get_ps1() -> str:
+                """
+                Gets the prompt string from the session of the shell service
+
+                :return: The prompt string
+                """
+                try:
+                    ps1_var = session.get("PS1")
+                    return str(ps1_var) if ps1_var else ""
+                except KeyError:
+                    return self._shell.get_ps1()
+
+            self.send(get_ps1())
+
+            while True:
+                line = self.read_line()
+                if line is None:
                     break
-
-                # Convert data
-                if isinstance(data, bytes):
-                    line = data.decode(self._shell.get_encoding())
-                elif isinstance(data, str):
-                    line = cast(str, data)
-                else:
-                    _logger.error("Unsupported data received: %s", type(data).__name__)
-                    self.send("Unsupported data type")
-                    continue
 
                 # Strip the line
                 line = line.strip()
                 if line:
+                    self._audit(session, client_ip, line)
+
                     # Execute it
                     try:
-                        self._shell.handle_line(line, session)
+                        # Every command, so that the security decorators see who runs it
+                        with run_as(session.subject):
+                            self._shell.handle_line(line, session)
                     except KeyboardInterrupt:
                         # Stop there on interruption
                         self.send("\nInterruption received.")
@@ -225,19 +419,12 @@ class RemoteConsole(socketserver.StreamRequestHandler):
                         break
                     except Exception as ex:  # noqa: BLE001
                         # Other exceptions are not important
-                        import traceback
-
-                        self.send(f"\nError during last command: {ex}\n")
-                        self.send(traceback.format_exc())
+                        self._report_error(session, client_ip, ex)
 
                 # Print the prompt
                 self.send(get_ps1())
         finally:
-            _logger.info(
-                "RemoteConsole client gone: [%s]:%d",
-                self.client_address[0],
-                self.client_address[1],
-            )
+            _logger.info("RemoteConsole client gone: [%s]:%d", client_ip, self.client_address[1])
 
             try:
                 # Be polite
@@ -441,6 +628,8 @@ def _create_server(
 @ComponentFactory(pelix.shell.FACTORY_REMOTE_SHELL)
 @Provides(pelix.shell.RemoteShell)
 @Requires("_shell", pelix.shell.ShellService)
+@Requires("_authorization", Authorization, optional=True)
+@Property("_auth_required", PROP_AUTH_REQUIRED, False)
 @Property("_address", "pelix.shell.address", "localhost")
 @Property("_port", "pelix.shell.port", 9000)
 @Property("_encoding", "pelix.shell.encoding", "utf-8")
@@ -454,11 +643,16 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
     """
 
     _shell: pelix.shell.ShellService
+    _authorization: Authorization | None
 
     def __init__(self) -> None:
         """
         Sets up the component
         """
+        # Security configuration
+        self._auth_required: bool = False
+        self._authorization = None
+
         # Server configuration
         self._address: str | None = None
         self._port: int | None = 0
@@ -507,6 +701,75 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         """
         return self._shell.get_ps1()
 
+    def is_auth_required(self) -> bool:
+        """
+        Tells whether a client must authenticate before running any command
+        """
+        return self._auth_required
+
+    def is_security_active(self) -> bool:
+        """
+        Tells whether the security core is active, which its authorization service shows
+        """
+        return self._authorization is not None
+
+    def authenticate(self, credentials: Credentials, client_ip: str, method: str) -> Subject:
+        """
+        Authenticates a client through the security layer.
+
+        :param credentials: What the client presented
+        :param client_ip: The address of the client, for the brute-force throttle
+        :param method: Name of the authentication mechanism
+        :return: The authenticated subject
+        :raise AuthenticationFailed: The credentials are wrong, unknown, or locked out
+        """
+        if not self.is_security_active():
+            _logger.error(
+                "Cannot authenticate a remote shell client: the pelix.security.core bundle is not active"
+            )
+            raise AuthenticationFailed("No security core")
+
+        # Looked up at each call: when its bundle is reinstalled, the module is reloaded,
+        # and a reference taken at import time would point to a stopped copy
+        core = importlib.import_module("pelix.security.core")
+        return core.authenticate(credentials, client_ip, method=method)
+
+    def is_debug_allowed(self, subject: Subject) -> bool:
+        """
+        Tells whether a subject may see the stack trace of an error
+
+        :param subject: The subject of a session
+        :return: True if it is granted the debug permission
+        """
+        authorization = self._authorization
+        if authorization is None:
+            return False
+
+        try:
+            return authorization.is_permitted(PERMISSION_DEBUG, subject)
+        except Exception:
+            # Denying is the only safe answer of a policy which cannot answer
+            _logger.exception("Error checking the %s permission", PERMISSION_DEBUG)
+            return False
+
+    def get_command_name(self, line: str) -> str | None:
+        """
+        Resolves the command a line would run, without its arguments.
+
+        :param line: A command line
+        :return: The command, as ``namespace.command``, or None if it is unknown
+        """
+        try:
+            tokens = shlex.split(line, True, True)
+            if not tokens:
+                return None
+
+            namespace, command = self._shell.get_ns_command(tokens[0])
+        except ValueError:
+            return None
+
+        return f"{namespace}.{command}"
+
     def handle_line(self, line: str, session: beans.ShellSession) -> bool:
         """
         Handles the command line.
@@ -539,6 +802,13 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
 
         if not self._encoding:
             self._encoding = "utf-8"
+
+        self._auth_required = _to_bool(self._auth_required)
+        if self._auth_required and not self._cert_file:
+            _logger.warning(
+                "The remote shell requires authentication without TLS: passwords will travel "
+                "in clear text. Set pelix.shell.ssl.cert and pelix.shell.ssl.ca"
+            )
 
         if self._cert_file and not self._ca_file:
             # Without an explicit authority chain, any client certificate signed
