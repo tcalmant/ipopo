@@ -1007,7 +1007,7 @@ class ExportRegistrationImpl(ExportRegistration):
             self.__rsa = None
 
         if (
-            publish is not None
+            publish
             and rsa is not None
             and export_ref is not None
             and exporter_id is not None
@@ -1412,7 +1412,7 @@ class ImportRegistrationImpl(ImportRegistration):
             self.__rsa = None
 
         if (
-            publish is not None
+            publish
             and rsa is not None
             and import_ref is not None
             and importer_id is not None
