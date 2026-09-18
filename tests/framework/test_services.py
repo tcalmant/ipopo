@@ -233,6 +233,45 @@ class ServicesTest(unittest.TestCase):
         # Nothing was registered
         self.assertListEqual(self.framework.get_registered_services(), [])
 
+    def testHostileSpecifications(self):
+        """
+        Specification names holding LDAP wildcards or delimiters must be
+        refused everywhere: they can only come from a hostile peer
+        """
+        context = self.framework.get_bundle_context()
+
+        class HostileSpec:
+            pass
+
+        setattr(HostileSpec, pelix.constants.PELIX_SPECIFICATION_FIELD, ["valid", "evil*"])
+
+        class Listener:
+            def service_changed(self, event):
+                pass
+
+        hostile = [f"a{char}b" for char in sorted(pelix.constants.FORBIDDEN_SPECIFICATION_CHARACTERS)]
+        hostile += ["*", ")(objectClass=*", "x)(|(objectClass=*", " spec", "spec "]
+        for name in hostile:
+            with self.subTest(name=name):
+                with self.assertRaises(BundleException):
+                    context.get_service_reference(name)
+                with self.assertRaises(BundleException):
+                    context.get_all_service_references(name)
+
+                for spec in (name, ["valid", name], ("valid", name)):
+                    with self.assertRaises(BundleException):
+                        context.register_service(spec, object(), {})
+                    with self.assertRaises(BundleException):
+                        context.add_service_listener(Listener(), None, spec)
+
+        with self.assertRaises(BundleException):
+            context.register_service(HostileSpec, object(), {})
+        with self.assertRaises(BundleException):
+            context.get_service_reference(HostileSpec)
+
+        # Nothing was registered
+        self.assertListEqual(self.framework.get_registered_services(), [])
+
     def testServiceReferencesCmp(self):
         """
         Tests service references comparisons

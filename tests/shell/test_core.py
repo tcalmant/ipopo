@@ -766,9 +766,13 @@ class ShellCoreCommandsTest(unittest.TestCase):
                 if spec in svc_ref.get_property(constants.OBJECTCLASS):
                     self.assertIn(svc_id, output)
 
-        # Check invalid filter
-        output = self._run_command("sl <inexistent>")
+        # Check unknown specification
+        output = self._run_command("sl inexistent.spec")
         self.assertIn("No service provides", output)
+
+        # Check invalid specification name
+        output = self._run_command("sl <inexistent>")
+        self.assertIn("Invalid specification", output)
 
         # Check details
         for svc_ref in svc_refs:

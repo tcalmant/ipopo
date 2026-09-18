@@ -431,9 +431,13 @@ class _ShellService(parser.Shell, ShellService):
         headers = ("ID", "Specifications", "Bundle", "Ranking")
 
         # Lines
-        references: list[ServiceReference[Any]] = (
-            self._context.get_all_service_references(specification, None) or []
-        )
+        try:
+            references: list[ServiceReference[Any]] = (
+                self._context.get_all_service_references(specification, None) or []
+            )
+        except constants.BundleException as ex:
+            session.write_line("Invalid specification: {0}", ex)
+            return False
 
         # Construct the list of services
         lines = [

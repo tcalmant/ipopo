@@ -85,6 +85,23 @@ as a specification without having been decorated at all.
    An explicit, namespaced name such as ``acme.storage.Store`` avoids the
    collision, and keeps the name stable if the class is later renamed or moved.
 
+A specification name must be a non-blank string, without leading or trailing
+spaces, and can't hold any of the special characters of the LDAP filters:
+``\ ( ) & | = < > ~ * + # , ; ' "``. The name ends up in those filters, and
+no legitimate name needs them.
+Such a name is refused wherever it enters the framework: by the
+:class:`~pelix.constants.Specification` decorator and the iPOPO decorators with
+a :class:`ValueError`, when registering a service, looking it up or listening
+to it with a :class:`~pelix.constants.BundleException`. This includes the
+specifications of the services imported by Remote Services, which come from
+another process.
+
+.. versionchanged:: 3.2.3
+   Empty, blank and non-string names, names with leading or trailing spaces and
+   names holding a special character of the LDAP filters are refused. They used
+   to register a service which could not be found, or to alter the filters they
+   were written into.
+
 Properties
 ----------
 

@@ -51,6 +51,7 @@ from pelix.constants import (
     SERVICE_RANKING,
     SERVICE_SCOPE,
     BundleException,
+    check_specification_name,
 )
 from pelix.internals.events import BundleEvent, ServiceEvent
 from pelix.internals.hooks import ListenerInfo, ShrinkableList, ShrinkableMap
@@ -1258,44 +1259,39 @@ class ServiceRegistry:
                 # Do not return None, as the whole content was required
                 return sorted(self.__svc_registry.keys())
 
+            # Specification names, as registered: the first one is the index key
+            names: list[str] = []
             if isinstance(clazz, str):
-                # Escape the class name
-                clazz = ldapfilter.escape_LDAP(clazz)
+                names.append(clazz)
             elif inspect.isclass(clazz):
                 # Extract specification
                 raw_spec = getattr(clazz, PELIX_SPECIFICATION_FIELD, clazz.__name__)
-                if isinstance(raw_spec, str):
-                    clazz = ldapfilter.escape_LDAP(raw_spec)
-                elif hasattr(raw_spec, "__name__"):
-                    clazz = ldapfilter.escape_LDAP(raw_spec.__name__)
-                elif isinstance(raw_spec, list):
-                    # Use the first class as main filter, add the others to the LDAP filter
-                    class_names: list[str] = []
-                    for spec in raw_spec:
-                        if spec is None:
-                            continue
+                raw_specs = raw_spec if isinstance(raw_spec, list) else [raw_spec]
+                for spec in raw_specs:
+                    if isinstance(spec, str):
+                        names.append(spec)
+                    elif hasattr(spec, "__name__"):
+                        names.append(spec.__name__)
+            elif clazz is not None:
+                # Not a specification: nothing can be registered under it
+                return None
 
-                        if isinstance(spec, str):
-                            escaped = ldapfilter.escape_LDAP(spec)
-                        elif hasattr(spec, "__name__"):
-                            escaped = ldapfilter.escape_LDAP(spec.__name__)
-                        else:
-                            continue
+            try:
+                for name in names:
+                    check_specification_name(name)
+            except (TypeError, ValueError) as ex:
+                raise BundleException(f"Invalid specification name: {ex}") from ex
 
-                        if escaped is not None:
-                            class_names.append(escaped)
-
-                    if class_names:
-                        clazz = class_names[0]
-                        remaining = class_names[1:]
-                        if remaining:
-                            clazz_filter = "".join(f"({OBJECTCLASS}={name})" for name in remaining)
-                            if ldap_filter is None:
-                                ldap_filter = f"(&{clazz_filter})"
-                            else:
-                                ldap_filter = f"(&{ldap_filter}{clazz_filter})"
-                    else:
-                        clazz = None
+            clazz = names[0] if names else None
+            if len(names) > 1:
+                # Escaped here only: the index is keyed by the names as registered
+                clazz_filter = "".join(
+                    f"({OBJECTCLASS}={ldapfilter.escape_LDAP(name)})" for name in names[1:]
+                )
+                if ldap_filter is None:
+                    ldap_filter = f"(&{clazz_filter})"
+                else:
+                    ldap_filter = f"(&{ldap_filter}{clazz_filter})"
 
             if clazz is None:
                 # Directly use the given filter
