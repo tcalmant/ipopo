@@ -61,6 +61,42 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "ANONYMOUS",
+    "ATTRIBUTE_SESSION_ID",
+    "FACTORY_ALLOW_ALL",
+    "FACTORY_HTPASSWD",
+    "FACTORY_POLICY_FILE",
+    "PROP_CREDENTIAL_KINDS",
+    "PROP_HTPASSWD_FILE",
+    "PROP_HTPASSWD_GROUPS",
+    "PROP_HTPASSWD_PLAINTEXT",
+    "PROP_POLICY_FILE",
+    "SERVICE_AUTHENTICATOR",
+    "SERVICE_AUTHORIZATION",
+    "SERVICE_AUTHORIZER",
+    "SERVICE_MEMBERSHIP_PROVIDER",
+    "TOPIC_ACCESS_DENIED",
+    "TOPIC_AUTH_FAILURE",
+    "TOPIC_AUTH_SUCCESS",
+    "AccessDenied",
+    "AuthenticationFailed",
+    "AuthenticationRequired",
+    "Authenticator",
+    "Authorization",
+    "Authorizer",
+    "Credentials",
+    "Decision",
+    "MembershipProvider",
+    "Permission",
+    "SecurityError",
+    "Subject",
+    "UsernamePassword",
+    "get_current_subject",
+    "run_as",
+    "use_authorization",
+]
+
 # ------------------------------------------------------------------------------
 
 SERVICE_AUTHENTICATOR = "pelix.security.authenticator"

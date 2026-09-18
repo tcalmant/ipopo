@@ -57,6 +57,19 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "LEVEL_TO_OSGI",
+    "LOG_DEBUG",
+    "LOG_ERROR",
+    "LOG_INFO",
+    "LOG_WARNING",
+    "OSGI_TO_LEVEL",
+    "LogEntryImpl",
+    "LogReaderImpl",
+    "LogServiceFactory",
+    "LogServiceInstance",
+]
+
 # Local logger
 logger = logging.getLogger(__name__)
 

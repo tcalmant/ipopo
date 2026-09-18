@@ -56,6 +56,19 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "DUMMY_PASSWORD",
+    "MAX_ROUNDS",
+    "WEAK_SCHEMES",
+    "Scheme",
+    "UnsupportedHash",
+    "apr1",
+    "classify",
+    "dummy_hash",
+    "sha_crypt",
+    "verify",
+]
+
 # ------------------------------------------------------------------------------
 
 

@@ -45,6 +45,20 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "JAVA_CLASS",
+    "JAVA_LISTS_PATTERN",
+    "JAVA_MAPS_PATTERN",
+    "JAVA_SETS_PATTERN",
+    "JSON_CLASS",
+    "AttributeMap",
+    "HashableDict",
+    "HashableList",
+    "HashableSet",
+    "from_jabsorb",
+    "to_jabsorb",
+]
+
 K = TypeVar("K")
 V = TypeVar("V")
 

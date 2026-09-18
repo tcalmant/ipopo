@@ -40,6 +40,48 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "CONFIG_ADMIN_PROPERTIES",
+    "CONFIG_PROP_BUNDLE_LOCATION",
+    "CONFIG_PROP_FACTORY_PID",
+    "CONFIG_PROP_PID",
+    "EVENT_PROP_FRAMEWORK_UID",
+    "EVENT_PROP_PROPAGATE",
+    "EVENT_PROP_TIMESTAMP",
+    "FACTORY_CONFIGADMIN_JSON",
+    "FACTORY_EVENT_ADMIN",
+    "FACTORY_EVENT_ADMIN_MQTT",
+    "FRAMEWORK_PROP_CONFIGADMIN_DISABLE_DEFAULT_PERSISTENCE",
+    "MQTT_CONNECTOR_FACTORY_PID",
+    "PROP_EVENT_FILTER",
+    "PROP_EVENT_TOPICS",
+    "PROP_FILEINSTALL_FOLDER",
+    "PROP_MQTT_TOPICS",
+    "SERVICE_CONFIGADMIN_MANAGED",
+    "SERVICE_CONFIGADMIN_MANAGED_FACTORY",
+    "SERVICE_CONFIGADMIN_PERSISTENCE",
+    "SERVICE_CONFIGURATION_ADMIN",
+    "SERVICE_EVENT_ADMIN",
+    "SERVICE_EVENT_HANDLER",
+    "SERVICE_EVENT_LISTENER_HOOK",
+    "SERVICE_FILEINSTALL",
+    "SERVICE_FILEINSTALL_LISTENERS",
+    "SERVICE_MQTT_CONNECTION",
+    "SERVICE_MQTT_CONNECTOR_FACTORY",
+    "SERVICE_MQTT_LISTENER",
+    "Configuration",
+    "EventAdmin",
+    "FileInstall",
+    "FileInstallListener",
+    "IConfigurationAdmin",
+    "IConfigurationAdminPersistence",
+    "IManagedService",
+    "IManagedServiceFactory",
+    "MqttConnectorFactory",
+    "MqttListener",
+    "ServiceEventHandler",
+]
+
 
 SERVICE_EVENT_LISTENER_HOOK = "pelix.internal.hooks.EventListenerHook"
 
