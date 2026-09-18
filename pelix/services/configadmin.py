@@ -1324,12 +1324,12 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         # Get the base name
         name = os.path.basename(filename)
 
-        # Remove the extension
-        try:
-            ext_start = name.index(".config.js")
-            return name[:ext_start] or None
-        except IndexError:
+        if not name.endswith(".config.js"):
+            # Other files (README, editor backups, ...) can live in the folder
             return None
+
+        # Remove the extension
+        return name[: -len(".config.js")] or None
 
     @Validate
     def validate(self, _: "BundleContext") -> None:

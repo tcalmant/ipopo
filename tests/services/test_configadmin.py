@@ -1540,6 +1540,25 @@ class JsonPersistencePidTest(unittest.TestCase):
         self.assertTrue(self.persistence.delete("test.pid"))
         self.assertFalse(self.persistence.exists("test.pid"))
 
+    def test_other_files_are_ignored(self) -> None:
+        """
+        Files which are not configurations can live in the configuration folder
+        """
+        for name in ("README.md", "notes.txt", "spam.config.js.bak", "spam.config.json", ".config.js"):
+            with self.subTest(name=name):
+                self.assertIsNone(self.persistence._get_pid(name))
+
+        self.assertEqual(self.persistence._get_pid("spam.config.js"), "spam")
+        self.assertEqual(self.persistence._get_pid(os.path.join("any", "eggs.config.js")), "eggs")
+
+        # Listing the configurations must not fail because of them
+        self.persistence.store("spam", {"answer": 42})
+        for name in ("README.md", "spam.config.js.bak"):
+            with open(os.path.join(self.conf_folder, name), "w") as filep:
+                filep.write("not a configuration\n")
+
+        self.assertEqual(set(self.persistence.get_pids()), {"spam"})
+
 
 class _MutatingService(services.IManagedService):
     """
