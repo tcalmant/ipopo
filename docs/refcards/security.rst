@@ -228,7 +228,8 @@ not starting the bundle, means those methods raise.**
 The pipeline
 ============
 
-``pelix.security.core.authenticate(credentials)`` turns credentials into a subject:
+``pelix.security.core.authenticate(credentials, source=None)`` turns credentials into a
+subject:
 
 1. every :class:`Authenticator` accepting this kind of credentials is consulted in
    ``service.ranking`` order;
@@ -262,6 +263,62 @@ one keeps working forever.
 An :class:`Authenticator` must declare the credential kinds it accepts, in its
 ``pelix.security.credentials`` service property. One which does not is never
 consulted.
+
+Brute-force throttling
+----------------------
+
+``authenticate(credentials, source=None)`` counts its failures, and refuses the
+credentials of a key which failed too often **without consulting any
+authenticator**. Two keys are tracked for each attempt:
+
+* the **account**: the credential kind and the user name for a password, the
+  fingerprint for a certificate. Credentials naming no account have no account key;
+* the **source**, when the transport gives one in the ``source`` argument, typically
+  the client IP address.
+
+After ``max_failures`` failures of a key within ``window`` seconds, that key is locked
+out for ``lockout`` seconds. The count is a sliding window: once a lockout is over, one
+more failure within the window locks the key out again, for twice as long, up to
+``max_lockout`` seconds. A key which stayed quiet for a whole window starts again from
+scratch. A successful authentication clears the failures of its account, never those
+of its source: a source which guessed one password right is not forgiven the failures
+it made on other accounts.
+
+A locked-out attempt raises the same :class:`AuthenticationFailed` as a wrong
+password, so that a caller cannot use the lockout to learn that an account exists. A
+``WARNING`` is logged once when a lockout starts, naming the key.
+
+The throttle is configured with framework properties, read when the
+``pelix.security.core`` bundle starts:
+
+========================================= ======= ====================================
+Framework property                        Default Meaning
+========================================= ======= ====================================
+``pelix.security.throttle.max_failures``  5       failures which lock a key out.
+                                                  ``0`` or less disables the throttle
+``pelix.security.throttle.window``        900     seconds within which failures count
+``pelix.security.throttle.lockout``       60      seconds of the first lockout
+``pelix.security.throttle.max_lockout``   900     upper bound of a lockout, in seconds
+========================================= ======= ====================================
+
+It lives in memory, in the framework process: a restart forgets it, and several
+frameworks behind a load balancer each count on their own. It tracks at most 10000
+keys and forgets the least recently touched one beyond that, so that a flood of
+sources costs a bounded amount of memory; the price is that such a flood can make it
+forget a key early.
+
+**The trade-off.** Anybody who knows a user name can lock that account out, by failing
+on purpose, and the legitimate user is then refused from every source until the
+lockout ends. Two things limit the damage. The failures which lock an account also
+count against the attacker's own source, so one source can only keep about one account
+locked at a time, and gets locked out longer and longer while doing so. And a lockout
+never exceeds ``max_lockout``, so the denial of service ends on its own. A deployment
+which cannot accept it for an account should authenticate that account with a client
+certificate, which cannot be guessed, rather than with a password.
+
+The locked-out answer is also immediate, while a wrong password costs a hash
+computation: timing tells a patient attacker that a key is locked, not whether its
+password was right.
 
 Combining authorizers
 ---------------------
@@ -532,6 +589,9 @@ The pipeline
 ------------
 
 .. autofunction:: pelix.security.core.authenticate
+
+.. autoclass:: pelix.security.core.Throttle
+   :members: is_locked, record_failure, record_success
 
 The policy file
 ---------------

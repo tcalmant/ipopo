@@ -92,6 +92,18 @@ PROP_HTPASSWD_PLAINTEXT = "pelix.security.htpasswd.allow_plaintext"
 PROP_POLICY_FILE = "pelix.security.policy.file"
 """ Path to the TOML policy file of the policy component """
 
+PROP_THROTTLE_MAX_FAILURES = "pelix.security.throttle.max_failures"
+""" Framework property: failures of an account or a source which lock it out. Default: 5, 0 disables """
+
+PROP_THROTTLE_WINDOW = "pelix.security.throttle.window"
+""" Framework property: seconds within which failures are counted. Default: 900 """
+
+PROP_THROTTLE_LOCKOUT = "pelix.security.throttle.lockout"
+""" Framework property: seconds of the first lockout, doubling on each new one. Default: 60 """
+
+PROP_THROTTLE_MAX_LOCKOUT = "pelix.security.throttle.max_lockout"
+""" Framework property: upper bound of a lockout, in seconds. Default: 900 """
+
 # ------------------------------------------------------------------------------
 
 FACTORY_HTPASSWD = "pelix.security.htpasswd.factory"
