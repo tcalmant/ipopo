@@ -49,6 +49,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = ["ConfigurationHandler"]
+
 # ------------------------------------------------------------------------------
 
 _logger = logging.getLogger(__name__)

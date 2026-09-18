@@ -46,6 +46,20 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "KIND_CONFIGURATION",
+    "KIND_DEPENDENCY",
+    "KIND_PROPERTIES",
+    "KIND_SERVICE_PROVIDER",
+    "PROP_HANDLER_ID",
+    "SERVICE_IPOPO_HANDLER_FACTORY",
+    "DependencyHandler",
+    "Handler",
+    "HandlerException",
+    "HandlerFactory",
+    "ServiceProviderHandler",
+]
+
 # ------------------------------------------------------------------------------
 
 SERVICE_IPOPO_HANDLER_FACTORY = "ipopo.handler.factory"
