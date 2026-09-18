@@ -376,7 +376,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
         :param routing: The result of the routing of the request
         :return: The subject to handle the request as, or None if it has been refused
         """
-        decision = self._service.resolve_authentication(routing, self.headers)
+        decision = self._service.resolve_authentication(routing, self.headers, self.client_address[0])
         if decision.refused:
             self.send_auth_error(_HTTPServletResponse(self), 401, routing)
             return None

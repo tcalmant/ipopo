@@ -31,7 +31,6 @@ services.
 
 import base64
 import binascii
-import dataclasses
 import importlib
 import logging
 from collections.abc import Iterable
@@ -59,6 +58,7 @@ __docformat__ = "restructuredtext en"
 __all__ = [
     "DEFAULT_REALM",
     "SERVLET_AUTH_PARAMETERS",
+    "TRANSPORT",
     "AuthDecision",
     "BasicHttpAuthenticator",
     "BasicHttpAuthenticatorComponent",
@@ -154,18 +154,24 @@ class AuthDecision:
     """ If True, the request must be answered with a 401 error """
 
 
-def _authenticate(credentials: Credentials) -> Subject:
+TRANSPORT = "http"
+""" Transport name given to the security layer, telling HTTP logins from others in audits """
+
+
+def _authenticate(credentials: Credentials, source: str | None, method: str) -> Subject:
     """
     Checks credentials with the ``pelix.security`` services
 
     :param credentials: The credentials extracted from the request
+    :param source: The address of the client, for the brute-force throttle
+    :param method: The authentication scheme which extracted the credentials
     :return: The authenticated subject
-    :raise AuthenticationFailed: Wrong credentials
+    :raise AuthenticationFailed: Wrong credentials, or locked out
     """
     # Looked up on each call: uninstalling the security bundle drops its module,
     # and a reference kept since the import would see the stopped one forever
     core = importlib.import_module("pelix.security.core")
-    return core.authenticate(credentials)
+    return core.authenticate(credentials, source, method=method, transport=TRANSPORT)
 
 
 def make_challenges(authenticators: Iterable[http.HttpAuthenticator], realm: str) -> str | None:
@@ -187,7 +193,10 @@ def make_challenges(authenticators: Iterable[http.HttpAuthenticator], realm: str
 
 
 def authenticate_request(
-    authenticators: Iterable[http.HttpAuthenticator], headers: http.HeadersView, required: bool
+    authenticators: Iterable[http.HttpAuthenticator],
+    headers: http.HeadersView,
+    required: bool,
+    source: str | None = None,
 ) -> AuthDecision:
     """
     Authenticates a request.
@@ -203,6 +212,7 @@ def authenticate_request(
     :param authenticators: The HTTP authenticator services
     :param headers: The headers of the request
     :param required: If True, a request without credentials is refused
+    :param source: The address of the client, for the brute-force throttle
     :return: The decision
     """
     for authenticator in authenticators:
@@ -220,7 +230,7 @@ def authenticate_request(
             continue
 
         try:
-            subject = _authenticate(credentials)
+            subject = _authenticate(credentials, source, authenticator.get_scheme().lower())
         except AuthenticationFailed as ex:
             _logger.info("Authentication failed: %s", ex)
             return AuthDecision(ANONYMOUS, True)
@@ -228,8 +238,7 @@ def authenticate_request(
             _logger.exception("Error authenticating a request")
             return AuthDecision(ANONYMOUS, True)
 
-        # The pipeline doesn't know the mechanism: the transport stamps it
-        return AuthDecision(dataclasses.replace(subject, method=authenticator.get_scheme().lower()))
+        return AuthDecision(subject)
 
     # No credentials
     return AuthDecision(ANONYMOUS, required)

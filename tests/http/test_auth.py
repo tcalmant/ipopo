@@ -111,7 +111,7 @@ class SyncServlet:
 
     def do_GET(self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse):
         subject = get_current_subject()
-        response.send_content(200, f"{subject.name}|{subject.method}", "text/plain")
+        response.send_content(200, f"{subject.name}|{subject.method}|{subject.transport}", "text/plain")
 
     @AllowGroup("ops")
     def do_POST(self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse):
@@ -127,7 +127,7 @@ class AsyncServlet:
         self, request: http.AbstractAsyncHTTPServletRequest, response: http.AbstractAsyncHTTPServletResponse
     ):
         subject = get_current_subject()
-        await response.send_content(200, f"{subject.name}|{subject.method}", "text/plain")
+        await response.send_content(200, f"{subject.name}|{subject.method}|{subject.transport}", "text/plain")
 
     @AllowGroup("ops")
     async def do_async_POST(
@@ -243,7 +243,7 @@ class _AuthServerTests:
 
         status, headers, body = self.request()
         self.assertEqual(status, 200)
-        self.assertEqual(body, "anonymous|None")
+        self.assertEqual(body, "anonymous|None|None")
         self.assertIsNone(headers["WWW-Authenticate"])
 
     def test_optional_credentials(self) -> None:
@@ -254,7 +254,7 @@ class _AuthServerTests:
 
         status, _, body = self.request(headers=basic("alice", "abc"))
         self.assertEqual(status, 200)
-        self.assertEqual(body, "alice|basic")
+        self.assertEqual(body, "alice|basic|http")
 
         # Wrong credentials are refused, as the client expects to be authenticated
         status, headers, _ = self.request(headers=basic("alice", "wrong"))
@@ -281,7 +281,7 @@ class _AuthServerTests:
 
         status, _, body = self.request(headers=basic("alice", "abc"))
         self.assertEqual(status, 200)
-        self.assertEqual(body, "alice|basic")
+        self.assertEqual(body, "alice|basic|http")
 
     def test_required_hides_paths(self) -> None:
         """
@@ -315,7 +315,7 @@ class _AuthServerTests:
 
         status, _, body = self.request(uri="/public")
         self.assertEqual(status, 200)
-        self.assertEqual(body, "anonymous|None")
+        self.assertEqual(body, "anonymous|None|None")
 
         # And the other way round
         self.ipopo.kill(SERVER_NAME)
@@ -349,6 +349,26 @@ class _AuthServerTests:
         self.assertEqual(status, 200)
         self.assertEqual(body, "posted")
 
+    def test_throttling(self) -> None:
+        """
+        Repeated failures lock the account and the client address out, even for
+        the right password
+        """
+        self.start_server(True)
+
+        # The lockout is logged when it starts
+        with self.assertLogs("pelix.security.core", logging.WARNING):
+            for _ in range(5):
+                status, _, _ = self.request(headers=basic("alice", "wrong"))
+                self.assertEqual(status, 401)
+
+        status, _, _ = self.request(headers=basic("alice", "abc"))
+        self.assertEqual(status, 401)
+
+        # The client address is locked too: another account is refused from it
+        status, _, _ = self.request(headers=basic("bob", "abc"))
+        self.assertEqual(status, 401)
+
     def test_no_leak_between_requests(self) -> None:
         """
         The subject of a request doesn't leak to the next one on the same connection
@@ -364,7 +384,7 @@ class _AuthServerTests:
         finally:
             conn.close()
 
-        self.assertEqual(bodies, ["alice|basic", "anonymous|None"])
+        self.assertEqual(bodies, ["alice|basic|http", "anonymous|None|None"])
 
     def test_cors_preflight_is_not_challenged(self) -> None:
         """

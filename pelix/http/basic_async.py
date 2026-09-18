@@ -939,10 +939,10 @@ class AsyncHttpServiceImpl(AbstractHttpService):
         if self.needs_authentication(routing):
             # Checking a password is slow by design: keep it out of the event loop
             auth_decision = await self._loop.run_in_executor(
-                self._executor, self.resolve_authentication, routing, request.headers
+                self._executor, self.resolve_authentication, routing, request.headers, request.remote
             )
         else:
-            auth_decision = self.resolve_authentication(routing, request.headers)
+            auth_decision = self.resolve_authentication(routing, request.headers, request.remote)
 
         if auth_decision.refused:
             return self.__auth_error_response(401, routing)

@@ -465,7 +465,7 @@ class AbstractHttpService(http.HTTPService):
         return bool(self._http_authenticators)
 
     def resolve_authentication(
-        self, routing: "RequestRouting", headers: http.HeadersView
+        self, routing: "RequestRouting", headers: http.HeadersView, source: str | None = None
     ) -> auth.AuthDecision:
         """
         Authenticates a request. This can take time, as checking a password is
@@ -473,6 +473,7 @@ class AbstractHttpService(http.HTTPService):
 
         :param routing: The result of the routing of the request
         :param headers: The headers of the request
+        :param source: The address of the client, for the brute-force throttle
         :return: The decision: the subject to handle the request as, or a refusal
         """
         authenticators = list(self._http_authenticators or ())
@@ -489,7 +490,7 @@ class AbstractHttpService(http.HTTPService):
                 )
             return auth.AuthDecision(ANONYMOUS, required)
 
-        decision = auth.authenticate_request(authenticators, headers, required)
+        decision = auth.authenticate_request(authenticators, headers, required, source)
         if decision.subject.authenticated and not self._uses_ssl:
             self._warn_once(
                 "clear-text",
