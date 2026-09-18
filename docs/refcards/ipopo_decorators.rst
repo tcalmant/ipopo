@@ -70,6 +70,47 @@ Requirements
 .. autoclass:: RequiresVarFilter
 .. autoclass:: RequiresConfiguration
 
+Requiring several specifications
+________________________________
+
+:class:`Requires`, :class:`Temporal`, :class:`RequiresBest`,
+:class:`RequiresBroadcast`, :class:`RequiresMap` and :class:`RequiresVarFilter`
+accept a list of specifications (names or types) instead of a single one.
+
+By default, the injected services must provide *all* of the given
+specifications. With the ``match_any=True`` keyword argument, a service
+providing *at least one* of them is enough.
+The properties filter (``spec_filter``) applies in both cases.
+
+.. code-block:: python
+
+   @ComponentFactory()
+   # Services providing both specifications
+   @Requires("_storage", ["storage.reader", "storage.writer"])
+   # Services providing any of them, e.g. to inject every storage service
+   @Requires("_all_storages", ["storage.reader", "storage.writer"],
+             aggregate=True, match_any=True)
+   class Consumer:
+       pass
+
+The ``specification`` entry of the dictionaries returned by the
+``get_factory_details()`` and ``get_instance_details()`` methods of the iPOPO
+service still holds the first specification of the requirement, while the
+``specifications`` entry holds all of them and ``match_any`` tells how they are
+combined.
+
+.. note::
+
+   A requirement on all of the specifications costs the same as a
+   single-specification one: the service registry only considers the services
+   providing its first specification, then checks the other ones with an LDAP
+   filter.
+
+   A requirement with ``match_any=True`` can't rely on this index: it uses a
+   service listener without specification, whose filter is evaluated on every
+   service event of the framework, and its service lookups scan the whole
+   registry. Prefer the default behavior when it fits.
+
 Comparison with OSGi Declarative Services
 __________________________________________
 
