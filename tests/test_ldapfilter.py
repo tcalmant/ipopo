@@ -139,7 +139,30 @@ class LDAPUtilitiesTest(unittest.TestCase):
 
             # Un-escape
             ldap_unescape = pelix.ldapfilter.unescape_LDAP(ldap_escape)
-            self.assertEqual(escaped, ldap_escape, f"Invalid unescape '{ldap_unescape}' should be '{normal}'")
+            self.assertEqual(
+                normal, ldap_unescape, f"Invalid unescape '{ldap_unescape}' should be '{normal}'"
+            )
+
+    def testEscapeLDAPStar(self) -> None:
+        """
+        Tests escape_LDAP() and unescape_LDAP() symmetry with stars
+        """
+        for normal, escaped in (
+            ("*", "\\*"),
+            ("spec*", "spec\\*"),
+            ("a*b*c", "a\\*b\\*c"),
+            ("a\\*", "a\\\\\\*"),
+            ("(*)", "\\(\\*\\)"),
+        ):
+            ldap_escape = pelix.ldapfilter.escape_LDAP(normal)
+            self.assertEqual(escaped, ldap_escape, f"Invalid escape '{ldap_escape}' should be '{escaped}'")
+            self.assertEqual(normal, pelix.ldapfilter.unescape_LDAP(ldap_escape))
+
+            # An escaped value must be matched literally, whatever it contains
+            ldap_filter = get_ldap_filter(f"(value={ldap_escape})")
+            assert ldap_filter is not None
+            self.assertTrue(ldap_filter.matches({"value": normal}), f"{ldap_filter} should match {normal}")
+            self.assertFalse(ldap_filter.matches({"value": normal + "x"}))
 
     def testParseCriteria(self) -> None:
         """
@@ -533,6 +556,110 @@ class LDAPCriteriaTest(unittest.TestCase):
         )
 
         self.assertTrue(pelix.ldapfilter._comparator_star("T*ue", "True"), "String star test failure")
+
+    def testEscapedStarCriteria(self) -> None:
+        """
+        Tests that an escaped star is a literal character, not a wildcard
+        """
+        filters: dict[str, tuple[Iterable[Any], ...]] = {}
+
+        # Literal star only
+        filters["(string=spec\\*)"] = (
+            ("spec*", ["other", "spec*"]),
+            ("spec", "specXYZ", "spec**", ["specX"]),
+        )
+
+        # Literal star vs. presence
+        filters["(string=\\*)"] = (("*", ["*"]), ("", "a", "**", True, []))
+        filters["(string=*)"] = (("*", "a", "**", True), ("", []))
+
+        # Mix of literal stars and wildcards
+        filters["(string=a\\*b*c)"] = (("a*bc", "a*bXYc", "a*b*c"), ("abc", "aXbc", "a*b", "aXbXc"))
+        filters["(string=*\\**)"] = (("*", "a*", "*b", "a*b"), ("", "ab"))
+
+        # Escaped backslash followed by a wildcard
+        filters["(string=a\\\\*)"] = (("a\\", "a\\b"), ("a", "ab", "a*"))
+
+        # Other escapes are still handled in patterns
+        filters["(string=\\(*\\))"] = (("()", "(a)"), ("(a", "a)"))
+
+        applyTest(self, filters, "string")
+
+        # Approximate comparison
+        filters = {
+            "(string~=SPEC\\*)": (("spec*", "Spec*", ["SPEC*"]), ("spec", "specX")),
+            "(string~=A\\**)": (("a*", "A*b"), ("ab", "a")),
+        }
+        applyTest(self, filters, "string")
+
+        # Parsed comparators
+        for str_filter, comparator in (
+            ("(string=\\*)", pelix.ldapfilter._comparator_eq),
+            ("(string=spec\\*)", pelix.ldapfilter._comparator_eq),
+            ("(string~=spec\\*)", pelix.ldapfilter._comparator_approximate),
+            ("(string=*)", pelix.ldapfilter._comparator_presence),
+            ("(string=spec*)", pelix.ldapfilter._comparator_star),
+            ("(string=a\\*b*c)", pelix.ldapfilter._comparator_star),
+        ):
+            criteria = get_ldap_filter(str_filter)
+            assert isinstance(criteria, LDAPCriteria)
+            self.assertIs(criteria.comparator, comparator, f"Invalid comparator for {str_filter}")
+
+        # Literal value stored for non-pattern comparators
+        criteria = get_ldap_filter("(string=spec\\*)")
+        assert isinstance(criteria, LDAPCriteria)
+        self.assertEqual(criteria.value, "spec*")
+
+    def testStarRoundTrip(self) -> None:
+        """
+        Tests that str() keeps wildcards and re-escapes literal stars
+        """
+        for str_filter in (
+            "(string=*)",
+            "(string=\\*)",
+            "(string=spec*)",
+            "(string=spec\\*)",
+            "(string=*mid*)",
+            "(string=a\\*b*c)",
+            "(string=a\\\\*)",
+            "(string~=*test*)",
+            "(string~=test\\*)",
+            "(&(objectClass=spec\\*)(|(name=a*)(name=\\*)))",
+        ):
+            ldap_filter = get_ldap_filter(str_filter)
+            assert ldap_filter is not None
+            self.assertEqual(str_filter, str(ldap_filter), "Invalid string form")
+
+            # Re-parsing must give the same filter
+            self.assertEqual(ldap_filter, get_ldap_filter(str(ldap_filter)), "Invalid re-parsing")
+
+        # Combined filters keep the semantics of their parts
+        combined = pelix.ldapfilter.combine_filters(["(objectClass=spec\\*)", "(name=a*)"])
+        assert combined is not None
+        self.assertEqual(combined, get_ldap_filter(str(combined)))
+        self.assertTrue(combined.matches({"objectClass": "spec*", "name": "abc"}))
+        self.assertFalse(combined.matches({"objectClass": "specXYZ", "name": "abc"}))
+
+        # Direct construction of a pattern criterion
+        criteria = LDAPCriteria("string", "a\\*b*", pelix.ldapfilter._comparator_star)
+        self.assertEqual("(string=a\\*b*)", str(criteria))
+        self.assertTrue(criteria.matches({"string": "a*bc"}))
+        self.assertFalse(criteria.matches({"string": "aXbc"}))
+
+    def testEscapedSpecification(self) -> None:
+        """
+        Tests a filter built from an escaped specification name containing a star
+        """
+        spec = "some.spec*"
+        str_filter = f"(objectClass={pelix.ldapfilter.escape_LDAP(spec)})"
+        ldap_filter = get_ldap_filter(str_filter)
+        assert ldap_filter is not None
+
+        self.assertTrue(ldap_filter.matches({"objectClass": [spec]}))
+        self.assertTrue(ldap_filter.matches({"objectClass": ["other", spec]}))
+        self.assertFalse(ldap_filter.matches({"objectClass": ["some.spec"]}))
+        self.assertFalse(ldap_filter.matches({"objectClass": ["some.specXYZ"]}))
+        self.assertFalse(ldap_filter.matches({"objectClass": ["some.spec.Other"]}))
 
     def testListCriteria(self) -> None:
         """
