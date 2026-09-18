@@ -9,12 +9,15 @@ Tests for the ConfigurationAdmin tests
 import json
 import os
 import shutil
+import stat
+import sys
 import tempfile
 import threading
 import time
 import unittest
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, cast
+from unittest import mock
 
 import pelix.framework
 from pelix import constants, services
@@ -1538,6 +1541,298 @@ class JsonPersistencePidTest(unittest.TestCase):
 
         self.assertTrue(self.persistence.delete("test.pid"))
         self.assertFalse(self.persistence.exists("test.pid"))
+
+    def test_other_files_are_ignored(self) -> None:
+        """
+        Files which are not configurations can live in the configuration folder
+        """
+        for name in ("README.md", "notes.txt", "spam.config.js.bak", "spam.config.json", ".config.js"):
+            with self.subTest(name=name):
+                self.assertIsNone(self.persistence._get_pid(name))
+
+        self.assertEqual(self.persistence._get_pid("spam.config.js"), "spam")
+        self.assertEqual(self.persistence._get_pid(os.path.join("any", "eggs.config.js")), "eggs")
+
+        # Listing the configurations must not fail because of them
+        self.persistence.store("spam", {"answer": 42})
+        for name in ("README.md", "spam.config.js.bak"):
+            with open(os.path.join(self.conf_folder, name), "w") as filep:
+                filep.write("not a configuration\n")
+
+        self.assertEqual(set(self.persistence.get_pids()), {"spam"})
+
+
+class JsonPersistenceAtomicTest(unittest.TestCase):
+    """
+    The JSON persistence must never leave a partial configuration file
+    """
+
+    PID = "test.atomic"
+
+    def setUp(self) -> None:
+        """
+        Prepares a persistence service with its own configuration folder
+        """
+        self.conf_folder = tempfile.mkdtemp(prefix="ipopo-configadmin-atomic-")
+        self.persistence = JsonPersistence()
+        self.persistence._conf_folder = self.conf_folder
+        self.path = os.path.join(self.conf_folder, f"{self.PID}.config.js")
+
+    def tearDown(self) -> None:
+        """
+        Cleans up the temporary folder
+        """
+        shutil.rmtree(self.conf_folder, ignore_errors=True)
+
+    def test_store_replaces_file(self) -> None:
+        """
+        The stored file is valid JSON and no temporary file is left
+        """
+        self.persistence.store(self.PID, {"answer": 42})
+        self.persistence.store(self.PID, {"answer": 21, "spam": "eggs"})
+
+        with open(self.path) as filep:
+            self.assertDictEqual(json.load(filep), {"answer": 21, "spam": "eggs"})
+
+        self.assertEqual(os.listdir(self.conf_folder), [f"{self.PID}.config.js"])
+        self.assertEqual(set(self.persistence.get_pids()), {self.PID})
+
+    def test_store_keeps_permissions(self) -> None:
+        """
+        Replacing a configuration file keeps its permissions
+        """
+        self.persistence.store(self.PID, {"answer": 42})
+        os.chmod(self.path, 0o600)
+
+        self.persistence.store(self.PID, {"answer": 21})
+        self.assertEqual(stat.S_IMODE(os.stat(self.path).st_mode), 0o600)
+
+    def test_write_error_keeps_previous_file(self) -> None:
+        """
+        An error while writing leaves the previous file untouched and removes
+        the temporary one
+        """
+        self.persistence.store(self.PID, {"answer": 42})
+
+        with (
+            mock.patch("pelix.services.configadmin.os.fsync", side_effect=OSError("disk full")),
+            self.assertRaises(OSError),
+        ):
+            self.persistence.store(self.PID, {"answer": 21})
+
+        # Nothing that can't be serialized reaches the file either
+        with self.assertRaises(TypeError):
+            self.persistence.store(self.PID, {"answer": object()})
+
+        self.assertDictEqual(self.persistence.load(self.PID), {"answer": 42})
+        self.assertEqual(os.listdir(self.conf_folder), [f"{self.PID}.config.js"])
+
+
+class _MutatingService(services.IManagedService):
+    """
+    Managed service which modifies the properties it is given
+    """
+
+    def __init__(self) -> None:
+        """
+        Sets up members
+        """
+        self.received: list[dict[str, Any] | None] = []
+
+    def updated(self, properties: dict[str, Any] | None) -> None:
+        """
+        Called by the ConfigurationAdmin service
+        """
+        self.received.append(None if properties is None else properties.copy())
+        if properties is not None:
+            properties["mutated"] = True
+
+
+class PropertiesCopyTest(unittest.TestCase):
+    """
+    Each managed service must get its own copy of the configuration properties
+    """
+
+    PID = "test.ca.copy"
+
+    def setUp(self) -> None:
+        """
+        Starts a framework with ConfigurationAdmin
+        """
+        self.conf_folder = tempfile.mkdtemp(prefix="ipopo-configadmin-copy-")
+        self.framework = pelix.framework.create_framework(
+            ("pelix.ipopo.core", "pelix.services.configadmin"), {"configuration.folder": self.conf_folder}
+        )
+        self.framework.start()
+        self.context = self.framework.get_bundle_context()
+
+    def tearDown(self) -> None:
+        """
+        Stops the framework
+        """
+        pelix.framework.FrameworkFactory.delete_framework()
+        shutil.rmtree(self.conf_folder, ignore_errors=True)
+
+    def test_services_get_copies(self) -> None:
+        """
+        A managed service modifying its properties must not alter those given
+        to the others, nor the stored configuration
+        """
+        managed = [_MutatingService(), _MutatingService()]
+        for svc in managed:
+            self.context.register_service(services.IManagedService, svc, {constants.SERVICE_PID: self.PID})
+
+        ref = self.context.get_service_reference(services.IConfigurationAdmin)
+        assert ref is not None
+        config = self.context.get_service(ref).get_configuration(self.PID)
+
+        # Notified synchronously, one service after the other
+        config.update({"answer": 42})
+        for svc in managed:
+            self.assertEqual(len(svc.received), 1)
+            received = svc.received[0]
+            assert received is not None
+            self.assertEqual(received["answer"], 42)
+            self.assertNotIn("mutated", received)
+
+        properties = config.get_properties()
+        assert properties is not None
+        self.assertNotIn("mutated", properties)
+
+
+class DirectoryConcurrencyTest(unittest.TestCase):
+    """
+    The configurations directory must support being listed while it is
+    modified by another thread
+    """
+
+    def test_list_while_adding(self) -> None:
+        """
+        Listing the configurations while others are added must not fail
+        """
+        directory = ConfigurationDirectory()
+        directory._admin = cast(services.IConfigurationAdmin, object())
+        persistence = _MemoryPersistence()
+        for idx in range(1000):
+            directory.add(f"base.{idx}", None, persistence)
+
+        def add_configurations() -> None:
+            for idx in range(2000):
+                directory.add(f"added.{idx}", None, persistence)
+                directory.exists(f"added.{idx}")
+
+        errors: list[Exception] = []
+        nb_lists = 0
+
+        # Switch threads as often as possible, to interleave the iterations
+        # with the additions
+        switch_interval = sys.getswitchinterval()
+        sys.setswitchinterval(1e-5)
+        try:
+            adder = threading.Thread(target=add_configurations)
+            adder.start()
+            try:
+                while adder.is_alive():
+                    directory.list_configurations()
+                    directory.list_configurations("(answer=42)")
+                    nb_lists += 1
+            except RuntimeError as ex:
+                # "dictionary changed size during iteration"
+                errors.append(ex)
+            finally:
+                adder.join()
+        finally:
+            sys.setswitchinterval(switch_interval)
+
+        self.assertEqual(errors, [])
+        self.assertGreater(nb_lists, 0)
+        self.assertEqual(len(list(directory.list_configurations())), 3000)
+        self.assertTrue(directory.exists("added.1999"))
+
+
+class _SlowService(services.IManagedService):
+    """
+    Managed service taking some time to handle its configuration, recording
+    the order of its notifications and how many ran at the same time
+    """
+
+    def __init__(self) -> None:
+        """
+        Sets up members
+        """
+        self.received: list[Any] = []
+        self.max_concurrent = 0
+        self.__concurrent = 0
+        self.__lock = threading.Lock()
+        self.done = threading.Event()
+        self.expected = 0
+
+    def updated(self, properties: dict[str, Any] | None) -> None:
+        """
+        Called by the ConfigurationAdmin service
+        """
+        with self.__lock:
+            self.__concurrent += 1
+            self.max_concurrent = max(self.max_concurrent, self.__concurrent)
+
+        # Leave time for another delivery to start
+        time.sleep(0.05)
+
+        with self.__lock:
+            self.__concurrent -= 1
+            self.received.append(None if properties is None else properties.get("index"))
+            if len(self.received) >= self.expected:
+                self.done.set()
+
+
+class DeliveryOrderTest(unittest.TestCase):
+    """
+    The asynchronous notifications to a managed service must be given one at a
+    time, in the order they have been triggered
+    """
+
+    def setUp(self) -> None:
+        """
+        Starts a framework with ConfigurationAdmin
+        """
+        self.conf_folder = tempfile.mkdtemp(prefix="ipopo-configadmin-order-")
+        self.framework = pelix.framework.create_framework(
+            ("pelix.ipopo.core", "pelix.services.configadmin"), {"configuration.folder": self.conf_folder}
+        )
+        self.framework.start()
+        self.context = self.framework.get_bundle_context()
+
+        ref = self.context.get_service_reference(services.IConfigurationAdmin)
+        assert ref is not None
+        self.config = self.context.get_service(ref)
+
+    def tearDown(self) -> None:
+        """
+        Stops the framework
+        """
+        pelix.framework.FrameworkFactory.delete_framework()
+        shutil.rmtree(self.conf_folder, ignore_errors=True)
+
+    def test_ordered_delivery(self) -> None:
+        """
+        Successive notifications given by the pool must not overlap nor be
+        reordered
+        """
+        nb_pids = 5
+        for idx in range(nb_pids):
+            self.config.get_configuration(f"test.ca.order.{idx}").update({"index": idx})
+
+        # Each registration makes the pool deliver the configuration of its PID
+        svc = _SlowService()
+        svc.expected = nb_pids
+        for idx in range(nb_pids):
+            self.context.register_service(
+                services.IManagedService, svc, {constants.SERVICE_PID: f"test.ca.order.{idx}"}
+            )
+
+        self.assertTrue(svc.done.wait(5), "Configurations not delivered")
+        self.assertEqual(svc.max_concurrent, 1, "Concurrent notifications")
+        self.assertEqual(svc.received, list(range(nb_pids)))
 
 
 # ------------------------------------------------------------------------------

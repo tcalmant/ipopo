@@ -30,6 +30,7 @@ TODO: Stabilize implementation of managed service factories
 import json
 import logging
 import os
+import stat
 import threading
 import uuid
 from collections.abc import Iterable
@@ -482,7 +483,8 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
         :param pid: A configuration PID
         :return: True if the PID already exists
         """
-        return pid in self.__configurations or pid in self.__factories
+        with self.__lock:
+            return pid in self.__configurations or pid in self.__factories
 
     def get_configuration(self, pid: str) -> services.Configuration:
         """
@@ -530,13 +532,19 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
         :return: The set of matching configurations
         :raise ValueError: Invalid LDAP filter
         """
+        # Iterate over a snapshot: add() and delete() can change the dictionary
+        # from another thread. Filter outside the lock, as each configuration
+        # takes its own lock to read its properties
+        with self.__lock:
+            configurations = list(self.__configurations.values())
+
         if not ldap_filter:
             # matches() already ignores the deleted configurations
-            return {config for config in self.__configurations.values() if not config.is_deleted()}
+            return {config for config in configurations if not config.is_deleted()}
 
         # Using an LDAP filter
-        ldap_filter = ldapfilter.get_ldap_filter(ldap_filter)
-        return {config for config in self.__configurations.values() if config.matches(ldap_filter)}
+        parsed_filter = ldapfilter.get_ldap_filter(ldap_filter)
+        return {config for config in configurations if config.matches(parsed_filter)}
 
     def add(
         self,
@@ -705,6 +713,9 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         # Validation flag
         self.__validated: bool = False
 
+        # (id(service), PID) -> last properties given to the service
+        self.__delivered: dict[tuple[int, str], dict[str, Any] | None] = {}
+
     def __set_up(self) -> None:
         """
         Set up the configuration administration service.
@@ -716,8 +727,13 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         for persistence in self._persistences:
             pids.update(persistence.get_pids())
 
-        # Notify services
-        self.__notify_pids(pids)
+        # Notify services from the pool: this method is called by iPOPO
+        # callbacks, holding the lock of this component. A managed service
+        # changing its service properties in updated() makes iPOPO notify this
+        # component, which would wait for that lock while another thread could
+        # be waiting for the lock of that service (issue #114)
+        assert self._pool is not None
+        self._pool.enqueue(self.__notify_pids, pids)
 
     @Validate
     def _validate(self, _: "BundleContext") -> None:
@@ -725,17 +741,20 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         Component validated
         """
         with self.__lock:
-            # Create the update thread pool
-            self._pool = pelix.threadpool.ThreadPool(2, logname="ConfigAdmin")
+            # Create the notification pool. A single thread keeps the
+            # notifications ordered: with more, a managed service could be
+            # given two configurations at the same time, and keep the oldest.
+            # The trade-off is that a slow updated() delays the notifications
+            # of the other services. No task waits for another one, so this
+            # single thread can't deadlock by itself
+            self._pool = pelix.threadpool.ThreadPool(1, logname="ConfigAdmin")
             self._pool.start()
 
             # Validation flag
             self.__validated = True
             set_up = self._controller
 
-        # If the controller is on, set up the main service. This is done
-        # outside the lock: the notification of the services is synchronous
-        # and can call back into ConfigurationAdmin
+        # If the controller is on, set up the main service
         if set_up:
             self.__set_up()
 
@@ -747,11 +766,15 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         with self.__lock:
             # Validation flag
             self.__validated = False
+            pool, self._pool = self._pool, None
 
-            # Stop the pool
-            if self._pool is not None:
-                self._pool.stop()
-                self._pool = None
+            # Give the configurations again after a new validation
+            self.__delivered.clear()
+
+        if pool is not None:
+            # Don't wait for the pool here: a notification being delivered can
+            # wait for the iPOPO lock of this component, held while invalidating
+            threading.Thread(target=pool.stop, name="ConfigAdmin-stop", daemon=True).start()
 
     @BindField("_directory")
     def _bind_directory(
@@ -822,6 +845,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         with self.__lock:
             # Forget the reference
             del self._managed_refs[svc_ref]
+            self.__forget_delivered(svc)
 
     @BindField("_managed_factories")
     def _bind_managed_factory(
@@ -855,6 +879,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         with self.__lock:
             # Forget the reference
             del self._factories_refs[svc_ref]
+            self.__forget_delivered(svc)
 
     def __notify_pids(self, pids: Iterable[str]) -> None:
         """
@@ -863,6 +888,10 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         :param pids: List of PIDs of configurations to load & update
         """
         for pid in pids:
+            if not (self.__validated and self._controller):
+                # Invalidated or lost the directory while notifying
+                return
+
             try:
                 # Load the configuration
                 config = self.get_configuration(pid)
@@ -908,13 +937,35 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         :param pid: Service Persistent ID
         :param svc: Managed service
         """
-        # Don't use get_configuration(): it would create an empty configuration
-        # for a service which has never been configured
-        configuration = self.__find_configuration(pid)
+        # Look for the configuration when notifying, not now: a configuration
+        # update in between would be overridden by stale properties
+        assert self._pool is not None
+        self._pool.enqueue(self.__deliver_single, pid, svc)
+
+    def __deliver_single(self, pid: str, svc: services.IManagedService) -> None:
+        """
+        Calls the updated() method of the given managed service, if a valid
+        configuration has been found for it. Called from the pool.
+
+        :param pid: Service Persistent ID
+        :param svc: Managed service
+        """
+        with self.__lock:
+            if not (self.__validated and self._controller) or svc not in self._managed_refs.values():
+                # Not active anymore or service gone before being notified
+                return
+
+        try:
+            # Don't use get_configuration(): it would create an empty
+            # configuration for a service which has never been configured
+            configuration = self.__find_configuration(pid)
+        except (OSError, ValueError) as ex:
+            _logger.error("Error loading configuration %s: %s", pid, ex)
+            return
+
         if configuration is not None and configuration.is_valid():
             # Valid configuration found, update the service
-            assert self._pool is not None
-            self._pool.enqueue(svc.updated, configuration.get_properties())
+            self.__notify_services((svc,), pid, configuration.get_properties())
 
     def __notify_factory(self, factory_pid: str, svc: services.IManagedServiceFactory) -> None:
         """
@@ -924,21 +975,68 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         :param factory_pid: Factory Persistent ID
         :param svc: Managed service factory
         """
+        # Look for the configurations when notifying (see __notify_single())
+        assert self._pool is not None
+        self._pool.enqueue(self.__deliver_factory, factory_pid, svc)
+
+    def __deliver_factory(self, factory_pid: str, svc: services.IManagedServiceFactory) -> None:
+        """
+        Calls the updated() method of the given managed service factory for
+        each of its valid configurations. Called from the pool.
+
+        :param factory_pid: Factory Persistent ID
+        :param svc: Managed service factory
+        """
+        with self.__lock:
+            if not (self.__validated and self._controller) or svc not in self._factories_refs.values():
+                # Not active anymore or service gone before being notified
+                return
+
         configurations = self._directory.get_factory_configurations(factory_pid)
         if configurations:
             for configuration in configurations:
                 if configuration.is_valid():
                     # Valid configurations found, call update for each one
-                    assert self._pool is not None
-                    self._pool.enqueue(
-                        svc.updated,
-                        configuration.get_pid(),
-                        configuration.get_properties(),
-                    )
+                    self.__notify_factories((svc,), configuration.get_pid(), configuration.get_properties())
 
-    @staticmethod
+    def __must_deliver(self, svc: Any, pid: str, properties: dict[str, Any] | None) -> bool:
+        """
+        Checks if the given properties have not been given yet to a service,
+        and stores them as the last ones given to it.
+
+        A service can be notified both from the pool and from the thread
+        updating a configuration: it must not get the same properties twice
+        (the "restart" update policy of iPOPO would restart the component).
+
+        :param svc: A managed service or managed service factory
+        :param pid: PID of the configuration
+        :param properties: Properties about to be given
+        :return: True if the service must be notified
+        """
+        key = (id(svc), pid)
+        with self.__lock:
+            if key in self.__delivered and self.__delivered[key] == properties:
+                return False
+
+            self.__delivered[key] = properties
+            return True
+
+    def __forget_delivered(self, svc: Any) -> None:
+        """
+        Forgets about the properties given to a service which is gone
+
+        :param svc: A managed service or managed service factory
+        """
+        svc_id = id(svc)
+        with self.__lock:
+            for key in [key for key in self.__delivered if key[0] == svc_id]:
+                del self.__delivered[key]
+
     def __notify_factories(
-        factories: Iterable[services.IManagedServiceFactory], pid: str, properties: dict[str, Any] | None
+        self,
+        factories: Iterable[services.IManagedServiceFactory],
+        pid: str,
+        properties: dict[str, Any] | None,
     ) -> None:
         """
         Calls the updated(pid, properties) method of managed service factories.
@@ -948,14 +1046,18 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         :param properties: New configuration properties
         """
         for svc in factories:
+            if not self.__must_deliver(svc, pid, properties):
+                continue
+
             try:
-                # Only give the properties to the service
-                svc.updated(pid, properties)
+                # Each service gets its own copy: it can modify it
+                svc.updated(pid, None if properties is None else properties.copy())
             except Exception:
                 _logger.exception("Error updating factory")
 
-    @staticmethod
-    def __notify_factories_delete(factories: Iterable[services.IManagedServiceFactory], pid: str) -> None:
+    def __notify_factories_delete(
+        self, factories: Iterable[services.IManagedServiceFactory], pid: str
+    ) -> None:
         """
         Calls the deleted(pid) method of the given managed service factories.
 
@@ -963,26 +1065,36 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         :param pid: PID of the deleted configuration
         """
         for svc in factories:
+            with self.__lock:
+                # A new configuration can reuse this PID
+                self.__delivered.pop((id(svc), pid), None)
+
             try:
                 svc.deleted(pid)
             except Exception:
                 _logger.exception("Error notifying a factory")
 
-    @staticmethod
     def __notify_services(
-        managed_services: Iterable[services.IManagedService], properties: dict[str, Any] | None
+        self,
+        managed_services: Iterable[services.IManagedService],
+        pid: str,
+        properties: dict[str, Any] | None,
     ) -> None:
         """
         Calls the updated(properties) method of managed services.
         Logs errors if necessary.
 
         :param managed_services: Managed services to be notified
+        :param pid: PID of the configuration
         :param properties: New configuration properties
         """
         for svc in managed_services:
+            if not self.__must_deliver(svc, pid, properties):
+                continue
+
             try:
-                # Only give the properties to the service
-                svc.updated(properties)
+                # Each service gets its own copy: it can modify it
+                svc.updated(None if properties is None else properties.copy())
             except Exception:
                 _logger.exception("Error updating service")
 
@@ -1016,7 +1128,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         if factories:
             self.__notify_factories(factories, pid, properties)
         elif managed:
-            self.__notify_services(managed, properties)
+            self.__notify_services(managed, pid, properties)
 
     def _delete(self, configuration: Configuration, notify_services: bool, directory_updated: bool) -> None:
         """
@@ -1051,7 +1163,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         if factories:
             self.__notify_factories_delete(factories, pid)
         elif managed:
-            self.__notify_services(managed, None)
+            self.__notify_services(managed, pid, None)
 
     def create_factory_configuration(self, factory_pid: str) -> services.Configuration:
         """
@@ -1213,12 +1325,12 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         # Get the base name
         name = os.path.basename(filename)
 
-        # Remove the extension
-        try:
-            ext_start = name.index(".config.js")
-            return name[:ext_start] or None
-        except IndexError:
+        if not name.endswith(".config.js"):
+            # Other files (README, editor backups, ...) can live in the folder
             return None
+
+        # Remove the extension
+        return name[: -len(".config.js")] or None
 
     @Validate
     def validate(self, _: "BundleContext") -> None:
@@ -1310,12 +1422,40 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         :raise IOError: File not writable
         :raise ValueError: Invalid PID
         """
-        # Write to the file
-        with open(self._get_file(pid), "w") as filep:
-            # Write the JSON data
-            filep.write(json.dumps(properties, sort_keys=True, indent=4, separators=(",", ": ")))
-            # Be nice, add a line feed
-            filep.write("\n")
+        path = self._get_file(pid)
+
+        # Serialize first: a non-serializable value must not touch the file.
+        # Be nice, add a line feed
+        data = json.dumps(properties, sort_keys=True, indent=4, separators=(",", ": ")) + "\n"
+
+        try:
+            # Keep the permissions of an existing file
+            mode: int | None = stat.S_IMODE(os.stat(path).st_mode)
+        except FileNotFoundError:
+            # New files get the umask-based permissions, as open() gives
+            mode = None
+
+        # Write a temporary file then replace the configuration file with it,
+        # so that FileInstall or a crash never see a partial file. Its name
+        # doesn't end with ".config.js": it isn't taken as a configuration
+        tmp_path = os.path.join(os.path.dirname(path), f".{pid}.config.js.{uuid.uuid4().hex[:8]}.tmp")
+        try:
+            with open(tmp_path, "x") as filep:
+                filep.write(data)
+                filep.flush()
+                os.fsync(filep.fileno())
+
+            if mode is not None:
+                os.chmod(tmp_path, mode)
+
+            os.replace(tmp_path, path)
+        except BaseException:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                # Failed to create it
+                pass
+            raise
 
     def delete(self, pid: str) -> bool:
         """
@@ -1413,7 +1553,12 @@ class Activator(pelix.constants.ActivatorProto):
 
         # Small trick to add a late Instantiate decoration
         # to the component factory
-        Instantiate("pelix-services-configuration-json-default")(JsonPersistence)
+        try:
+            Instantiate("pelix-services-configuration-json-default")(JsonPersistence)
+        except NameError:
+            # Restarting the bundle doesn't reload its module: the instance
+            # declared by the previous start is still there
+            pass
 
     def stop(self, context: "BundleContext") -> None:
         """

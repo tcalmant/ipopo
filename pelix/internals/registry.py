@@ -627,7 +627,10 @@ class ServiceRegistration(Generic[T]):
             # Trigger a new computation in the framework
             event = ServiceEvent(ServiceEvent.MODIFIED, self.__reference, previous)
 
-            self.__framework._dispatcher.fire_service_event(event)
+        # Notify outside the lock: a listener can wait for a lock (e.g. an
+        # iPOPO instance lock) held by a thread reading the properties of this
+        # service, which would deadlock (issue #114)
+        self.__framework._dispatcher.fire_service_event(event)
 
     def unregister(self) -> None:
         """
