@@ -45,6 +45,7 @@ from pelix.http._base import (
     LOCALHOST_ADDRESS,
     SERVLET_PARAMETERS,
     AbstractHttpService,
+    RequestRouting,
     compute_sub_path,
 )
 from pelix.internals.registry import ServiceReference
@@ -59,6 +60,7 @@ from pelix.ipopo.decorators import (
     Validate,
 )
 from pelix.misc import ssl_wrap
+from pelix.security import AccessDenied, AuthenticationFailed, AuthenticationRequired, Subject, run_as
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
@@ -329,15 +331,26 @@ class _RequestHandler(BaseHTTPRequestHandler):
                 """
                 Wrapped servlet call
                 """
+                # Authenticated here, as the handler looks for the method twice
+                subject = self._authenticate(routing)
+                if subject is None:
+                    return
+
                 try:
-                    # Handle the request
-                    getattr(servlet, name)(request, response)
+                    # Handle the request as the authenticated subject
+                    with run_as(subject):
+                        getattr(servlet, name)(request, response)
                 except http.BodyTooLargeError as ex:
                     # The client announced a body we refuse to read
                     self.send_too_large_response(response, ex)
                 except TimeoutError:
                     # The client didn't send the body it announced in time
                     self.send_timeout_response(response)
+                except (AuthenticationRequired, AuthenticationFailed):
+                    # The servlet requires an identity: the client can retry with credentials
+                    self.send_auth_error(response, 401, routing)
+                except AccessDenied:
+                    self.send_auth_error(response, 403, routing)
                 except Exception:  # noqa: BLE001
                     # Send a 500 error page on error
                     self.send_exception(response)
@@ -345,8 +358,47 @@ class _RequestHandler(BaseHTTPRequestHandler):
             # Return it
             return wrapper
 
-        # Return the super implementation if needed
-        return lambda: self.send_no_servlet_response(routing.path)
+        def not_found() -> None:
+            """
+            No servlet for this request
+            """
+            # Don't tell an unauthenticated client which paths exist
+            if self._authenticate(routing) is not None:
+                self.send_no_servlet_response(routing.path)
+
+        return not_found
+
+    def _authenticate(self, routing: RequestRouting) -> Subject | None:
+        """
+        Authenticates the current request, answering it with a 401 error if it
+        is refused
+
+        :param routing: The result of the routing of the request
+        :return: The subject to handle the request as, or None if it has been refused
+        """
+        decision = self._service.resolve_authentication(routing, self.headers, self.client_address[0])
+        if decision.refused:
+            self.send_auth_error(_HTTPServletResponse(self), 401, routing)
+            return None
+
+        return decision.subject
+
+    def send_auth_error(
+        self, response: http.AbstractHTTPServletResponse, code: int, routing: RequestRouting
+    ) -> None:
+        """
+        Sends a 401 (with the authentication challenges) or 403 error page
+
+        :param response: The response handler
+        :param code: The HTTP error code
+        :param routing: The result of the routing of the request
+        """
+        if code == 401:
+            challenge = self._service.get_auth_challenge(routing)
+            if challenge:
+                response.set_header("WWW-Authenticate", challenge)
+
+        response.send_content(code, self._service.make_auth_error_page(code))
 
     def log_error(self, format: str, *args: Any, **kwargs: Any) -> None:
         """
@@ -563,6 +615,7 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 @Requires("_servlets_services", http.Servlet, True, True)
 @Requires("_error_handler", http.ErrorHandler, optional=True)
 @Requires("_cors_handler", http.CorsHandler, optional=True)
+@Requires("_http_authenticators", http.HttpAuthenticator, aggregate=True, optional=True)
 class HttpServiceImpl(AbstractHttpService):
     """
     Basic HTTP service component

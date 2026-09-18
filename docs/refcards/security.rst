@@ -29,7 +29,7 @@ Four questions, four services
 ============================================== ============================== ==========================
 Question                                       Service                        Shipped implementation
 ============================================== ============================== ==========================
-How do I get credentials off this transport?   (transport-specific)           see the HTTP reference card
+How do I get credentials off this transport?   (transport-specific)           HTTP: :ref:`http_auth`     
 Are these credentials valid, and who is it?    :class:`Authenticator`         ``.htpasswd``, policy file
 Which groups and roles does this subject have? :class:`MembershipProvider`    ``.htgroup``, policy file
 May this subject do this?                      :class:`Authorizer`            policy file
