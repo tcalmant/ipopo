@@ -30,6 +30,7 @@ TODO: Stabilize implementation of managed service factories
 import json
 import logging
 import os
+import stat
 import threading
 import uuid
 from collections.abc import Iterable
@@ -1421,12 +1422,40 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         :raise IOError: File not writable
         :raise ValueError: Invalid PID
         """
-        # Write to the file
-        with open(self._get_file(pid), "w") as filep:
-            # Write the JSON data
-            filep.write(json.dumps(properties, sort_keys=True, indent=4, separators=(",", ": ")))
-            # Be nice, add a line feed
-            filep.write("\n")
+        path = self._get_file(pid)
+
+        # Serialize first: a non-serializable value must not touch the file.
+        # Be nice, add a line feed
+        data = json.dumps(properties, sort_keys=True, indent=4, separators=(",", ": ")) + "\n"
+
+        try:
+            # Keep the permissions of an existing file
+            mode: int | None = stat.S_IMODE(os.stat(path).st_mode)
+        except FileNotFoundError:
+            # New files get the umask-based permissions, as open() gives
+            mode = None
+
+        # Write a temporary file then replace the configuration file with it,
+        # so that FileInstall or a crash never see a partial file. Its name
+        # doesn't end with ".config.js": it isn't taken as a configuration
+        tmp_path = os.path.join(os.path.dirname(path), f".{pid}.config.js.{uuid.uuid4().hex[:8]}.tmp")
+        try:
+            with open(tmp_path, "x") as filep:
+                filep.write(data)
+                filep.flush()
+                os.fsync(filep.fileno())
+
+            if mode is not None:
+                os.chmod(tmp_path, mode)
+
+            os.replace(tmp_path, path)
+        except BaseException:
+            try:
+                os.remove(tmp_path)
+            except OSError:
+                # Failed to create it
+                pass
+            raise
 
     def delete(self, pid: str) -> bool:
         """

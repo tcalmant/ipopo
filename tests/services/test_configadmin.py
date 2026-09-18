@@ -9,6 +9,7 @@ Tests for the ConfigurationAdmin tests
 import json
 import os
 import shutil
+import stat
 import sys
 import tempfile
 import threading
@@ -16,6 +17,7 @@ import time
 import unittest
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any, cast
+from unittest import mock
 
 import pelix.framework
 from pelix import constants, services
@@ -1558,6 +1560,72 @@ class JsonPersistencePidTest(unittest.TestCase):
                 filep.write("not a configuration\n")
 
         self.assertEqual(set(self.persistence.get_pids()), {"spam"})
+
+
+class JsonPersistenceAtomicTest(unittest.TestCase):
+    """
+    The JSON persistence must never leave a partial configuration file
+    """
+
+    PID = "test.atomic"
+
+    def setUp(self) -> None:
+        """
+        Prepares a persistence service with its own configuration folder
+        """
+        self.conf_folder = tempfile.mkdtemp(prefix="ipopo-configadmin-atomic-")
+        self.persistence = JsonPersistence()
+        self.persistence._conf_folder = self.conf_folder
+        self.path = os.path.join(self.conf_folder, f"{self.PID}.config.js")
+
+    def tearDown(self) -> None:
+        """
+        Cleans up the temporary folder
+        """
+        shutil.rmtree(self.conf_folder, ignore_errors=True)
+
+    def test_store_replaces_file(self) -> None:
+        """
+        The stored file is valid JSON and no temporary file is left
+        """
+        self.persistence.store(self.PID, {"answer": 42})
+        self.persistence.store(self.PID, {"answer": 21, "spam": "eggs"})
+
+        with open(self.path) as filep:
+            self.assertDictEqual(json.load(filep), {"answer": 21, "spam": "eggs"})
+
+        self.assertEqual(os.listdir(self.conf_folder), [f"{self.PID}.config.js"])
+        self.assertEqual(set(self.persistence.get_pids()), {self.PID})
+
+    def test_store_keeps_permissions(self) -> None:
+        """
+        Replacing a configuration file keeps its permissions
+        """
+        self.persistence.store(self.PID, {"answer": 42})
+        os.chmod(self.path, 0o600)
+
+        self.persistence.store(self.PID, {"answer": 21})
+        self.assertEqual(stat.S_IMODE(os.stat(self.path).st_mode), 0o600)
+
+    def test_write_error_keeps_previous_file(self) -> None:
+        """
+        An error while writing leaves the previous file untouched and removes
+        the temporary one
+        """
+        self.persistence.store(self.PID, {"answer": 42})
+
+        with (
+            mock.patch("pelix.services.configadmin.os.fsync", side_effect=OSError("disk full")),
+            self.assertRaises(OSError),
+        ):
+            self.persistence.store(self.PID, {"answer": 21})
+
+        # Nothing that can't be serialized reaches the file either
+        with self.assertRaises(TypeError):
+            self.persistence.store(self.PID, {"answer": object()})
+
+        self.assertDictEqual(self.persistence.load(self.PID), {"answer": 42})
+        self.assertEqual(os.listdir(self.conf_folder), [f"{self.PID}.config.js"])
 
 
 class _MutatingService(services.IManagedService):
