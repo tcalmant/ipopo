@@ -263,10 +263,11 @@ class InteractiveShell:
             except ValueError:
                 arguments = full_line.split()
 
-            # Extract the command (maybe with its namespace)
-            command = arguments.pop(0)
+            # Extract the command (maybe with its namespace). A blank line has
+            # none yet: complete it as a command name
+            command = arguments.pop(0) if arguments else ""
 
-            if begin_idx > 0:
+            if begin_idx > 0 and command:
                 # We're completing after the command (and maybe some args)
                 try:
                     # Find the command
