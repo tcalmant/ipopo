@@ -33,7 +33,9 @@ Property                        Default Description
 pelix.http.address              0.0.0.0 The address the HTTP server is bound to
 pelix.http.port                 8080    The port the HTTP server is bound to
 pelix.http.debug                False   If set, error pages sent to the clients
-                                        contain the stack trace of the error
+                                        contain the stack trace of the error,
+                                        and the 404 page lists the registered
+                                        servlet paths
 pelix.http.max_body_size        1048576 Maximum size, in bytes, of the body of a
                                         request. A request with a bigger body is
                                         answered with a 413 error code. A value
@@ -102,6 +104,10 @@ two different resources, as RFC 3986 defines them to be.
    uses and the data it was handling. By default, the error page only gives an
    error ID, which allows to find the details of the error in the logs of the
    server.
+
+   The same goes for the paths of the registered servlets: by default, the 404
+   page doesn't list them, as they would tell any client what the server
+   exposes.
 
 Instantiation
 -------------

@@ -191,6 +191,33 @@ class ErrorPageContentTest(unittest.TestCase):
         self.assertEqual(status, 404)
         self.assertNotIn("<script>", page, "Request path not escaped")
 
+    def test_not_found_page_hides_paths(self) -> None:
+        """
+        The 404 page must not list the registered servlets by default
+        """
+        for debug_errors in (None, False):
+            with self.subTest(debug_errors=debug_errors):
+                port = self.start_server(debug_errors)
+                try:
+                    status, content = get_http_page(port, uri="/unknown")
+                finally:
+                    self.ipopo.kill(INSTANCE_NAME)
+
+                page = content.decode("utf-8")
+                self.assertEqual(status, 404)
+                self.assertNotIn("/error", page, "Registered path sent to the client")
+
+    def test_not_found_page_lists_paths_in_debug(self) -> None:
+        """
+        The 404 page must list the registered servlets in debug mode
+        """
+        port = self.start_server(True)
+        status, content = get_http_page(port, uri="/unknown")
+        page = content.decode("utf-8")
+
+        self.assertEqual(status, 404)
+        self.assertIn("/error", page, "Registered path not listed in debug mode")
+
 
 # ------------------------------------------------------------------------------
 
@@ -199,6 +226,14 @@ class MakeExceptionPageTest(unittest.TestCase):
     """
     Tests the generation of the error page by both HTTP service implementations
     """
+
+    def tearDown(self) -> None:
+        """
+        Resets the debug flag: outside of iPOPO, the property value is shared
+        by all the instances of a component class
+        """
+        for _, service in self.get_services():
+            service._debug_errors = False
 
     def get_services(self) -> Any:
         """
@@ -241,6 +276,23 @@ class MakeExceptionPageTest(unittest.TestCase):
             with self.subTest(service=name):
                 page = service.make_exception_page("/<script>alert(1)</script>", "stack")
                 self.assertNotIn("<script>", page)
+
+    def test_not_found_page_paths(self) -> None:
+        """
+        The registered paths must only be listed in debug mode
+        """
+        for name, service in self.get_services():
+            with self.subTest(service=name):
+                service.get_registered_paths = lambda: ["/secret/servlet"]
+
+                page = service.make_not_found_page("/<script>alert(1)</script>")
+                self.assertNotIn("/secret/servlet", page)
+                self.assertNotIn("<script>", page)
+
+                service._debug_errors = True
+                page = service.make_not_found_page("/path")
+                self.assertIn("/secret/servlet", page)
+                service._debug_errors = False
 
     def test_custom_handler_gets_no_details(self) -> None:
         """

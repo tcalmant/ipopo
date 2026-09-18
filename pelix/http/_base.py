@@ -646,6 +646,10 @@ class AbstractHttpService(http.HTTPService):
         """
         Prepares a "page not found" page for a 404 error
 
+        The registered servlet paths are only listed if the
+        :const:`pelix.http.HTTP_DEBUG_ERRORS` property is set: they describe
+        the server to any client.
+
         :param path: Request path
         :return: A HTML page
         """
@@ -654,6 +658,12 @@ class AbstractHttpService(http.HTTPService):
             page = self._error_handler.make_not_found_page(path)
 
         if not page:
+            registered = ""
+            if self._debug_errors:
+                registered = f"""<h2>Registered paths:</h2>
+{http.make_html_list(self.get_registered_paths())}
+"""
+
             page = f"""<html>
 <head>
 <title>404 - Page not found</title>
@@ -662,9 +672,7 @@ class AbstractHttpService(http.HTTPService):
 <h1>Page not found</h1>
 <p>No servlet is associated to this path:</p>
 <code>{html.escape(path)}</code>
-<h2>Registered paths:</h2>
-{http.make_html_list(self.get_registered_paths())}
-</body>
+{registered}</body>
 </html>"""
         return page
 
