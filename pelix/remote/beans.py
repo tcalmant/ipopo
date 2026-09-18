@@ -45,6 +45,17 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "PYTHON_LANGUAGE",
+    "EndpointDescription",
+    "ExportEndpoint",
+    "ImportEndpoint",
+    "compute_exported_specifications",
+    "extract_specifications",
+    "format_specifications",
+    "to_import_properties",
+]
+
 T = TypeVar("T")
 
 # ------------------------------------------------------------------------------

@@ -55,6 +55,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = ["PATTERN_ENDPOINT_KEY", "PATTERN_FRAMEWORK_KEY"]
+
 # The module's logger
 _logger = logging.getLogger(__name__)
 

@@ -52,6 +52,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = ["JSONRPC_CONFIGURATION", "PROP_JSONRPC_URL"]
+
 # ------------------------------------------------------------------------------
 
 JSONRPC_CONFIGURATION = "jsonrpc"

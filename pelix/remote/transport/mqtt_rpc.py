@@ -58,6 +58,18 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "KEY_CORRELATION_ID",
+    "KEY_DATA",
+    "KEY_ERROR",
+    "KEY_SENDER",
+    "MQTTRPC_CONFIGURATION",
+    "PROP_MQTT_TOPIC",
+    "TOPIC_REQUEST",
+    "TOPIC_RESPONSE",
+    "make_topic",
+]
+
 # ------------------------------------------------------------------------------
 
 MQTTRPC_CONFIGURATION = "mqttrpc"
