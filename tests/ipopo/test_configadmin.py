@@ -583,7 +583,12 @@ class ConfigAdminBridgeStartupTest(unittest.TestCase):
         # The framework is running: it can be deleted safely
         self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
 
+        # Stored configurations are delivered by the ConfigurationAdmin pool
         with use_ipopo(framework.get_bundle_context()) as ipopo:
+            deadline = time.monotonic() + 5
+            while not ipopo.is_registered_instance("test-startup") and time.monotonic() < deadline:
+                time.sleep(0.05)
+
             self.assertTrue(ipopo.is_registered_instance("test-startup"))
 
 

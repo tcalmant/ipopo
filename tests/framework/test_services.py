@@ -7,6 +7,7 @@ handling and events.
 :author: Thomas Calmant
 """
 
+import threading
 import unittest
 from typing import Any
 
@@ -582,6 +583,47 @@ class ServicesTest(unittest.TestCase):
 
         # Ensure the release of the service
         self.assertNotIn(bnd, svc_ref.get_using_bundles())
+
+    def test_modified_event_outside_properties_lock(self):
+        """
+        A listener of a service modification can wait for a lock held by a
+        thread reading the properties of that service (issue #114)
+        """
+        context = self.framework.get_bundle_context()
+        registration = context.register_service("test.modified", object(), {"value": 1})
+        svc_ref = registration.get_reference()
+
+        # Lock of a component, held while reading the service properties
+        component_lock = threading.Lock()
+        in_listener = threading.Event()
+
+        class Listener:
+            def service_changed(self, event):
+                # Needs the component, as an iPOPO dependency handler does
+                in_listener.set()
+                with component_lock:
+                    pass
+
+        context.add_service_listener(Listener(), "(objectClass=test.modified)")
+
+        def reader():
+            with component_lock:
+                in_listener.wait(5)
+                return svc_ref.get_property("value")
+
+        results = []
+        reader_thread = threading.Thread(target=lambda: results.append(reader()), daemon=True)
+        setter_thread = threading.Thread(
+            target=registration.set_properties, args=({"value": 2},), daemon=True
+        )
+        reader_thread.start()
+        setter_thread.start()
+
+        for thread in (reader_thread, setter_thread):
+            thread.join(5)
+            self.assertFalse(thread.is_alive(), "Deadlock between the properties lock and a listener")
+
+        self.assertEqual(results, [2])
 
 
 # ------------------------------------------------------------------------------
