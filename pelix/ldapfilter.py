@@ -42,6 +42,24 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "AND",
+    "ESCAPED_CHARACTERS",
+    "ESCAPE_CHARACTER",
+    "ITERABLES",
+    "NOT",
+    "OR",
+    "LDAPCriteria",
+    "LDAPFilter",
+    "LdapFilterOrCriteria",
+    "combine_filters",
+    "comparator2str",
+    "escape_LDAP",
+    "get_ldap_filter",
+    "operator2str",
+    "unescape_LDAP",
+]
+
 # Utility type alias
 LdapFilterOrCriteria = Union["LDAPFilter", "LDAPCriteria"]
 

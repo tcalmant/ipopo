@@ -39,6 +39,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = ["ipproto_ipv6", "set_double_stack"]
+
 # ------------------------------------------------------------------------------
 
 

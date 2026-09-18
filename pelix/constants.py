@@ -42,6 +42,29 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "ACTIVATOR",
+    "ACTIVATOR_LEGACY",
+    "FRAMEWORK_UID",
+    "OBJECTCLASS",
+    "OSGI_FRAMEWORK_UUID",
+    "PELIX_SPECIFICATION_FIELD",
+    "SCOPE_BUNDLE",
+    "SCOPE_PROTOTYPE",
+    "SCOPE_SINGLETON",
+    "SERVICE_BUNDLEID",
+    "SERVICE_ID",
+    "SERVICE_PID",
+    "SERVICE_RANKING",
+    "SERVICE_SCOPE",
+    "ActivatorProto",
+    "BundleActivator",
+    "BundleException",
+    "FrameworkException",
+    "Specification",
+    "is_from_parent",
+]
+
 # ------------------------------------------------------------------------------
 
 ACTIVATOR = "__pelix_bundle_activator__"
