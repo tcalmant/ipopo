@@ -144,6 +144,57 @@ HTTP_WEBSOCKET_PATH = "pelix.http.websocket.path"
 # Service to provide custom 404 and 500 error pages
 HTTP_ERROR_PAGES = "pelix.http.error.pages"
 
+# Cross-Origin Resource Sharing (CORS)
+HTTP_CORS_HANDLER = "pelix.http.cors.handler"
+"""
+Specification of the service giving the CORS policy of the HTTP services.
+
+When no such service is bound, and no servlet declares its own policy, the
+HTTP services don't send any CORS header.
+"""
+
+HTTP_CORS_ORIGINS = "pelix.http.cors.origins"
+"""
+Origins allowed to read the responses (string or list of strings).
+``*`` allows any origin, an empty list none.
+
+As a servlet service property, it declares the CORS policy of the servlet: it
+replaces the one of the bound CORS handler service, if any. The other
+``pelix.http.cors.*`` servlet properties are only read when it is set.
+"""
+
+HTTP_CORS_METHODS = "pelix.http.cors.methods"
+"""
+Methods allowed in cross-origin requests (string, comma-separated string or
+list of strings). If not set, the method of a preflight request is allowed.
+"""
+
+HTTP_CORS_HEADERS = "pelix.http.cors.headers"
+"""
+Request headers allowed in cross-origin requests (string, comma-separated
+string or list of strings). If not set, the headers of a preflight request are
+allowed.
+"""
+
+HTTP_CORS_EXPOSE_HEADERS = "pelix.http.cors.expose_headers"
+"""
+Response headers the client script is allowed to read, in addition to the
+CORS-safelisted ones (string, comma-separated string or list of strings).
+"""
+
+HTTP_CORS_CREDENTIALS = "pelix.http.cors.credentials"
+"""
+If True, cross-origin requests can carry credentials (cookies, authorization
+header, ...). The allowed origin is then always sent explicitly, never as
+``*`` (boolean, False by default).
+"""
+
+HTTP_CORS_MAX_AGE = "pelix.http.cors.max_age"
+"""
+Time, in seconds, a client can cache the result of a preflight request
+(integer). If not set, the client decides.
+"""
+
 # ------------------------------------------------------------------------------
 
 FACTORY_HTTP_BASIC = "pelix.http.service.basic.factory"
@@ -151,6 +202,12 @@ FACTORY_HTTP_BASIC = "pelix.http.service.basic.factory"
 
 FACTORY_HTTP_ASYNC = "pelix.http.service.async.factory"
 """ Name of the Async HTTP service component factory """
+
+FACTORY_HTTP_CORS = "pelix.http.cors.factory"
+"""
+Name of the component factory of a CORS handler service, configured with the
+``pelix.http.cors.*`` properties (see :mod:`pelix.http.cors`)
+"""
 
 # ------------------------------------------------------------------------------
 
@@ -817,6 +874,74 @@ class ErrorHandler(Protocol):
         :param path: Request path
         :param stack: Exception stack trace
         :return: A HTML page
+        """
+        ...
+
+
+@Specification(HTTP_CORS_HANDLER)
+class CorsHandler(Protocol):
+    """
+    Gives the Cross-Origin Resource Sharing (CORS) policy of the HTTP services.
+
+    Each method is given the normalized path of the request, so that a single
+    handler can give a different policy to different parts of the server.
+    """
+
+    def get_allowed_origins(self, path: str) -> Iterable[str]:
+        """
+        Returns the origins allowed to read the responses to requests on the
+        given path
+
+        :param path: Request path
+        :return: The allowed origins; ``*`` allows any origin
+        """
+        ...
+
+    def get_allowed_methods(self, path: str) -> Iterable[str] | None:
+        """
+        Returns the methods allowed in cross-origin requests on the given path
+
+        :param path: Request path
+        :return: The allowed methods, or None to allow the one of the request
+        """
+        ...
+
+    def get_allowed_headers(self, path: str) -> Iterable[str] | None:
+        """
+        Returns the request headers allowed in cross-origin requests on the
+        given path
+
+        :param path: Request path
+        :return: The allowed headers, or None to allow those of the request
+        """
+        ...
+
+    def get_exposed_headers(self, path: str) -> Iterable[str] | None:
+        """
+        Returns the response headers a client script is allowed to read
+
+        :param path: Request path
+        :return: The exposed headers, or None
+        """
+        ...
+
+    def allows_credentials(self, path: str) -> bool:
+        """
+        Checks if cross-origin requests on the given path can carry
+        credentials
+
+        :param path: Request path
+        :return: True to allow credentials
+        """
+        ...
+
+    def get_max_age(self, path: str) -> int | None:
+        """
+        Returns the time, in seconds, a client can cache the result of a
+        preflight request on the given path
+
+        :param path: Request path
+        :return: A time in seconds, or None to let the client decide
         """
         ...
 

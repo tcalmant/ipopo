@@ -48,6 +48,7 @@ from pelix.http._base import (
     DEFAULT_BIND_ADDRESS,
     HTTP_SERVICE_EXTRA,
     LOCALHOST_ADDRESS,
+    SERVLET_PARAMETERS,
     AbstractHttpService,
     compute_sub_path,
 )
@@ -86,6 +87,14 @@ __all__ = [
     "AsyncHttpServiceImpl",
     "WSSession",
 ]
+
+# aiohttp 3.14 recommends typed keys, which older versions don't provide
+_CORS_HEADERS_KEY: Any = (
+    aiohttp.web.RequestKey("pelix.http.cors.headers", dict)
+    if hasattr(aiohttp.web, "RequestKey")
+    else "pelix.http.cors.headers"
+)
+""" Key of the CORS headers to send in the storage of an aiohttp request """
 
 
 class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
@@ -654,6 +663,7 @@ class WSSession(http.WebSocketSession):
 @Requires("_servlets_async_services", http.AsyncServlet, True, True)
 @Requires("_websocket_handler_services", http.WebSocketHandler, True, True)
 @Requires("_error_handler", http.ErrorHandler, optional=True)
+@Requires("_cors_handler", http.CorsHandler, optional=True)
 class AsyncHttpServiceImpl(AbstractHttpService):
     """
     Asynchronous HTTP service component
@@ -699,6 +709,7 @@ class AsyncHttpServiceImpl(AbstractHttpService):
         # Create the server
         app = aiohttp.web.Application(logger=self._logger)
         app.add_routes([aiohttp.web.route("*", "/{tail:.*}", self.__global_handler)])
+        app.on_response_prepare.append(self.__add_cors_headers)
         self._app = app
 
         # Start the server in a separate thread
@@ -891,6 +902,29 @@ class AsyncHttpServiceImpl(AbstractHttpService):
 
         # Use the raw path: aiohttp already decoded request.path, normalizing it again would double-decode
         routing = self.resolve_request(request.raw_path)
+
+        cors_decision = self.resolve_cors(
+            routing,
+            request.method,
+            request.headers.get("Origin"),
+            request.headers.get("Access-Control-Request-Method"),
+            request.headers.get("Access-Control-Request-Headers"),
+        )
+        if cors_decision is not None:
+            if cors_decision.preflight:
+                # Preflight requests are answered by the server, not by the servlets
+                if cors_decision.headers is None:
+                    return aiohttp.web.Response(
+                        status=403,
+                        text="<html><body><h1>Forbidden</h1></body></html>",
+                        content_type="text/html",
+                    )
+                return aiohttp.web.Response(status=204, headers=cors_decision.headers)
+
+            if cors_decision.headers:
+                # Added when the response is prepared, whatever the way it is built
+                request[_CORS_HEADERS_KEY] = cors_decision.headers
+
         if routing.error is not None:
             # The path itself has been refused: no servlet is looked for
             return aiohttp.web.Response(
@@ -1026,6 +1060,24 @@ class AsyncHttpServiceImpl(AbstractHttpService):
 
         # Return the super implementation if needed
         return aiohttp.web.Response(status=404, text=self.make_not_found_page(path), content_type="text/html")
+
+    @staticmethod
+    async def __add_cors_headers(request: aiohttp.web.Request, response: aiohttp.web.StreamResponse) -> None:
+        """
+        Adds the CORS headers computed for a request to its response, just
+        before its headers are sent.
+
+        Doing it here covers the responses built by the servlets, the error
+        pages, the exceptions answered by aiohttp and the WebSocket handshakes.
+
+        :param request: The request being answered
+        :param response: The response about to be sent
+        """
+        cors_headers: dict[str, str] | None = request.get(_CORS_HEADERS_KEY)
+        if cors_headers:
+            for name, value in cors_headers.items():
+                # Keep the headers the servlet set itself
+                response.headers.setdefault(name, value)
 
     def send_exception(self, path: str) -> aiohttp.web.Response:
         """
@@ -1167,7 +1219,7 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                 http.HTTP_SERVLET_PATH,
                 http.HTTP_SERVLET_ASYNC_PATH,
                 http.HTTP_WEBSOCKET_PATH,
-                http.HTTP_MAX_BODY_SIZE,
+                *SERVLET_PARAMETERS,
             ),
         )
 
