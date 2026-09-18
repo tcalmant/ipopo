@@ -783,10 +783,16 @@ class ShellCoreCommandsTest(unittest.TestCase):
             for spec in svc_ref.get_property(constants.OBJECTCLASS):
                 self.assertIn(spec, output)
 
-        # Invalid IDs
-        for invalid in (-1, "<invalid>", "-10"):
-            output = self._run_command(f"sd {invalid}")
+        # Unknown IDs
+        for unknown in (-1, "-10", 999999):
+            output = self._run_command(f"sd {unknown}")
             self.assertIn("Service not found", output)
+
+        # Invalid IDs, including filter injections
+        for invalid in ("<invalid>", "*", "1)(|(service.id>0)", "1.5"):
+            output = self._run_command(f"sd {invalid}")
+            self.assertIn("Invalid service ID", output)
+            self.assertNotIn("Specifications", output)
 
     def testProperties(self) -> None:
         """
