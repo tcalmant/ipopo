@@ -78,8 +78,8 @@ HTTPS_KEY_PASSWORD = "pelix.https.key_password"
 # ... send the details of errors to the clients
 HTTP_DEBUG_ERRORS = "pelix.http.debug"
 """
-If set, error pages sent to clients contain the stack trace of the error
-(boolean, False by default).
+If set, error pages sent to clients contain the stack trace of the error and
+the 404 page lists the registered servlet paths (boolean, False by default).
 
 Stack traces give details about the server (installed packages, file paths,
 handled data, ...): this flag must be kept unset in production. The details of
