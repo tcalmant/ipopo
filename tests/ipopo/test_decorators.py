@@ -10,6 +10,7 @@ import code
 import os
 import unittest
 
+from pelix.constants import PELIX_SPECIFICATION_FIELD
 from pelix.framework import FrameworkFactory
 from pelix.ipopo import constants, decorators
 from tests.ipopo import install_bundle, install_ipopo
@@ -613,6 +614,20 @@ class SimpleDecoratorsTests(unittest.TestCase):
         # Invalid entry
         for invalid in (None, "", [], (), {"spec": 1}, [1, 2, 3], (1, 2, 3), 123):
             self.assertRaises(ValueError, decorators._get_specifications, invalid)
+
+        # Blank names, directly or through a class specification field
+        class BlankSpec:
+            pass
+
+        class BlankInListSpec:
+            pass
+
+        setattr(BlankSpec, PELIX_SPECIFICATION_FIELD, "  ")
+        setattr(BlankInListSpec, PELIX_SPECIFICATION_FIELD, ["valid", ""])
+
+        for invalid in ("  ", ["valid", ""], ("valid", " \t"), BlankSpec, BlankInListSpec):
+            with self.assertRaises(ValueError, msg=f"Accepted {invalid!r}"):
+                decorators._get_specifications(invalid)
 
         # Test inheritance
         from tests.ipopo import ipopo_bundle

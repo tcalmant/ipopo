@@ -277,11 +277,15 @@ class Specification:
     ) -> None:
         """
         :param specification: Specification of the provided service
+        :raise ValueError: Empty specification name or list
         """
         self.__ignore_parent: bool = ignore_parent
         self.__spec: list[str] = []
         for spec in specifications:
             if isinstance(spec, list):
+                if not spec:
+                    # An explicit empty list is a mistake, not a request for the default
+                    raise ValueError("Empty list of specifications given")
                 self.__spec.extend(self._get_name(s) for s in spec)
             else:
                 self.__spec.append(self._get_name(spec))
@@ -323,8 +327,12 @@ class Specification:
     def _get_name(self, clazz: str | type[Any]) -> str:
         """
         Returns the given string of the name of the class
+
+        :raise ValueError: Empty specification name
         """
         if isinstance(clazz, str):
+            if not clazz.strip():
+                raise ValueError("Empty specification name given")
             return clazz
 
         return clazz.__name__

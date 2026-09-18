@@ -8,6 +8,7 @@ handling and events.
 """
 
 import unittest
+from typing import Any
 
 import pelix.constants
 from pelix.framework import Bundle, BundleContext, BundleException, FrameworkFactory, ServiceReference
@@ -202,6 +203,35 @@ class ServicesTest(unittest.TestCase):
         # We shouldn't have access to the bundle services anymore
         self.assertRaises(BundleException, bundle.get_registered_services)
         self.assertRaises(BundleException, bundle.get_services_in_use)
+
+    def testRegisterInvalidSpecifications(self):
+        """
+        Empty, blank or non-string specifications must be rejected
+        """
+        context = self.framework.get_bundle_context()
+
+        class BlankSpec:
+            pass
+
+        setattr(BlankSpec, pelix.constants.PELIX_SPECIFICATION_FIELD, ["valid", " "])
+
+        invalid_values: tuple[Any, ...] = (
+            "",
+            "  ",
+            [],
+            [""],
+            ["valid", ""],
+            ("valid", "\t"),
+            [123],
+            123,
+            BlankSpec,
+        )
+        for invalid in invalid_values:
+            with self.assertRaises(BundleException, msg=f"Accepted {invalid!r}"):
+                context.register_service(invalid, object(), {})
+
+        # Nothing was registered
+        self.assertListEqual(self.framework.get_registered_services(), [])
 
     def testServiceReferencesCmp(self):
         """
