@@ -69,6 +69,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = ["HtpasswdStore", "parse_htgroup", "parse_htpasswd"]
+
 _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------

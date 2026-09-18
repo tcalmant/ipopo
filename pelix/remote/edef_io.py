@@ -47,6 +47,35 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "ATTR_NAME",
+    "ATTR_VALUE",
+    "ATTR_VALUE_TYPE",
+    "EDEF_NAMESPACE",
+    "TAG_ARRAY",
+    "TAG_ENDPOINT_DESCRIPTION",
+    "TAG_ENDPOINT_DESCRIPTIONS",
+    "TAG_LIST",
+    "TAG_PROPERTY",
+    "TAG_SET",
+    "TAG_VALUE",
+    "TAG_XML",
+    "TYPED_BOOL",
+    "TYPED_LONG",
+    "TYPED_STRING",
+    "TYPES_BOOLEAN",
+    "TYPES_CHAR",
+    "TYPES_FLOAT",
+    "TYPES_INT",
+    "TYPE_BOOLEAN",
+    "TYPE_DOUBLE",
+    "TYPE_LONG",
+    "TYPE_STRING",
+    "XML_VALUE",
+    "EDEFReader",
+    "EDEFWriter",
+]
+
 # ------------------------------------------------------------------------------
 
 # EDEF XML name space

@@ -55,6 +55,43 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "ETCD_CALLEXECUTOR_DEFAULT",
+    "ETCD_CALLEXECUTOR_PROP",
+    "ETCD_CALLTIMEOUT_DEFAULT",
+    "ETCD_CALLTIMEOUT_PROP",
+    "ETCD_CONNECTED_CALLBACK_DEFAULT",
+    "ETCD_CONNECTED_CALLBACK_PROP",
+    "ETCD_DISCONNECTTIMEOUT_DEFAULT",
+    "ETCD_DISCONNECTTIMEOUT_PROP",
+    "ETCD_FACTORY_NAME",
+    "ETCD_GRPCCOMPRESSION_DEFAULT",
+    "ETCD_GRPCCOMPRESSION_PROP",
+    "ETCD_GRPCCREDENTIALS_DEFAULT",
+    "ETCD_GRPCCREDENTIALS_PROP",
+    "ETCD_GRPCOPTIONS_DEFAULT",
+    "ETCD_GRPCOPTIONS_PROP",
+    "ETCD_HOSTIP_DEFAULT",
+    "ETCD_HOSTIP_PROP",
+    "ETCD_HOSTNAME_DEFAULT",
+    "ETCD_HOSTNAME_PROP",
+    "ETCD_INSTANCE_NAME",
+    "ETCD_KEEPALIVEINTERVAL_DEFAULT",
+    "ETCD_KEEPALIVEINTERVAL_PROP",
+    "ETCD_LEASETTL_DEFAULT",
+    "ETCD_LEASETTL_PROP",
+    "ETCD_NAME_PREFIX",
+    "ETCD_PORT_DEFAULT",
+    "ETCD_PORT_PROP",
+    "ETCD_SESSIONID_DEFAULT",
+    "ETCD_SESSIONID_PROP",
+    "ETCD_TOPKEY_DEFAULT",
+    "ETCD_TOPKEY_PROP",
+    "Etcd3EndpointDiscovery",
+    "instantiate_etcd3_discovery_provider",
+    "to_bytes",
+]
+
 # Standard logging
 _logger = logging.getLogger(__name__)
 

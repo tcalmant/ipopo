@@ -57,6 +57,39 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "Bind",
+    "BindField",
+    "ComponentFactory",
+    "FactoryManipulationError",
+    "HiddenProperty",
+    "Holder",
+    "Instantiate",
+    "Invalidate",
+    "InvalidateComponent",
+    "PostRegistration",
+    "PostUnregistration",
+    "Property",
+    "Provides",
+    "Requires",
+    "RequiresBest",
+    "RequiresBroadcast",
+    "RequiresConfiguration",
+    "RequiresMap",
+    "RequiresVarFilter",
+    "SingletonFactory",
+    "Temporal",
+    "Unbind",
+    "UnbindField",
+    "Update",
+    "UpdateField",
+    "Validate",
+    "ValidateComponent",
+    "get_factory_context",
+    "get_method_description",
+    "validate_method_arity",
+]
+
 # ------------------------------------------------------------------------------
 
 # Prepare the module logger

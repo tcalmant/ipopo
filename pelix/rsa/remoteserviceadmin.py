@@ -98,6 +98,21 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "DEBUG_PROPERTY",
+    "DEBUG_PROPERTY_DEFAULT",
+    "SERVICE_EXPORT_CONTAINER_SELECTOR",
+    "SERVICE_IMPORT_CONTAINER_SELECTOR",
+    "DebugRemoteServiceAdminListener",
+    "ExportContainerSelector",
+    "ExportReferenceImpl",
+    "ExportRegistrationImpl",
+    "ImportContainerSelector",
+    "ImportReferenceImpl",
+    "ImportRegistrationImpl",
+    "RemoteServiceAdminImpl",
+]
+
 # Standard logging
 _logger = logging.getLogger(__name__)
 

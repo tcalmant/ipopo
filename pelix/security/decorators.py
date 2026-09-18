@@ -59,6 +59,19 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "SECURITY_ATTRIBUTE",
+    "AllowAll",
+    "AllowAuthenticated",
+    "AllowGroup",
+    "AllowPermission",
+    "AllowRole",
+    "DenyAll",
+    "RunAs",
+    "set_authorization",
+    "set_denial_listener",
+]
+
 _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------

@@ -49,6 +49,11 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "ipopo_state_to_str",
+    "requirement_specifications_to_str",
+]
+
 # ------------------------------------------------------------------------------
 
 _logger = logging.getLogger(__name__)

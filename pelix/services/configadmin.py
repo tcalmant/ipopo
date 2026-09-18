@@ -64,6 +64,16 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "PID_FORBIDDEN_CHARACTERS",
+    "SERVICE_CONFIGADMIN_DIRECTORY",
+    "SERVICE_CONFIGURATION_ADMIN_PRIVATE",
+    "Configuration",
+    "ConfigurationDirectory",
+    "IConfigurationAdminDirectory",
+    "JsonPersistence",
+]
+
 # ------------------------------------------------------------------------------
 
 _logger = logging.getLogger(__name__)

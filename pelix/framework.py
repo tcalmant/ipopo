@@ -145,6 +145,25 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "FRAMEWORK_UID",
+    "Bundle",
+    "BundleContext",
+    "BundleEvent",
+    "BundleException",
+    "Framework",
+    "FrameworkException",
+    "FrameworkFactory",
+    "ServiceEvent",
+    "ServiceObjects",
+    "ServiceReference",
+    "ServiceRegistration",
+    "create_framework",
+    "normalize_path",
+    "reload_module",
+    "walk_modules",
+]
+
 # Prepare the module logger
 _logger = logging.getLogger("pelix.main")
 

@@ -51,6 +51,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = ["ENDPOINT_EVENTS", "EVENT_ADD", "EVENT_DISCOVER", "EVENT_LOST", "EVENT_REMOVE", "EVENT_UPDATE"]
+
 # ------------------------------------------------------------------------------
 
 _logger = logging.getLogger(__name__)

@@ -60,6 +60,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = ["MulticastDiscovery", "close_multicast_socket", "create_multicast_socket", "make_mreq"]
+
 # ------------------------------------------------------------------------------
 
 _logger = logging.getLogger(__name__)

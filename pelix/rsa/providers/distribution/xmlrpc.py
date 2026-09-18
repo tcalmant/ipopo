@@ -67,6 +67,18 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "ECF_XMLRPC_CLIENT_CONFIG",
+    "ECF_XMLRPC_HOSTNAME_PROP",
+    "ECF_XMLRPC_NAMESPACE",
+    "ECF_XMLRPC_PATH_PROP",
+    "ECF_XMLRPC_SERVER_CONFIG",
+    "ECF_XMLRPC_SUPPORTED_CONFIGS",
+    "ECF_XMLRPC_SUPPORTED_INTENTS",
+    "ECF_XMLRPC_TIMEOUT_PROP",
+    "ServerDispatcher",
+]
+
 _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------

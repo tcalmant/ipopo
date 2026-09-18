@@ -46,6 +46,16 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "SERVICE_ENDPOINT_ADVERTISER",
+    "SERVICE_ENDPOINT_EVENT_LISTENER",
+    "SERVICE_ENDPOINT_LISTENER",
+    "EndpointAdvertiser",
+    "EndpointEvent",
+    "EndpointEventListener",
+    "EndpointSubscriber",
+]
+
 # Standard logging
 _logger = logging.getLogger(__name__)
 

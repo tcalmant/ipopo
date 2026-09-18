@@ -57,6 +57,15 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "ETCD_HOSTNAME_PROP",
+    "ETCD_NAME_PROP",
+    "ETCD_PORT_PROP",
+    "ETCD_SESSIONTTL_PROP",
+    "ETCD_TOPPATH_PROP",
+    "ETCD_WATCHSTART_WAIT_PROP",
+]
+
 # Standard logging
 _logger = logging.getLogger(__name__)
 

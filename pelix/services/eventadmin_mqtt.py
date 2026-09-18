@@ -47,6 +47,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = ["DEFAULT_MQTT_TOPIC", "EVENT_PROP_SOURCE_UID", "EVENT_PROP_STARTING_SLASH"]
+
 # ------------------------------------------------------------------------------
 
 _logger = logging.getLogger(__name__)

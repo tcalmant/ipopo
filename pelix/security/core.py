@@ -103,6 +103,18 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "DEFAULT_LOCKOUT",
+    "DEFAULT_MAX_FAILURES",
+    "DEFAULT_MAX_KEYS",
+    "DEFAULT_MAX_LOCKOUT",
+    "DEFAULT_WINDOW",
+    "Throttle",
+    "authenticate",
+    "post_event",
+    "throttle_keys",
+]
+
 _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------

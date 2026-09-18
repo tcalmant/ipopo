@@ -102,6 +102,13 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "PolicyError",
+    "PolicyFile",
+    "PolicyTable",
+    "normalize_fingerprint",
+]
+
 _logger = logging.getLogger(__name__)
 
 # A SHA-256 fingerprint, once its separators are removed: anything else, like the SHA-1
