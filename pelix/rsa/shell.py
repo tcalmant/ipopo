@@ -76,6 +76,8 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = ["RSA_COMMAND_EXPORT_CONFIG_PROP", "RSA_COMMAND_FILENAME_PROP", "RSA_COMMAND_NAME_PROP"]
+
 T = TypeVar("T")
 
 # ------------------------------------------------------------------------------

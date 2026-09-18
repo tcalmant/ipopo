@@ -74,6 +74,20 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "DISTRIBUTION_PROVIDER_CONTAINER_PROP",
+    "SERVICE_EXPORT_CONTAINER",
+    "SERVICE_EXPORT_DISTRIBUTION_PROVIDER",
+    "SERVICE_IMPORT_CONTAINER",
+    "SERVICE_IMPORT_DISTRIBUTION_PROVIDER",
+    "Container",
+    "DistributionProvider",
+    "ExportContainer",
+    "ExportDistributionProvider",
+    "ImportContainer",
+    "ImportDistributionProvider",
+]
+
 # ------------------------------------------------------------------------------
 
 _logger = logging.getLogger(__name__)

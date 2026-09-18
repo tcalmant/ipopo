@@ -73,6 +73,17 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "EndpointDescription",
+    "decode_endpoint_props",
+    "decode_list",
+    "decode_osgi_props",
+    "encode_endpoint_props",
+    "encode_list",
+    "encode_osgi_props",
+    "package_name",
+]
+
 # ------------------------------------------------------------------------------
 
 

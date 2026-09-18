@@ -45,6 +45,13 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "BASIC_TOPOLOGY_MANAGER_DEFAULT_PROPS",
+    "BASIC_TOPOLOGY_MANAGER_FACTORY",
+    "BASIC_TOPOLOGY_MANAGER_NAME",
+    "instantiate_basic_topology_manager",
+]
+
 # Standard logging
 _logger = logging.getLogger(__name__)
 
