@@ -136,6 +136,24 @@ This factory accepts the following properties:
 | `pelix.shell.ssl.key` | `None` | Path to the server's private key |
 | `pelix.shell.ssl.key_password` | `None` | Password of the server's private key |
 | `pelix.shell.auth.required` | `False` | Refuse every command until the client is authenticated (see [](#remote-shell-authentication)) |
+| `pelix.shell.max_line_length` | 65536 | Longest line, in bytes, a client can send. `0` removes the limit |
+| `pelix.shell.idle_timeout` | 3600 | Seconds without input before a session is closed. `0` removes the limit |
+| `pelix.shell.login_timeout` | 60 | Seconds a client gets to finish the TLS handshake and to log in. `0` removes the limit |
+| `pelix.shell.max_clients` | 32 | Maximum number of simultaneous clients. `0` removes the limit |
+
+The last four properties protect the server from its clients: a line longer than
+the limit, including data sent without any end of line, closes the session, as
+does an idle session or a client which doesn't finish its TLS handshake or its
+login in time. The TLS handshake is done in the thread of the client, so a client
+which never finishes it doesn't delay the others. Connections past the maximum
+number of clients are closed as soon as they are accepted.
+
+:::{versionadded} 3.2.3
+The `pelix.shell.max_line_length`, `pelix.shell.idle_timeout`,
+`pelix.shell.login_timeout` and `pelix.shell.max_clients` properties. Before, a
+client could make the server buffer an endless line, keep a thread forever, or
+block every new connection by never finishing its TLS handshake.
+:::
 
 :::{warning}
 `pelix.shell.ssl.ca` is not optional when `pelix.shell.ssl.cert` is set.
