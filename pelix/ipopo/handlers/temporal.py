@@ -26,6 +26,7 @@ Temporal dependency handler
 """
 
 import logging
+import math
 import threading
 from collections.abc import Callable, Iterable
 from typing import Any, Generic, TypeVar, cast
@@ -94,8 +95,10 @@ class _HandlerFactory(constants.HandlerFactory):
                 explicit_timeout = timeout
             else:
                 try:
-                    explicit_timeout = int(explicit_timeout)
-                    if explicit_timeout <= 0:
+                    # Sub-second timeouts are valid, as in @Temporal. NaN and
+                    # infinity would break the wait for a service
+                    explicit_timeout = float(explicit_timeout)
+                    if not math.isfinite(explicit_timeout) or explicit_timeout <= 0:
                         explicit_timeout = timeout
                 except (ValueError, TypeError):
                     _logger.warning("Invalid temporal timeout for field '%s': %s", field, explicit_timeout)
