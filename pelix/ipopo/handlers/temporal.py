@@ -334,7 +334,7 @@ class TemporalDependency(requires.SimpleDependency):
                 assert self._context is not None and self._ipopo_instance is not None
 
                 self._pending_ref = self._context.get_service_reference(
-                    self.requirement.specification, self.requirement.filter
+                    self.requirement.lookup_specification, self.requirement.lookup_filter
                 )
 
                 if self._pending_ref is None:

@@ -183,7 +183,7 @@ class BestDependency(requires.SimpleDependency):
                 if self.requirement.immediate_rebind:
                     # Look for a replacement
                     self._pending_ref = self._context.get_service_reference(
-                        self.requirement.specification, self.requirement.filter
+                        self.requirement.lookup_specification, self.requirement.lookup_filter
                     )
                 else:
                     self._pending_ref = None
@@ -207,7 +207,7 @@ class BestDependency(requires.SimpleDependency):
 
                 # Check if the ranking changed the service to inject
                 best_ref: ServiceReference[Any] | None = self._context.get_service_reference(
-                    self.requirement.specification, self.requirement.filter
+                    self.requirement.lookup_specification, self.requirement.lookup_filter
                 )
                 if best_ref is self.reference:
                     # Still the best service: notify the property modification

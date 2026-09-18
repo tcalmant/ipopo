@@ -286,7 +286,9 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener, abc.ABC):
         if self.requirement is None:
             raise ValueError("Requirement not configured")
 
-        self._context.add_service_listener(self, self.requirement.filter, self.requirement.specification)
+        self._context.add_service_listener(
+            self, self.requirement.lookup_filter, self.requirement.lookup_specification
+        )
 
     def stop(self) -> Iterable[tuple[Any, ServiceReference[Any]]] | None:
         if self._context is None:
@@ -374,7 +376,7 @@ class SimpleDependency(_RuntimeDependency):
                 if self.requirement is not None and self.requirement.immediate_rebind:
                     # Look for a replacement
                     self._pending_ref = self._context.get_service_reference(
-                        self.requirement.specification, self.requirement.filter
+                        self.requirement.lookup_specification, self.requirement.lookup_filter
                     )
 
                 self._ipopo_instance.unbind(self, service, svc_ref)
@@ -448,7 +450,7 @@ class SimpleDependency(_RuntimeDependency):
             else:
                 # Get the first matching service
                 ref = self._context.get_service_reference(
-                    self.requirement.specification, self.requirement.filter
+                    self.requirement.lookup_specification, self.requirement.lookup_filter
                 )
 
             if ref is not None:
@@ -623,7 +625,7 @@ class AggregateDependency(_RuntimeDependency):
 
             # Get all matching services
             refs: list[ServiceReference[Any]] | None = self._context.get_all_service_references(
-                self.requirement.specification, self.requirement.filter
+                self.requirement.lookup_specification, self.requirement.lookup_filter
             )
             if not refs:
                 # No match found

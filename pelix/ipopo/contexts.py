@@ -51,47 +51,75 @@ __docformat__ = "restructuredtext en"
 class Requirement:
     """
     Represents a component requirement
+
+    A requirement can target several specifications: by default, the injected
+    service must provide all of them. If ``match_any`` is set, a service
+    providing at least one of them is enough.
     """
 
     # The dictionary form fields (filter is a special case)
     __stored_fields__ = (
-        "specification",
+        "specifications",
         "aggregate",
         "optional",
         "immediate_rebind",
+        "match_any",
     )
 
     def __init__(
         self,
-        specification: str,
+        specification: str | list[str] | tuple[str, ...],
         aggregate: bool = False,
         optional: bool = False,
         spec_filter: None | str | ldapfilter.LDAPCriteria | ldapfilter.LDAPFilter = None,
         immediate_rebind: bool = False,
+        match_any: bool = False,
     ):
         """
         Sets up the requirement
 
-        :param specification: The requirement specification, which must be unique and can't be None
+        :param specification: The requirement specification, or a list of specifications. Can't be empty
         :param aggregate: If true, this requirement represents a list
         :param optional: If true, this requirement is optional
         :param spec_filter: A filter to select dependencies
         :param immediate_rebind: If True, the component won't be invalidated
                                  then re-validated if a matching service is
                                  available when the injected dependency is unbound
+        :param match_any: If True, a service providing at least one of the
+                          specifications matches, else it must provide all of
+                          them. Ignored with a single specification
         :raise TypeError: A parameter has an invalid type
-        :raise ValueError: An error occurred while parsing the filter
+        :raise ValueError: An error occurred while parsing the filter, or no specification given
         """
-        if not is_string(specification):
-            raise TypeError("A Requirement specification must be a string")
+        if isinstance(specification, str):
+            raw_specifications: list[str] | tuple[str, ...] = [specification]
+        elif isinstance(specification, (list, tuple)):
+            raw_specifications = specification
+        else:
+            raise TypeError("A Requirement specification must be a string or a list of strings")
 
-        if not specification:
+        specifications: list[str] = []
+        for spec in raw_specifications:
+            if not is_string(spec):
+                raise TypeError("A Requirement specification must be a string")
+
+            if not spec.strip():
+                raise ValueError("Empty specification given")
+
+            if spec not in specifications:
+                specifications.append(spec)
+
+        if not specifications:
             raise ValueError("No specification given")
 
-        self.specification = specification
+        self.specifications = specifications
+        # Kept for backward compatibility: the first (main) specification
+        self.specification = specifications[0]
         self.aggregate = aggregate
         self.optional = optional
         self.immediate_rebind = immediate_rebind
+        # The "any" flag only has a meaning when choosing between specifications
+        self.match_any = bool(match_any) and len(specifications) > 1
 
         # Original filter keeper
         self.__original_filter: str | None = None
@@ -99,8 +127,11 @@ class Requirement:
         # Full filter (with the specification test)
         self.__full_filter: None | ldapfilter.LDAPCriteria | ldapfilter.LDAPFilter = None
 
-        # Set up the requirement filter (after setting up self.specification)
-        self.filter: None | ldapfilter.LDAPCriteria | ldapfilter.LDAPFilter = None
+        # Filter to use with the lookup specification (see lookup_filter)
+        self.__lookup_filter: None | ldapfilter.LDAPCriteria | ldapfilter.LDAPFilter = None
+
+        # Set up the requirement filter (after setting up self.specifications)
+        self.__filter: None | ldapfilter.LDAPCriteria | ldapfilter.LDAPFilter = None
         self.set_filter(spec_filter)
 
     def __eq__(self, other: object) -> bool:
@@ -119,7 +150,7 @@ class Requirement:
             # Different flags
             return False
 
-        if self.specification != other.specification:
+        if self.specifications != other.specifications or self.match_any != other.match_any:
             # Different specifications
             return False
 
@@ -142,11 +173,12 @@ class Requirement:
         :return: A copy of this instance
         """
         return Requirement(
-            self.specification,
+            list(self.specifications),
             self.aggregate,
             self.optional,
             self.__original_filter,
             self.immediate_rebind,
+            self.match_any,
         )
 
     def matches(self, properties: dict[str, Any] | None) -> bool:
@@ -168,11 +200,51 @@ class Requirement:
         return self.__full_filter.matches(properties)
 
     @property
+    def filter(self) -> None | ldapfilter.LDAPCriteria | ldapfilter.LDAPFilter:
+        """
+        The filter on service properties only (without the specification test)
+        """
+        return self.__filter
+
+    @filter.setter
+    def filter(self, props_filter: None | str | ldapfilter.LDAPCriteria | ldapfilter.LDAPFilter) -> None:
+        """
+        Replaces the parsed properties filter, keeping the original filter
+        string, and refreshes the filters derived from it
+        """
+        self.__filter = ldapfilter.get_ldap_filter(props_filter)
+        self.__update_filters()
+
+    @property
     def full_filter(self) -> None | ldapfilter.LDAPFilter | ldapfilter.LDAPCriteria:
         """
         The filter that tests both specification and properties
         """
         return self.__full_filter
+
+    @property
+    def lookup_specification(self) -> str | None:
+        """
+        The specification to give to service lookups and service listeners,
+        along with :attr:`lookup_filter`.
+
+        It is None when any of the specifications matches, as the registry
+        can't index a service under a set of specifications.
+        """
+        if self.match_any:
+            return None
+
+        return self.specification
+
+    @property
+    def lookup_filter(self) -> None | ldapfilter.LDAPFilter | ldapfilter.LDAPCriteria:
+        """
+        The filter to give to service lookups and service listeners, along
+        with :attr:`lookup_specification`: it tests the specifications which
+        are not handled by the lookup specification, and the service
+        properties.
+        """
+        return self.__lookup_filter
 
     @property
     def original_filter(self) -> str:
@@ -198,6 +270,9 @@ class Requirement:
             # Unknown type
             raise TypeError(f"Invalid filter type {type(props_filter).__name__}")
 
+        # Parse the filter first, to keep a consistent state on error
+        self.filter = props_filter
+
         if props_filter is not None:
             # Filter given, keep its string form
             self.__original_filter = str(props_filter)
@@ -205,12 +280,25 @@ class Requirement:
             # No filter
             self.__original_filter = None
 
-        # Parse the filter
-        self.filter = ldapfilter.get_ldap_filter(props_filter)
+    def __update_filters(self) -> None:
+        """
+        Computes the full and lookup filters from the specifications and the
+        current properties filter
+        """
+        spec_clauses = [f"({OBJECTCLASS}={ldapfilter.escape_LDAP(spec)})" for spec in self.specifications]
 
-        # Prepare the full filter
-        spec_filter = f"({OBJECTCLASS}={self.specification})"
-        self.__full_filter = ldapfilter.combine_filters((spec_filter, self.filter))
+        if self.match_any:
+            any_clause = f"(|{''.join(spec_clauses)})"
+            self.__full_filter = ldapfilter.combine_filters((any_clause, self.__filter))
+            self.__lookup_filter = self.__full_filter
+        else:
+            self.__full_filter = ldapfilter.combine_filters((*spec_clauses, self.__filter))
+            if len(spec_clauses) == 1:
+                # Single specification: the lookup specification is enough
+                self.__lookup_filter = self.__filter
+            else:
+                # The first specification is given as lookup specification
+                self.__lookup_filter = ldapfilter.combine_filters((self.__filter, *spec_clauses[1:]))
 
 
 # ------------------------------------------------------------------------------

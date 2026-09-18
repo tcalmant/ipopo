@@ -74,6 +74,20 @@ def ipopo_state_to_str(state: int) -> str:
     return ipopo_states.get(state, f"Unknown state ({state})")
 
 
+def requirement_specifications_to_str(details: dict[str, Any]) -> str:
+    """
+    Converts the specifications of a requirement, as described in the iPOPO
+    factory or instance details, to their string representation
+
+    :param details: The description of a requirement
+    :return: The specifications, joined with "&" (all required) or "|" (any)
+    """
+    # Details might come from an older iPOPO without the specifications list
+    specifications = details.get("specifications") or [details.get("specification")]
+    separator = " | " if details.get("match_any") else " & "
+    return separator.join(str(spec) for spec in specifications)
+
+
 # ------------------------------------------------------------------------------
 
 
@@ -212,7 +226,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
             req_lines = [
                 (
                     item["id"],
-                    item["specification"],
+                    requirement_specifications_to_str(item),
                     item["filter"],
                     item["aggregate"],
                     item["optional"],
@@ -259,7 +273,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         lines.append("Dependencies:")
         for field, infos in details["dependencies"].items():
             lines.append(f"\tField: {field}")
-            lines.append(f"\t\tSpecification: {infos['specification']}")
+            lines.append(f"\t\tSpecification: {requirement_specifications_to_str(infos)}")
             lines.append(f"\t\tFilter.......: {infos['filter']}")
             lines.append(f"\t\tOptional.....: {infos['optional']}")
             lines.append(f"\t\tAggregate....: {infos['aggregate']}")

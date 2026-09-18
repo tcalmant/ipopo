@@ -13,6 +13,7 @@ from typing import Any
 import pelix.framework
 import pelix.shell
 from pelix.ipopo.constants import use_ipopo
+from pelix.ipopo.decorators import ComponentFactory, Requires
 from pelix.shell import beans
 
 # ------------------------------------------------------------------------------
@@ -197,3 +198,26 @@ class IPopoShellTest(unittest.TestCase):
 
             # Bad component name
             self._run_command("kill <bad_component>")
+
+    def testMultipleSpecifications(self) -> None:
+        """
+        Tests the display of requirements on several specifications
+        """
+
+        @ComponentFactory("shell-multi-spec-factory")
+        @Requires("_all", ["spec.a", "spec.b"], optional=True)
+        @Requires("_any", ["spec.a", "spec.b"], optional=True, match_any=True)
+        @Requires("_single", "spec.a", optional=True)
+        class MultiSpec:
+            pass
+
+        context = self.framework.get_bundle_context()
+        with use_ipopo(context) as ipopo:
+            ipopo.register_factory(context, MultiSpec)
+            ipopo.instantiate("shell-multi-spec-factory", "shell-multi-spec")
+
+        for command in ("factory shell-multi-spec-factory", "instance shell-multi-spec"):
+            output = self._run_command(command)
+            self.assertIn("spec.a & spec.b", output)
+            self.assertIn("spec.a | spec.b", output)
+            self.assertNotIn("spec.a & spec.a", output)
