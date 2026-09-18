@@ -7,7 +7,7 @@ Tests the framework events.
 """
 
 import unittest
-from typing import Protocol
+from typing import Any, Protocol
 
 from pelix.constants import PELIX_SPECIFICATION_FIELD, Specification
 
@@ -101,6 +101,18 @@ class TestSpecificationDecorator(unittest.TestCase):
         self.assertListEqual(self.__get_specification(BaseService), ["BaseService"])
         self.assertListEqual(self.__get_specification(ExtendedService), ["ExtendedService", "BaseService"])
         self.assertListEqual(self.__get_specification(ExtendedServiceOverride), ["ExtendedService"])
+
+    def test_empty_specifications(self) -> None:
+        """
+        Empty or blank specification names must be rejected
+        """
+        invalid_values: tuple[Any, ...] = ("", "   ", [""], ["ServiceA", " "], [])
+        for invalid in invalid_values:
+            with self.assertRaises(ValueError, msg=f"Accepted {invalid!r}"):
+                Specification(invalid)
+
+        with self.assertRaises(ValueError):
+            Specification("ServiceA", "")
 
 
 if __name__ == "__main__":

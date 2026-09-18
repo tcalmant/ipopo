@@ -1074,10 +1074,14 @@ class Framework(Bundle):
                 # Invalid class name
                 raise BundleException(f"Invalid class name: {svc_clazz}")
 
-            if isinstance(svc_clazz, str):
-                classes.append(svc_clazz)
-            elif isinstance(svc_clazz, list):
-                classes.extend(svc_clazz)
+            if not isinstance(svc_clazz, (list, tuple)):
+                svc_clazz = [svc_clazz]
+
+            for spec in svc_clazz:
+                # A blank specification can't be looked up: it would be an unreachable service
+                if not isinstance(spec, str) or not spec.strip():
+                    raise BundleException(f"Invalid specification name: {spec!r}")
+                classes.append(spec)
 
         # Make the service registration
         registration = self._registry.register(bundle, classes, properties, service, factory, prototype)

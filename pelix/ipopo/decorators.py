@@ -835,7 +835,8 @@ def _get_specifications(
                     raise ValueError("Empty specification given")
                 return specs
             elif isinstance(raw_spec, str):
-                return [raw_spec]
+                # Same normalization as an explicit specification name
+                return _get_specifications(raw_spec)
             else:
                 return [getattr(specifications, PELIX_SPECIFICATION_FIELD)]
 
