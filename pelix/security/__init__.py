@@ -40,6 +40,7 @@ against remote callers, not against locally installed bundles.
 
 import contextlib
 import contextvars
+import hashlib
 from collections.abc import Generator, Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum
@@ -49,6 +50,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol
 from pelix.constants import BundleException, Specification
 
 if TYPE_CHECKING:
+    import ssl
+
     from pelix.framework import BundleContext
 
 # Module version
@@ -213,6 +216,129 @@ class UsernamePassword(Credentials):
     username: str
     # repr=False, or the first traceback which touches this prints the password
     password: str = field(repr=False)
+
+
+# Short names RFC 4514 section 3 defines, keyed by the long names the ssl module uses.
+# Anything else keeps its ssl name, which is why the output is only "RFC 4514 style"
+_RFC4514_NAMES = {
+    "commonName": "CN",
+    "localityName": "L",
+    "stateOrProvinceName": "ST",
+    "organizationName": "O",
+    "organizationalUnitName": "OU",
+    "countryName": "C",
+    "streetAddress": "STREET",
+    "domainComponent": "DC",
+    "userId": "UID",
+}
+
+
+def _escape_dn_value(value: str) -> str:
+    """
+    Escapes an attribute value as RFC 4514 section 2.4 requires.
+
+    Without it, a subject whose CN contains ``,O=Acme`` would print exactly like a
+    certificate issued to organization Acme.
+
+    :param value: The raw attribute value
+    :return: The escaped value
+    """
+    last = len(value) - 1
+    escaped: list[str] = []
+    for index, char in enumerate(value):
+        if char == "\x00":
+            escaped.append("\\00")
+        elif char in ',+"\\<>;' or (index == 0 and char in " #") or (index == last and char == " "):
+            escaped.append("\\" + char)
+        else:
+            escaped.append(char)
+
+    return "".join(escaped)
+
+
+def _format_dn(rdns: Iterable[Iterable[tuple[str, str]]]) -> str:
+    """
+    Formats a distinguished name, as the ssl module decodes it, as an RFC 4514 style
+    string.
+
+    The ssl module lists the RDNs in certificate order, most significant first, while
+    RFC 4514 writes them the other way round: ``CN=batch,O=Acme,C=FR``.
+
+    :param rdns: The ``subject`` entry of ``SSLSocket.getpeercert()``
+    :return: The distinguished name as a string
+    """
+    return ",".join(
+        "+".join(f"{_RFC4514_NAMES.get(name, name)}={_escape_dn_value(value)}" for name, value in rdn)
+        for rdn in reversed(list(rdns))
+    )
+
+
+@dataclass(frozen=True)
+class ClientCertificate(Credentials):
+    """
+    A client certificate, as a TLS transport received it.
+
+    **Only build one from a certificate the TLS layer already verified** (a server
+    context with ``verify_mode = ssl.CERT_REQUIRED`` and a trusted authority chain).
+    Nothing here checks a signature, a validity period or a revocation: presenting this
+    object means "the TLS handshake proved the peer holds the private key of this
+    certificate, issued by an authority I trust". An authenticator only maps it to a
+    user.
+
+    ``fingerprint`` identifies this very certificate, whoever issued it. ``subject``
+    and ``alt_names`` are only as trustworthy as every authority the transport trusts,
+    since any of them can issue another certificate with the same names.
+    """
+
+    KIND: ClassVar[str] = "certificate"
+
+    fingerprint: str
+    """ SHA-256 of the DER certificate, in lowercase hexadecimal, with no separator """
+
+    subject: str = ""
+    """ The subject, as an RFC 4514 style string: ``CN=batch,O=Acme,C=FR`` """
+
+    alt_names: tuple[str, ...] = ()
+    """ The subject alternative names, as ``type:value`` strings: ``DNS:host.example.com`` """
+
+    @classmethod
+    def from_der(cls, der: bytes, details: Mapping[str, Any] | None = None) -> "ClientCertificate":
+        """
+        Builds the credentials of a verified certificate.
+
+        The standard library cannot decode a DER certificate, so the subject and the
+        alternative names come from the dictionary form of
+        ``SSLSocket.getpeercert()``, which the ssl module only fills for a verified
+        certificate. Without it, only the fingerprint is known.
+
+        :param der: The certificate, in DER form: ``getpeercert(binary_form=True)``
+        :param details: The certificate as ``getpeercert()`` decoded it, if available
+        :return: The credentials
+        """
+        subject = ""
+        alt_names: tuple[str, ...] = ()
+        if details:
+            subject = _format_dn(details.get("subject", ()))
+            alt_names = tuple(f"{kind}:{value}" for kind, value in details.get("subjectAltName", ()))
+
+        return cls(hashlib.sha256(der).hexdigest(), subject, alt_names)
+
+    @classmethod
+    def from_socket(cls, sock: "ssl.SSLSocket") -> "ClientCertificate | None":
+        """
+        Builds the credentials of the certificate the peer of a TLS socket presented.
+
+        The socket must come from a context which verified that certificate: see the
+        class documentation.
+
+        :param sock: A TLS socket, after its handshake
+        :return: The credentials, or None if the peer presented no certificate
+        """
+        der = sock.getpeercert(binary_form=True)
+        if not der:
+            return None
+
+        return cls.from_der(der, sock.getpeercert())
 
 
 @dataclass(frozen=True)

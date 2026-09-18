@@ -16,6 +16,12 @@ One component provides both halves, so the two levels live in one readable file:
     admin    = ["jobs.*", "config.*"]
     operator = ["jobs.read", "jobs.submit"]
 
+    [certificates.fingerprints]
+    "3f5a...e9" = "thomas"
+
+    [certificates.subjects]
+    "CN=batch,O=Acme" = "batch"
+
 Read it as: groups and users are facts asserted by the identity source, roles are
 granted from those facts, and permissions are granted to roles.
 
@@ -25,6 +31,11 @@ into ``admin`` in the very component held up as the example of folding nothing, 
 defence would have been one easily-lost configuration line. Typed tables also remove the
 ``user:`` / ``group:`` prefixes an untyped value would have needed, and a duplicate key
 becomes a parse error instead of a silently kept last one.
+
+The ``[certificates]`` tables map a verified client certificate to a user name, which
+makes the component an :class:`~pelix.security.Authenticator` of ``certificate``
+credentials too: the groups and roles of that user then come from the usual membership
+providers.
 
 This module also ships the deliberate escape hatch: an allow-all authorizer, which
 warns loudly when it validates.
@@ -53,6 +64,7 @@ warns loudly when it validates.
 
 import logging
 import os
+import re
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
@@ -61,8 +73,12 @@ from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provi
 from pelix.security import (
     FACTORY_ALLOW_ALL,
     FACTORY_POLICY_FILE,
+    PROP_CREDENTIAL_KINDS,
     PROP_POLICY_FILE,
+    Authenticator,
     Authorizer,
+    ClientCertificate,
+    Credentials,
     Decision,
     MembershipProvider,
     Permission,
@@ -87,6 +103,10 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 
 _logger = logging.getLogger(__name__)
+
+# A SHA-256 fingerprint, once its separators are removed: anything else, like the SHA-1
+# fingerprint many tools print by default, could never match and is refused at load
+_FINGERPRINT = re.compile(r"[0-9a-f]{64}")
 
 # ------------------------------------------------------------------------------
 
@@ -115,6 +135,27 @@ def _as_names(value: Any, where: str) -> frozenset[str]:
     return frozenset(value)
 
 
+def normalize_fingerprint(fingerprint: str) -> str:
+    """
+    Normalizes a certificate fingerprint to the form of
+    :attr:`~pelix.security.ClientCertificate.fingerprint`: lowercase hexadecimal, with no
+    separator.
+
+    Folding the case is safe here, unlike on a name: a fingerprint is a number, and its
+    two spellings are the same value rather than two identities.
+
+    :param fingerprint: A fingerprint, as ``openssl x509 -fingerprint -sha256`` prints it
+                        or in any case, with or without ``:`` separators
+    :return: The normalized fingerprint
+    :raise ValueError: This is not a SHA-256 fingerprint
+    """
+    normalized = fingerprint.replace(":", "").lower()
+    if not _FINGERPRINT.fullmatch(normalized):
+        raise ValueError(f"Not a SHA-256 certificate fingerprint: {fingerprint!r}")
+
+    return normalized
+
+
 class PolicyTable:
     """
     A parsed policy: which roles a subject holds, and what each role may do.
@@ -134,6 +175,8 @@ class PolicyTable:
         self._role_users: dict[str, frozenset[str]] = {}
         self._role_groups: dict[str, frozenset[str]] = {}
         self._permissions: dict[str, list[Permission]] = {}
+        self._certificate_fingerprints: dict[str, str] = {}
+        self._certificate_subjects: dict[str, str] = {}
 
         self.__load(tomllib.loads(text))
         self.__report_dangling()
@@ -179,6 +222,46 @@ class PolicyTable:
 
             self._permissions[role] = [Permission.parse(spec) for spec in sorted(names)]
 
+        self.__load_certificates(data.get("certificates", {}))
+
+    def __load_certificates(self, certificates: Any) -> None:
+        """
+        Validates and fills the certificate mapping tables.
+
+        :param certificates: The ``[certificates]`` table of the parsed document
+        :raise PolicyError: The table is not well-shaped
+        """
+        if not isinstance(certificates, dict):
+            raise PolicyError("[certificates] must be a table")
+
+        unknown = set(certificates) - {"fingerprints", "subjects"}
+        if unknown:
+            raise PolicyError(f"[certificates] has unknown keys: {sorted(unknown)}")
+
+        for name, table in certificates.items():
+            if not isinstance(table, dict):
+                raise PolicyError(f"[certificates.{name}] must be a table")
+
+            for key, user in table.items():
+                if not isinstance(user, str) or not user:
+                    raise PolicyError(f"[certificates.{name}].{key!r} must be a non-empty user name")
+
+        for fingerprint, user in certificates.get("fingerprints", {}).items():
+            try:
+                normalized = normalize_fingerprint(fingerprint)
+            except ValueError as ex:
+                raise PolicyError(f"[certificates.fingerprints]: {ex}") from None
+
+            if normalized in self._certificate_fingerprints:
+                # Two spellings of the same fingerprint: TOML sees two keys, but keeping
+                # either one silently would hide which user the operator meant
+                raise PolicyError(f"[certificates.fingerprints] maps {fingerprint!r} twice")
+
+            self._certificate_fingerprints[normalized] = user
+
+        # Taken verbatim, like every other name of this layer
+        self._certificate_subjects.update(certificates.get("subjects", {}))
+
     def __report_dangling(self) -> None:
         """
         Reports a role granted to somebody but given no permission, and a permission
@@ -196,6 +279,22 @@ class PolicyTable:
 
         for role in sorted(set(self._permissions) - granted):
             _logger.warning("%s: role '%s' has permissions but is granted to nobody", self._source, role)
+
+    def get_certificate_user(self, certificate: ClientCertificate) -> str | None:
+        """
+        Returns the user a certificate is mapped to.
+
+        The fingerprint is looked at first, because it names this very certificate
+        while a subject names whatever a trusted authority chose to issue.
+
+        :param certificate: The credentials of a verified certificate
+        :return: The mapped user name, or None if the certificate is not mapped
+        """
+        user = self._certificate_fingerprints.get(certificate.fingerprint)
+        if user is None and certificate.subject:
+            user = self._certificate_subjects.get(certificate.subject)
+
+        return user
 
     def get_roles(self, subject: Subject) -> frozenset[str]:
         """
@@ -238,18 +337,21 @@ class PolicyTable:
 
 
 @ComponentFactory(FACTORY_POLICY_FILE)
-@Provides([MembershipProvider, Authorizer, services.FileInstallListener])
+@Provides([Authenticator, MembershipProvider, Authorizer, services.FileInstallListener])
+@Property("_credential_kinds", PROP_CREDENTIAL_KINDS, (ClientCertificate.KIND,))
 @Property("_policy_path", PROP_POLICY_FILE)
 @Property("_watched_folder", services.PROP_FILEINSTALL_FOLDER)
-class PolicyFile(MembershipProvider, Authorizer, services.FileInstallListener):
+class PolicyFile(Authenticator, MembershipProvider, Authorizer, services.FileInstallListener):
     """
-    Grants roles from users and groups, and permissions to roles, from a TOML file.
+    Grants roles from users and groups, and permissions to roles, from a TOML file, and
+    maps client certificates to users.
 
     Like the password store, it is reloaded through the File Install service when that
     bundle is available, and read once at validation otherwise.
     """
 
     def __init__(self) -> None:
+        self._credential_kinds: tuple[str, ...] = (ClientCertificate.KIND,)
         self._policy_path: str = ""
         self._watched_folder: str = ""
         self._table: PolicyTable | None = None
@@ -306,6 +408,19 @@ class PolicyFile(MembershipProvider, Authorizer, services.FileInstallListener):
         self._table = table
 
     # ------------------------------------------------------------------------
+
+    def authenticate(self, credentials: Credentials) -> Subject | None:
+        """
+        Maps a verified client certificate to the user the file names for it.
+
+        An unmapped certificate abstains rather than fails: it passed the TLS
+        verification, so it is not "presented and wrong", and another store may know it.
+        """
+        if not isinstance(credentials, ClientCertificate) or self._table is None:
+            return None
+
+        user = self._table.get_certificate_user(credentials)
+        return Subject(user) if user is not None else None
 
     def get_groups(self, subject: Subject) -> Iterable[str]:
         """

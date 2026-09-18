@@ -30,7 +30,7 @@ Four questions, four services
 Question                                       Service                        Shipped implementation
 ============================================== ============================== ==========================
 How do I get credentials off this transport?   (transport-specific)           see the HTTP reference card
-Are these credentials valid, and who is it?    :class:`Authenticator`         ``.htpasswd``
+Are these credentials valid, and who is it?    :class:`Authenticator`         ``.htpasswd``, policy file
 Which groups and roles does this subject have? :class:`MembershipProvider`    ``.htgroup``, policy file
 May this subject do this?                      :class:`Authorizer`            policy file
 ============================================== ============================== ==========================
@@ -46,7 +46,8 @@ Bundle                        What it brings
 ============================= =============================================================
 ``pelix.security.core``       ``authenticate()``, the :class:`Authorization` facade
 ``pelix.security.htpasswd``   an :class:`Authenticator` and a :class:`MembershipProvider`
-``pelix.security.policy``     roles from groups, permissions from roles, and the escape hatch
+``pelix.security.policy``     roles from groups, permissions from roles, certificates to
+                              users, and the escape hatch
 ============================= =============================================================
 
 :mod:`pelix.security` itself, holding the beans and the current subject, needs no
@@ -351,6 +352,57 @@ expresses grants only, so a policy file can never veto a permission another, loo
 authorizer allows. There is no implicit all-grant either: an empty ``[permissions]``
 table denies everything.
 
+Client certificates
+===================
+
+A transport which authenticated its peer with a TLS client certificate, such as the
+remote shell (see :doc:`shell`), turns it into :class:`ClientCertificate`
+credentials, of kind ``certificate``:
+
+* ``fingerprint``: the SHA-256 of the DER certificate, in lowercase hexadecimal with no
+  separator;
+* ``subject``: the subject, as an RFC 4514 style string, most specific name first:
+  ``CN=batch,O=Acme,C=FR``;
+* ``alt_names``: the subject alternative names, as ``type:value`` strings:
+  ``DNS:batch.example.com``.
+
+**These credentials must only be built from a certificate the TLS layer already
+verified**, from a context requiring a client certificate signed by a trusted
+authority. Nothing in this layer checks a signature, a validity period or a
+revocation: the object says "the peer proved it holds this certificate", and an
+authenticator only maps it to a user.
+
+The policy file maps certificates to users in its ``[certificates]`` tables, which
+makes its component an :class:`Authenticator` of ``certificate`` credentials:
+
+.. code-block:: toml
+
+    [certificates.fingerprints]
+    "3F:5A:...:E9" = "thomas"
+
+    [certificates.subjects]
+    "CN=batch,O=Acme,C=FR" = "batch"
+
+The groups and roles of the mapped user then come from the usual membership providers,
+exactly as after a password login: a ``.htgroup`` file, the ``[roles]`` of the policy.
+
+The two tables do not give the same guarantee:
+
+* a **fingerprint** names this very certificate, whoever issued it. It is written as
+  ``openssl x509 -noout -fingerprint -sha256 -in client.crt`` prints it, or in lowercase,
+  with or without the ``:`` separators. Anything which is not a SHA-256 fingerprint,
+  such as the SHA-1 one many tools print by default, refuses the file;
+* a **subject** names whatever any trusted authority chose to issue under that name. It
+  is only as strong as the *least careful* authority the transport trusts, so map
+  subjects only behind a dedicated authority. It is compared exactly, like every other
+  name of this layer: ``CN=batch, O=Acme`` with spaces is another string.
+
+When a certificate matches both tables, the fingerprint wins. An unmapped certificate
+abstains rather than fails: it passed the TLS verification, so it is not "presented and
+wrong", and another :class:`Authenticator` may know it. The ``[certificates]`` tables
+are validated as strictly as the rest of the file: an unknown key, a user name which is
+not a non-empty string, or the same fingerprint written twice refuses the file.
+
 Reloading
 =========
 
@@ -442,6 +494,9 @@ Beans
 .. autoclass:: UsernamePassword
    :members:
 
+.. autoclass:: ClientCertificate
+   :members:
+
 .. autoclass:: Permission
    :members:
 
@@ -477,3 +532,8 @@ The pipeline
 ------------
 
 .. autofunction:: pelix.security.core.authenticate
+
+The policy file
+---------------
+
+.. autofunction:: pelix.security.policy.normalize_fingerprint
