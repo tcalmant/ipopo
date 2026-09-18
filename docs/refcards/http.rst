@@ -50,6 +50,10 @@ pelix.http.case_sensitive_paths True    If set, servlet paths are matched
                                         case-sensitively, as URI paths are
                                         defined to be. Unset it to restore the
                                         folding of earlier releases
+pelix.http.auth.required        False   If set, requests must carry valid
+                                        credentials (see :ref:`http_auth`)
+pelix.http.auth.realm           Pelix   Protection space given in the
+                                        authentication challenges
 =============================== ======= ========================================
 
 .. versionadded:: 3.2.2
@@ -248,6 +252,100 @@ to different paths, as each of its methods is given the path of the request:
 
 .. versionadded:: 3.2.3
 
+.. _http_auth:
+
+Authentication
+--------------
+
+Both the basic and the asynchronous HTTP services authenticate the requests
+with the :ref:`security layer <refcard_security>`. The work is split in two:
+
+* an :class:`HttpAuthenticator` service extracts the credentials from the
+  request, for an authentication scheme. The ``pelix.http.auth`` bundle provides
+  the ``pelix.http.auth.basic.factory`` component factory
+  (:data:`FACTORY_HTTP_AUTH_BASIC`), for the HTTP Basic scheme;
+* the ``pelix.security`` services check them and resolve the groups and roles of
+  the user, e.g. with an ``.htpasswd`` file. The ``pelix.security.core`` bundle
+  must be started.
+
+When the HTTP service has no authenticator bound and no requirement set, nothing
+changes: requests are handled as anonymous.
+
+Otherwise, for each request:
+
+* credentials presented by the client are always checked, even if the resource
+  doesn't require them. Wrong or malformed credentials are refused with a
+  ``401`` error;
+* if the resource requires authentication (``pelix.http.auth.required``, set on
+  the HTTP service or on the servlet), a request without credentials is refused
+  with a ``401`` error, carrying the challenges of the authenticators in its
+  ``WWW-Authenticate`` header. When the HTTP service requires it, unknown paths
+  get the same answer rather than a ``404``, so that an unauthenticated client
+  can't tell which paths exist;
+* the servlet is called as the authenticated subject (or as the anonymous
+  one): it gets it with :func:`pelix.security.get_current_subject`, and the
+  :mod:`pelix.security.decorators` can be applied to its methods. An
+  :class:`~pelix.security.AuthenticationRequired` error raised by the servlet
+  becomes a ``401`` with the challenges, so that the client can retry with
+  credentials, and an :class:`~pelix.security.AccessDenied` error becomes a
+  ``403``.
+
+A servlet can override the requirement of the HTTP service in both directions,
+e.g. to publish a health check on a protected server, or to protect a single
+servlet on a public one. If authentication is required but no authenticator is
+bound, all the requests are refused: a resource doesn't become public because
+its authenticator is gone.
+
+CORS preflight requests are answered before the authentication, as browsers
+never send credentials in them (see :ref:`http_cors`).
+
+.. warning:: The Basic scheme sends the password in clear text, only encoded:
+   only use it over HTTPS. The HTTP service logs a warning when it receives
+   credentials over plain HTTP.
+
+For example, to protect all the servlets of an HTTP service with the users of an
+``.htpasswd`` file, except those of a public servlet:
+
+.. code-block:: python
+
+    for name in ("pelix.security.core", "pelix.security.htpasswd", "pelix.http.auth"):
+        context.install_bundle(name).start()
+
+    with use_ipopo(context) as ipopo:
+        ipopo.instantiate(
+            "pelix.security.htpasswd.factory",
+            "users",
+            {"pelix.security.htpasswd.file": "/etc/my-app/.htpasswd"},
+        )
+        ipopo.instantiate("pelix.http.auth.basic.factory", "http-basic-auth", {})
+        ipopo.instantiate(
+            "pelix.http.service.basic.factory",
+            "http-server",
+            {
+                "pelix.http.port": 8443,
+                "pelix.https.cert_file": "/etc/my-app/server.crt",
+                "pelix.https.key_file": "/etc/my-app/server.key",
+                "pelix.http.auth.required": True,
+            },
+        )
+
+    # A servlet which stays public
+    context.register_service(
+        "pelix.http.servlet",
+        HealthServlet(),
+        {"pelix.http.path": "/health", "pelix.http.auth.required": False},
+    )
+
+Another authentication scheme can be supported by providing an
+:class:`HttpAuthenticator` service, which turns the headers of a request into
+:class:`pelix.security.Credentials` handled by an
+:class:`pelix.security.Authenticator` service:
+
+.. autoclass:: HttpAuthenticator
+   :members:
+
+.. versionadded:: 3.2.3
+
 API
 ---
 
@@ -308,6 +406,9 @@ the requests it will be given, with the following entries:
 * ``pelix.http.cors.origins`` and the other ``pelix.http.cors.*`` entries: the
   CORS policy of the servlet, which replaces the one of the CORS handler
   service (see :ref:`http_cors`).
+* ``pelix.http.auth.required`` and ``pelix.http.auth.realm``: whether the
+  requests handled by the servlet must be authenticated, in both directions,
+  and the realm of their challenges (see :ref:`http_auth`).
 
 They can be given either as properties of the servlet service, next to
 ``pelix.http.path``, or in the ``parameters`` argument of
@@ -317,7 +418,7 @@ They can be given either as properties of the servlet service, next to
    The ``pelix.http.max_body_size`` entry.
 
 .. versionadded:: 3.2.3
-   The ``pelix.http.cors.*`` entries.
+   The ``pelix.http.cors.*`` and ``pelix.http.auth.*`` entries.
 
 A servlet for the Pelix HTTP service has the following methods:
 

@@ -50,6 +50,7 @@ from pelix.http._base import (
     LOCALHOST_ADDRESS,
     SERVLET_PARAMETERS,
     AbstractHttpService,
+    RequestRouting,
     compute_sub_path,
 )
 from pelix.internals.registry import ServiceReference
@@ -63,6 +64,7 @@ from pelix.ipopo.decorators import (
     UpdateField,
     Validate,
 )
+from pelix.security import AccessDenied, AuthenticationFailed, AuthenticationRequired, run_as
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
@@ -664,6 +666,7 @@ class WSSession(http.WebSocketSession):
 @Requires("_websocket_handler_services", http.WebSocketHandler, True, True)
 @Requires("_error_handler", http.ErrorHandler, optional=True)
 @Requires("_cors_handler", http.CorsHandler, optional=True)
+@Requires("_http_authenticators", http.HttpAuthenticator, aggregate=True, optional=True)
 class AsyncHttpServiceImpl(AbstractHttpService):
     """
     Asynchronous HTTP service component
@@ -931,6 +934,20 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                 status=400, text="<html><body><h1>Bad Request</h1></body></html>", content_type="text/html"
             )
 
+        # Authenticate before looking at the servlet: an unauthenticated client
+        # mustn't learn which paths exist
+        if self.needs_authentication(routing):
+            # Checking a password is slow by design: keep it out of the event loop
+            auth_decision = await self._loop.run_in_executor(
+                self._executor, self.resolve_authentication, routing, request.headers
+            )
+        else:
+            auth_decision = self.resolve_authentication(routing, request.headers)
+
+        if auth_decision.refused:
+            return self.__auth_error_response(401, routing)
+        subject = auth_decision.subject
+
         path = routing.path
         servlet = routing.servlet
         if servlet is not None:
@@ -944,98 +961,108 @@ class AsyncHttpServiceImpl(AbstractHttpService):
             max_body_size = self.resolve_max_body_size(routing.parameters)
 
             try:
-                match servlet_type:
-                    case http.ServletType.ASYNC if hasattr(servlet, async_name):
-                        # Prepare the helpers
-                        servlet_request = _AsyncHTTPServletRequest(request, path, prefix, max_body_size)
-                        servlet_response = _AsyncHTTPServletResponse(request)
+                # Handle the request as the authenticated subject: the context is
+                # copied for the synchronous servlets, so they see it too
+                with run_as(subject):
+                    match servlet_type:
+                        case http.ServletType.ASYNC if hasattr(servlet, async_name):
+                            # Prepare the helpers
+                            servlet_request = _AsyncHTTPServletRequest(request, path, prefix, max_body_size)
+                            servlet_response = _AsyncHTTPServletResponse(request)
 
-                        # Handle the request
-                        handler_method = getattr(servlet, async_name)
-                        await handler_method(servlet_request, servlet_response)
-                        return servlet_response.to_aiohttp_response()
+                            # Handle the request
+                            handler_method = getattr(servlet, async_name)
+                            await handler_method(servlet_request, servlet_response)
+                            return servlet_response.to_aiohttp_response()
 
-                    case http.ServletType.SYNC if hasattr(servlet, sync_name):
-                        # Read the request content
-                        # FIXME: find a better way to handle the content, wrapping the request
-                        #        in a file-like object
-                        content = await http.read_body(
-                            # aiohttp StreamReader is compatible with the asyncio one
-                            cast(asyncio.StreamReader, request.content),
-                            request.content_length,
-                            max_body_size,
-                        )
+                        case http.ServletType.SYNC if hasattr(servlet, sync_name):
+                            # Read the request content
+                            # FIXME: find a better way to handle the content, wrapping the request
+                            #        in a file-like object
+                            content = await http.read_body(
+                                # aiohttp StreamReader is compatible with the asyncio one
+                                cast(asyncio.StreamReader, request.content),
+                                request.content_length,
+                                max_body_size,
+                            )
 
-                        # Prepare the helpers
-                        servlet_request = _SyncHTTPServletRequest(request, path, prefix, content)
-                        servlet_response = _SyncHTTPServletResponse(request, self._loop)
+                            # Prepare the helpers
+                            servlet_request = _SyncHTTPServletRequest(request, path, prefix, content)
+                            servlet_response = _SyncHTTPServletResponse(request, self._loop)
 
-                        # Copy the context here: unlike asyncio.to_thread, run_in_executor does not carry it
-                        handler_method = getattr(servlet, sync_name)
-                        context = contextvars.copy_context()
-                        await self._loop.run_in_executor(
-                            self._executor,
-                            functools.partial(context.run, handler_method, servlet_request, servlet_response),
-                        )
-                        return servlet_response.to_aiohttp_response()
+                            # Copy the context here: unlike asyncio.to_thread, run_in_executor does not carry it
+                            handler_method = getattr(servlet, sync_name)
+                            context = contextvars.copy_context()
+                            await self._loop.run_in_executor(
+                                self._executor,
+                                functools.partial(
+                                    context.run, handler_method, servlet_request, servlet_response
+                                ),
+                            )
+                            return servlet_response.to_aiohttp_response()
 
-                    case http.ServletType.WEBSOCKET if isinstance(servlet, http.WebSocketHandler):
-                        # Prepare the WebSocket handler
-                        ws_handler = cast(http.WebSocketHandler, servlet)
-                        servlet_request = _AsyncHTTPServletRequest(request, path, prefix)
+                        case http.ServletType.WEBSOCKET if isinstance(servlet, http.WebSocketHandler):
+                            # Prepare the WebSocket handler
+                            ws_handler = cast(http.WebSocketHandler, servlet)
+                            servlet_request = _AsyncHTTPServletRequest(request, path, prefix)
 
-                        # Prepare the WebSocket response
-                        ws_response = aiohttp.web.WebSocketResponse()
+                            # Prepare the WebSocket response
+                            ws_response = aiohttp.web.WebSocketResponse()
 
-                        # Prepare a session
-                        ws_session = WSSession(ws_handler, servlet_request, ws_response)
+                            # Prepare a session
+                            ws_session = WSSession(ws_handler, servlet_request, ws_response)
 
-                        # Early check
-                        if not await ws_handler.ws_accept(servlet_request):
-                            # The handler does not accept the WebSocket connection
-                            return aiohttp.web.Response(status=400, text="WebSocket connection refused")
+                            # Early check
+                            if not await ws_handler.ws_accept(servlet_request):
+                                # The handler does not accept the WebSocket connection
+                                return aiohttp.web.Response(status=400, text="WebSocket connection refused")
 
-                        # Prepare the WebSocket response
-                        await ws_response.prepare(request)
+                            # Prepare the WebSocket response
+                            await ws_response.prepare(request)
 
-                        try:
-                            # Notify the WebSocket handler of the new connection
-                            await ws_handler.ws_open(ws_session, servlet_request)
+                            try:
+                                # Notify the WebSocket handler of the new connection
+                                await ws_handler.ws_open(ws_session, servlet_request)
 
-                            async for msg in ws_response:
-                                # Handle incoming messages
-                                match msg.type:
-                                    case aiohttp.WSMsgType.ERROR:
-                                        # Error message received
-                                        self._logger.error("WebSocket error: %s", ws_response.exception())
-                                        await ws_handler.ws_error(ws_session, msg.data)
+                                async for msg in ws_response:
+                                    # Handle incoming messages
+                                    match msg.type:
+                                        case aiohttp.WSMsgType.ERROR:
+                                            # Error message received
+                                            self._logger.error("WebSocket error: %s", ws_response.exception())
+                                            await ws_handler.ws_error(ws_session, msg.data)
 
-                                    case aiohttp.WSMsgType.PING:
-                                        # Ping message received
-                                        await ws_response.pong(msg.data)
+                                        case aiohttp.WSMsgType.PING:
+                                            # Ping message received
+                                            await ws_response.pong(msg.data)
 
-                                    case aiohttp.WSMsgType.BINARY:
-                                        # Binary message received
-                                        await ws_handler.ws_binary(ws_session, msg.data)
+                                        case aiohttp.WSMsgType.BINARY:
+                                            # Binary message received
+                                            await ws_handler.ws_binary(ws_session, msg.data)
 
-                                    case aiohttp.WSMsgType.TEXT:
-                                        # Text message received
-                                        await ws_handler.ws_message(ws_session, msg.data)
+                                        case aiohttp.WSMsgType.TEXT:
+                                            # Text message received
+                                            await ws_handler.ws_message(ws_session, msg.data)
 
-                            # End of loop: the WebSocket connection is closed
-                            code = ws_response.close_code or aiohttp.WSCloseCode.GOING_AWAY
-                            await ws_handler.ws_close(ws_session, code, "Session closed")
-                        except Exception as ex:
-                            self._logger.exception("Error handling WebSocket connection")
-                            await ws_handler.ws_error(ws_session, str(ex))
-                        finally:
-                            if not ws_response.closed:
-                                await ws_response.close()
+                                # End of loop: the WebSocket connection is closed
+                                code = ws_response.close_code or aiohttp.WSCloseCode.GOING_AWAY
+                                await ws_handler.ws_close(ws_session, code, "Session closed")
+                            except Exception as ex:
+                                self._logger.exception("Error handling WebSocket connection")
+                                await ws_handler.ws_error(ws_session, str(ex))
+                            finally:
+                                if not ws_response.closed:
+                                    await ws_response.close()
 
-                        return ws_response
+                            return ws_response
             except aiohttp.web.HTTPException:
                 # Let aiohttp answer the errors it detects itself
                 raise
+            except (AuthenticationRequired, AuthenticationFailed):
+                # The servlet requires an identity: the client can retry with credentials
+                return self.__auth_error_response(401, routing)
+            except AccessDenied:
+                return self.__auth_error_response(403, routing)
             except http.BodyTooLargeError as ex:
                 # An asynchronous servlet refused to read the body of the
                 # request: aiohttp only checks the size of the bodies it reads
@@ -1078,6 +1105,24 @@ class AsyncHttpServiceImpl(AbstractHttpService):
             for name, value in cors_headers.items():
                 # Keep the headers the servlet set itself
                 response.headers.setdefault(name, value)
+
+    def __auth_error_response(self, code: int, routing: RequestRouting) -> aiohttp.web.Response:
+        """
+        Prepares a 401 (with the authentication challenges) or 403 response
+
+        :param code: The HTTP error code
+        :param routing: The result of the routing of the request
+        :return: The aiohttp response
+        """
+        headers: dict[str, str] = {}
+        if code == 401:
+            challenge = self.get_auth_challenge(routing)
+            if challenge:
+                headers["WWW-Authenticate"] = challenge
+
+        return aiohttp.web.Response(
+            status=code, text=self.make_auth_error_page(code), content_type="text/html", headers=headers
+        )
 
     def send_exception(self, path: str) -> aiohttp.web.Response:
         """

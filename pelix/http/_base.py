@@ -44,10 +44,11 @@ from typing import Any, cast
 
 import pelix.remote
 from pelix import http, utilities
-from pelix.http import cors
+from pelix.http import auth, cors
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo import constants
 from pelix.ipopo.decorators import HiddenProperty, Property
+from pelix.security import ANONYMOUS
 
 # ------------------------------------------------------------------------------
 
@@ -86,7 +87,7 @@ AnyServlet = http.Servlet | http.AsyncServlet | http.WebSocketHandler
 ServletEntry = tuple[AnyServlet, dict[str, Any], http.ServletType]
 """ Servlet registry entry: (servlet, parameters, type) """
 
-SERVLET_PARAMETERS = (http.HTTP_MAX_BODY_SIZE, *cors.SERVLET_CORS_PARAMETERS)
+SERVLET_PARAMETERS = (http.HTTP_MAX_BODY_SIZE, *cors.SERVLET_CORS_PARAMETERS, *auth.SERVLET_AUTH_PARAMETERS)
 """
 Properties of a servlet service which are copied in the parameters of its
 registration, i.e. which a servlet can use to override a configuration of the
@@ -94,6 +95,19 @@ HTTP service
 """
 
 # ------------------------------------------------------------------------------
+
+
+def _to_bool(value: Any) -> bool:
+    """
+    Normalizes a boolean configuration value, which can be given as a string
+
+    :param value: The raw value
+    :return: The boolean value
+    """
+    if isinstance(value, str):
+        return utilities.str2bool(value)
+
+    return bool(value)
 
 
 def normalize_max_body_size(value: Any) -> int | None:
@@ -212,6 +226,8 @@ class RequestRouting:
 @Property("_max_body_size", http.HTTP_MAX_BODY_SIZE, 1024 * 1024)
 @Property("_socket_timeout", http.HTTP_SOCKET_TIMEOUT, 60.0)
 @Property("_case_sensitive_paths", http.HTTP_CASE_SENSITIVE_PATHS, True)
+@Property("_auth_required", http.HTTP_AUTH_REQUIRED, False)
+@Property("_auth_realm", http.HTTP_AUTH_REALM, auth.DEFAULT_REALM)
 @Property("_uses_ssl", http.HTTP_USES_SSL, False)
 @Property("_cert_file", http.HTTPS_CERT_FILE, None)
 @Property("_key_file", http.HTTPS_KEY_FILE, None)
@@ -233,6 +249,8 @@ class AbstractHttpService(http.HTTPService):
         self._max_body_size: int | None = 1024 * 1024
         self._socket_timeout: float | None = 60.0
         self._case_sensitive_paths = True
+        self._auth_required: bool = False
+        self._auth_realm: str = auth.DEFAULT_REALM
         self._uses_ssl = False
         self._extra: dict[str, Any] | None = None
         self._instance_name: str | None = None
@@ -259,6 +277,10 @@ class AbstractHttpService(http.HTTPService):
         # Injected by iPOPO in the subclasses
         self._error_handler: http.ErrorHandler | None = None
         self._cors_handler: http.CorsHandler | None = None
+        self._http_authenticators: list[http.HttpAuthenticator] | None = None
+
+        # Configuration issues already reported, to avoid flooding the logs
+        self._auth_warnings: set[str] = set()
 
         # Servlet -> ServiceReference
         self._servlets_refs: dict[AnyServlet, ServiceReference[Any]] = {}
@@ -335,6 +357,11 @@ class AbstractHttpService(http.HTTPService):
         if not isinstance(self._extra, dict):
             self._extra = {}
 
+        # Normalize the authentication configuration
+        self._auth_required = _to_bool(self._auth_required)
+        self._auth_realm = str(self._auth_realm or auth.DEFAULT_REALM)
+        self._auth_warnings.clear()
+
     def get_max_body_size(self) -> int | None:
         """
         Returns the maximum accepted size of the body of a request, in bytes,
@@ -393,6 +420,111 @@ class AbstractHttpService(http.HTTPService):
             # Refuse the request rather than letting a faulty policy allow it
             self.log_exception("Error computing the CORS policy of %s: %s", routing.path, ex)
             return cors.CorsDecision(bool(request_method) and method.upper() == "OPTIONS", None)
+
+    def is_auth_required(self, routing: "RequestRouting") -> bool:
+        """
+        Checks if a request must carry valid credentials
+
+        :param routing: The result of the routing of the request
+        :return: True if the request must be authenticated
+        """
+        try:
+            return _to_bool(routing.parameters[http.HTTP_AUTH_REQUIRED])
+        except KeyError:
+            # The servlet doesn't override the configuration of the service
+            return self._auth_required
+
+    def get_auth_realm(self, routing: "RequestRouting") -> str:
+        """
+        Returns the protection space of the resource targeted by a request
+
+        :param routing: The result of the routing of the request
+        :return: The realm to give in the authentication challenges
+        """
+        return str(routing.parameters.get(http.HTTP_AUTH_REALM) or self._auth_realm or auth.DEFAULT_REALM)
+
+    def _warn_once(self, key: str, message: str, *args: Any) -> None:
+        """
+        Logs a configuration warning, once per validation of the service
+
+        :param key: Identifier of the warning
+        :param message: Log message (Python logging format)
+        """
+        if key not in self._auth_warnings:
+            self._auth_warnings.add(key)
+            self.log(logging.WARNING, message, *args)
+
+    def needs_authentication(self, routing: "RequestRouting") -> bool:
+        """
+        Checks if the authentication of a request has something to do, i.e. if
+        :meth:`resolve_authentication` may have to check credentials
+
+        :param routing: The result of the routing of the request
+        :return: True if an HTTP authenticator is bound
+        """
+        return bool(self._http_authenticators)
+
+    def resolve_authentication(
+        self, routing: "RequestRouting", headers: http.HeadersView
+    ) -> auth.AuthDecision:
+        """
+        Authenticates a request. This can take time, as checking a password is
+        costly by design.
+
+        :param routing: The result of the routing of the request
+        :param headers: The headers of the request
+        :return: The decision: the subject to handle the request as, or a refusal
+        """
+        authenticators = list(self._http_authenticators or ())
+        required = self.is_auth_required(routing)
+        if not authenticators:
+            if required:
+                # Fail closed: a protected resource must not become public
+                # because its authenticator is gone
+                self._warn_once(
+                    "no-authenticator",
+                    "Authentication is required on %s, but no HTTP authenticator service is bound: "
+                    "refusing the requests",
+                    routing.path,
+                )
+            return auth.AuthDecision(ANONYMOUS, required)
+
+        decision = auth.authenticate_request(authenticators, headers, required)
+        if decision.subject.authenticated and not self._uses_ssl:
+            self._warn_once(
+                "clear-text",
+                "Credentials are received over plain HTTP: they can be read by anyone on the network",
+            )
+        return decision
+
+    def get_auth_challenge(self, routing: "RequestRouting") -> str | None:
+        """
+        Returns the value of the ``WWW-Authenticate`` header of a 401 response
+
+        :param routing: The result of the routing of the request
+        :return: The challenges of the bound authenticators, or None
+        """
+        return auth.make_challenges(self._http_authenticators or (), self.get_auth_realm(routing))
+
+    def make_auth_error_page(self, code: int) -> str:
+        """
+        Prepares the page of a 401 or 403 error.
+
+        It doesn't say why the request was refused: that would tell an attacker
+        which user names exist or which permissions are checked.
+
+        :param code: The HTTP error code (401 or 403)
+        :return: A HTML page
+        """
+        title = "Unauthorized" if code == 401 else "Forbidden"
+        return f"""<html>
+<head>
+<title>{code} - {title}</title>
+</head>
+<body>
+<h1>{title}</h1>
+</body>
+</html>"""
 
     def get_socket_timeout(self) -> float | None:
         """

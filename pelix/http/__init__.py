@@ -34,6 +34,7 @@ from enum import Enum
 from typing import IO, Any, Protocol, runtime_checkable
 
 from pelix.constants import Specification
+from pelix.security import Credentials
 from pelix.utilities import to_bytes
 
 # ------------------------------------------------------------------------------
@@ -195,6 +196,30 @@ Time, in seconds, a client can cache the result of a preflight request
 (integer). If not set, the client decides.
 """
 
+# Authentication
+HTTP_AUTHENTICATOR = "pelix.http.auth.authenticator"
+"""
+Specification of the services extracting credentials from HTTP requests
+(see :class:`HttpAuthenticator`)
+"""
+
+HTTP_AUTH_REQUIRED = "pelix.http.auth.required"
+"""
+If True, requests must carry valid credentials, else they are answered with a
+401 error code (boolean, False by default).
+
+As a property of the HTTP service, it applies to all paths. As a servlet
+service property, it overrides the one of the HTTP service for the requests
+handled by the servlet, in both directions.
+"""
+
+HTTP_AUTH_REALM = "pelix.http.auth.realm"
+"""
+Name of the protection space given in authentication challenges (string,
+"Pelix" by default). Can be overridden by a servlet service property.
+"""
+
+
 # ------------------------------------------------------------------------------
 
 FACTORY_HTTP_BASIC = "pelix.http.service.basic.factory"
@@ -202,6 +227,12 @@ FACTORY_HTTP_BASIC = "pelix.http.service.basic.factory"
 
 FACTORY_HTTP_ASYNC = "pelix.http.service.async.factory"
 """ Name of the Async HTTP service component factory """
+
+FACTORY_HTTP_AUTH_BASIC = "pelix.http.auth.basic.factory"
+"""
+Name of the component factory of the HTTP Basic authentication service (see
+:mod:`pelix.http.auth`)
+"""
 
 FACTORY_HTTP_CORS = "pelix.http.cors.factory"
 """
@@ -942,6 +973,61 @@ class CorsHandler(Protocol):
 
         :param path: Request path
         :return: A time in seconds, or None to let the client decide
+        """
+        ...
+
+
+class HeadersView(Protocol):
+    """
+    Read-only, case-insensitive view on the headers of a request
+    """
+
+    def get(self, name: str, /) -> Any:
+        """
+        Returns the value of a header
+
+        :param name: Header name (case-insensitive)
+        :return: The header value, or None if it is missing
+        """
+        ...
+
+
+@Specification(HTTP_AUTHENTICATOR)
+class HttpAuthenticator(Protocol):
+    """
+    Extracts credentials from HTTP requests, for an authentication scheme.
+
+    The credentials are then checked by the ``pelix.security`` services: an
+    HTTP authenticator doesn't decide whether they are valid.
+    """
+
+    def get_scheme(self) -> str:
+        """
+        Returns the name of the authentication scheme, e.g. ``Basic``
+
+        :return: The authentication scheme
+        """
+        ...
+
+    def extract_credentials(self, headers: HeadersView) -> Credentials | None:
+        """
+        Extracts the credentials carried by a request, if it uses the scheme of
+        this authenticator
+
+        :param headers: The headers of the request
+        :return: The credentials, or None if the request doesn't carry
+                 credentials of this scheme
+        :raise pelix.security.AuthenticationFailed: Malformed credentials
+        """
+        ...
+
+    def get_challenge(self, realm: str) -> str:
+        """
+        Returns the challenge sent in the ``WWW-Authenticate`` header of a 401
+        response, telling the client how to authenticate
+
+        :param realm: The protection space of the requested resource
+        :return: The challenge, e.g. ``Basic realm="Pelix", charset="UTF-8"``
         """
         ...
 
