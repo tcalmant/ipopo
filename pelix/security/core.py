@@ -20,6 +20,11 @@ subject whose roles are quietly incomplete.
 account or a source, that key is locked out for a while and refused without any
 authenticator being consulted.
 
+Both halves report to the EventAdmin service, when one is registered: every
+authentication success and failure, and every refusal of ``check_permitted()``. That
+report is an audit trail, never a condition: an EventAdmin which is missing or broken
+changes nothing to the decision.
+
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
@@ -43,6 +48,7 @@ authenticator being consulted.
 """
 
 import contextlib
+import dataclasses
 import logging
 import threading
 import time
@@ -53,11 +59,21 @@ from typing import TYPE_CHECKING, Any
 from pelix.constants import ActivatorProto, BundleActivator, BundleException
 from pelix.ldapfilter import escape_LDAP
 from pelix.security import (
+    EVENT_PROP_AUTHENTICATED,
+    EVENT_PROP_KIND,
+    EVENT_PROP_METHOD,
+    EVENT_PROP_PERMISSION,
+    EVENT_PROP_REASON,
+    EVENT_PROP_SOURCE,
+    EVENT_PROP_USER,
     PROP_CREDENTIAL_KINDS,
     PROP_THROTTLE_LOCKOUT,
     PROP_THROTTLE_MAX_FAILURES,
     PROP_THROTTLE_MAX_LOCKOUT,
     PROP_THROTTLE_WINDOW,
+    TOPIC_ACCESS_DENIED,
+    TOPIC_AUTH_FAILURE,
+    TOPIC_AUTH_SUCCESS,
     AccessDenied,
     AuthenticationFailed,
     Authenticator,
@@ -72,7 +88,8 @@ from pelix.security import (
     UsernamePassword,
     get_current_subject,
 )
-from pelix.security.decorators import set_authorization
+from pelix.security.decorators import set_authorization, set_denial_listener
+from pelix.services import EventAdmin
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
@@ -389,7 +406,53 @@ def _warn_about_missing_authenticator(kind: str) -> None:
         _logger.warning("No Authenticator is registered: refusing to authenticate '%s' credentials", kind)
 
 
-def authenticate(credentials: Credentials, source: str | None = None) -> Subject:
+def post_event(topic: str, properties: dict[str, Any]) -> None:
+    """
+    Posts an audit event through the EventAdmin service, if one is registered.
+
+    The service is looked up at call time, since EventAdmin is optional and may come
+    and go. The event is posted asynchronously and any error is logged and swallowed:
+    an audit trail which could make authentication or authorization fail would turn a
+    missing bundle into a denial of service, or worse, into a grant.
+
+    :param topic: The event topic
+    :param properties: The event properties, which must never hold a secret
+    """
+    context = _context
+    if context is None:
+        return
+
+    try:
+        reference = context.get_service_reference(EventAdmin)
+        if reference is None:
+            return
+
+        event_admin = context.get_service(reference)
+        try:
+            event_admin.post(topic, properties)
+        finally:
+            with contextlib.suppress(BundleException):
+                context.unget_service(reference)
+    except Exception:
+        _logger.exception("Error posting the %s event", topic)
+
+
+def _post_denial(subject: Subject, properties: dict[str, Any]) -> None:
+    """
+    Posts an access denied event.
+
+    :param subject: The refused subject
+    :param properties: What was refused
+    """
+    post_event(
+        TOPIC_ACCESS_DENIED,
+        {EVENT_PROP_USER: subject.name, EVENT_PROP_AUTHENTICATED: subject.authenticated, **properties},
+    )
+
+
+def authenticate(
+    credentials: Credentials, source: str | None = None, *, method: str | None = None
+) -> Subject:
     """
     Turns credentials into a subject, with its groups and roles resolved.
 
@@ -405,10 +468,12 @@ def authenticate(credentials: Credentials, source: str | None = None) -> Subject
        contribute roles. The two passes are what lets a policy grant a role from a group
        a *different* provider asserted: with a single pass that rule would silently
        never fire;
-    4. the final subject is returned, authenticated, with ``method`` left unset.
+    4. the final subject is returned, authenticated, with ``method`` set to the given
+       one, unset by default.
 
     ``method`` names the mechanism, which is exactly what a transport-neutral pipeline
-    cannot know: the caller stamps it with ``dataclasses.replace``.
+    cannot know: the caller gives it, or stamps it later with ``dataclasses.replace``.
+    Giving it here also puts it in the audit events.
 
     Failures are throttled per account and, when ``source`` is given, per source. A
     locked-out key is refused before any authenticator is consulted, with the same
@@ -418,6 +483,7 @@ def authenticate(credentials: Credentials, source: str | None = None) -> Subject
     :param credentials: What a transport extracted
     :param source: Where the credentials came from, such as the client IP address, if
                    the transport knows
+    :param method: Name of the authentication mechanism: "basic", "shell-password", ...
     :return: The authenticated subject
     :raise AuthenticationFailed: The credentials are wrong, no authenticator accepted
                                  them, or they are locked out
@@ -426,7 +492,17 @@ def authenticate(credentials: Credentials, source: str | None = None) -> Subject
     account_key, source_key = throttle_keys(credentials, source)
     keys = [key for key in (account_key, source_key) if key is not None]
 
+    # Never the credentials themselves: the user name of a password is the only part of
+    # them which is not a secret
+    event = {
+        EVENT_PROP_USER: credentials.username if isinstance(credentials, UsernamePassword) else None,
+        EVENT_PROP_KIND: credentials.KIND,
+        EVENT_PROP_METHOD: method,
+        EVENT_PROP_SOURCE: source,
+    }
+
     if throttle is not None and throttle.is_locked(keys):
+        post_event(TOPIC_AUTH_FAILURE, {**event, EVENT_PROP_REASON: "throttled"})
         raise AuthenticationFailed("Authentication failed")
 
     try:
@@ -434,11 +510,17 @@ def authenticate(credentials: Credentials, source: str | None = None) -> Subject
     except AuthenticationFailed:
         if throttle is not None:
             throttle.record_failure(keys)
+
+        post_event(TOPIC_AUTH_FAILURE, {**event, EVENT_PROP_REASON: "rejected"})
         raise
 
     if throttle is not None and account_key is not None:
         throttle.record_success(account_key)
 
+    if method is not None:
+        subject = dataclasses.replace(subject, method=method)
+
+    post_event(TOPIC_AUTH_SUCCESS, {**event, EVENT_PROP_USER: subject.name})
     return subject
 
 
@@ -536,7 +618,13 @@ class _AuthorizationImpl(Authorization):
             return permitted
 
     def check_permitted(self, permission: Permission, subject: Subject | None = None) -> None:
+        if subject is None:
+            subject = get_current_subject()
+
         if not self.is_permitted(permission, subject):
+            # Only here, not in is_permitted(): a question is not a refusal, and a menu
+            # asking about ten entries must not report ten denials
+            _post_denial(subject, {EVENT_PROP_PERMISSION: str(permission)})
             raise AccessDenied(f"Not permitted: {permission}")
 
     def has_role(self, role: str, subject: Subject | None = None) -> bool:
@@ -585,6 +673,7 @@ class Activator(ActivatorProto):
         authorization = _AuthorizationImpl()
         self.__registration = context.register_service(Authorization, authorization, {})
         set_authorization(authorization)
+        set_denial_listener(_post_denial)
 
     def stop(self, context: "BundleContext") -> None:
         """
@@ -593,6 +682,7 @@ class Activator(ActivatorProto):
         global _context, _throttle
 
         set_authorization(None)
+        set_denial_listener(None)
         if self.__registration is not None:
             self.__registration.unregister()
             self.__registration = None

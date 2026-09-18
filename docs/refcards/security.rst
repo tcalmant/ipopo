@@ -228,16 +228,16 @@ not starting the bundle, means those methods raise.**
 The pipeline
 ============
 
-``pelix.security.core.authenticate(credentials, source=None)`` turns credentials into a
-subject:
+``pelix.security.core.authenticate(credentials, source=None, *, method=None)`` turns
+credentials into a subject:
 
 1. every :class:`Authenticator` accepting this kind of credentials is consulted in
    ``service.ranking`` order;
 2. every :class:`MembershipProvider` contributes groups, and the results are unioned;
 3. the subject is rebuilt with those groups, and only then does every provider
    contribute roles;
-4. the subject is returned, authenticated, with ``method`` left unset for the
-   transport to stamp.
+4. the subject is returned, authenticated, with ``method`` set to the ``method``
+   argument the transport gave, or left unset for the transport to stamp later.
 
 Step 3 is two passes rather than one, and that is load-bearing: it is what lets the
 policy file grant a role from a group a *different* provider asserted. With a single
@@ -460,6 +460,55 @@ wrong", and another :class:`Authenticator` may know it. The ``[certificates]`` t
 are validated as strictly as the rest of the file: an unknown key, a user name which is
 not a non-empty string, or the same fingerprint written twice refuses the file.
 
+Audit events
+============
+
+When an EventAdmin service is registered (see :doc:`eventadmin`), the
+``pelix.security.core`` bundle posts an event for every authentication and every
+refusal:
+
+=================================== ======================================================
+Topic                               Posted when
+=================================== ======================================================
+``pelix/security/AUTH_SUCCESS``     ``authenticate()`` returned a subject
+``pelix/security/AUTH_FAILURE``     ``authenticate()`` raised :class:`AuthenticationFailed`
+``pelix/security/ACCESS_DENIED``    ``Authorization.check_permitted()`` or a decorator
+                                    refused a subject
+=================================== ======================================================
+
+The properties of the two authentication events:
+
+================= ==================================================================
+Property          Value
+================= ==================================================================
+``user``          the name of the authenticated subject on success; on failure, the
+                  user name a password tried, ``None`` for other credentials
+``kind``          the credential kind: ``password``, ``certificate``, ...
+``method``        the ``method`` argument of ``authenticate()``, or ``None``
+``source``        the ``source`` argument of ``authenticate()``, or ``None``
+``reason``        failures only: ``rejected`` for wrong or unknown credentials,
+                  ``throttled`` for a locked-out key
+================= ==================================================================
+
+And those of an access denied event: ``user`` and ``authenticated``, from the refused
+subject, plus ``permission`` (the refused permission, as a string) and ``declaration``
+(the decorator which refused it, such as ``AllowGroup('dev',)``) when they apply.
+
+**No event ever holds a secret**: neither a password nor any other part of the
+credentials but the user name. The failure reason is deliberately generic, like the
+exception a caller gets. Keep in mind that a user name field sometimes receives a
+password typed one line too early.
+
+``Authorization.is_permitted()`` posts nothing: a question is not a refusal, and a
+page asking about ten menu entries must not report ten denials. Neither does
+``@AllowPermission`` with the ``pelix.security.core`` bundle stopped, since there is
+then nothing to post through.
+
+The events are posted asynchronously, and the EventAdmin service is looked up at each
+event: it may come and go. An event which cannot be posted is logged and dropped. The
+audit trail is never a condition of the decision: a missing or broken EventAdmin
+changes neither an authentication nor an authorization.
+
 Reloading
 =========
 
@@ -589,6 +638,8 @@ The pipeline
 ------------
 
 .. autofunction:: pelix.security.core.authenticate
+
+.. autofunction:: pelix.security.core.post_event
 
 .. autoclass:: pelix.security.core.Throttle
    :members: is_locked, record_failure, record_success

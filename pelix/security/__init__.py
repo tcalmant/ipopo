@@ -129,6 +129,30 @@ TOPIC_AUTH_FAILURE = "pelix/security/AUTH_FAILURE"
 TOPIC_ACCESS_DENIED = "pelix/security/ACCESS_DENIED"
 """ EventAdmin topic of a refused authorization """
 
+EVENT_PROP_USER = "user"
+""" Event property: name of the subject, or the user name an authentication tried """
+
+EVENT_PROP_KIND = "kind"
+""" Event property: kind of the credentials of an authentication """
+
+EVENT_PROP_METHOD = "method"
+""" Event property: mechanism of an authentication, as its transport named it """
+
+EVENT_PROP_SOURCE = "source"
+""" Event property: where an authentication came from, as its transport named it """
+
+EVENT_PROP_REASON = "reason"
+""" Event property: generic reason of a failure: "rejected" or "throttled" """
+
+EVENT_PROP_AUTHENTICATED = "authenticated"
+""" Event property: whether the refused subject was authenticated """
+
+EVENT_PROP_PERMISSION = "permission"
+""" Event property: the refused permission, as a string """
+
+EVENT_PROP_DECLARATION = "declaration"
+""" Event property: the security decorator which refused a call """
+
 # ------------------------------------------------------------------------------
 
 
