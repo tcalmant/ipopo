@@ -261,6 +261,44 @@ def is_from_parent(cls: type[Any], attribute_name: str | None, value: Any = None
 # Specification field
 PELIX_SPECIFICATION_FIELD = "__SPECIFICATION__"
 
+FORBIDDEN_SPECIFICATION_CHARACTERS = frozenset("\\()&|=<>~*+#,;'\"")
+"""
+Characters refused in a specification name.
+
+They are the special characters of the LDAP filters (the same list as
+:data:`pelix.ldapfilter.ESCAPED_CHARACTERS`, plus the escape character): no
+legitimate specification needs them, while a name holding them can only be an
+attempt to alter the filters it is written into (e.g. by a remote peer).
+"""
+
+
+def check_specification_name(name: Any) -> str:
+    """
+    Checks that the given value is a valid specification name
+
+    :param name: The specification name to check
+    :return: The name itself
+    :raise TypeError: The name is not a string
+    :raise ValueError: The name is blank, has leading or trailing spaces, or holds
+                       a forbidden character
+    """
+    if not isinstance(name, str):
+        raise TypeError(f"A specification name must be a string, not {type(name).__name__}")
+
+    if not name.strip():
+        raise ValueError("Empty specification name given")
+
+    if name != name.strip():
+        # LDAP filters escape them too, and a name differing from another one by
+        # its surrounding spaces can only be meant to be confused with it
+        raise ValueError(f"Leading or trailing spaces in specification name {name!r}")
+
+    forbidden = FORBIDDEN_SPECIFICATION_CHARACTERS.intersection(name)
+    if forbidden:
+        raise ValueError(f"Forbidden characters {sorted(forbidden)} in specification name {name!r}")
+
+    return name
+
 
 class Specification:
     """
@@ -328,11 +366,9 @@ class Specification:
         """
         Returns the given string of the name of the class
 
-        :raise ValueError: Empty specification name
+        :raise ValueError: Invalid specification name
         """
         if isinstance(clazz, str):
-            if not clazz.strip():
-                raise ValueError("Empty specification name given")
-            return clazz
+            return check_specification_name(clazz)
 
         return clazz.__name__

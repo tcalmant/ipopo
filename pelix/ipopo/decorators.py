@@ -37,7 +37,7 @@ from typing import (
     cast,
 )
 
-from pelix.constants import PELIX_SPECIFICATION_FIELD, is_from_parent
+from pelix.constants import PELIX_SPECIFICATION_FIELD, check_specification_name, is_from_parent
 from pelix.framework import BundleContext
 from pelix.internals.registry import PrototypeServiceFactory, ServiceFactory, ServiceReference
 from pelix.ipopo import constants
@@ -851,10 +851,7 @@ def _get_specifications(
             return [specifications.__name__]
     elif isinstance(specifications, str):
         # Specification name
-        specifications = specifications.strip()
-        if not specifications:
-            raise ValueError("Empty specification given")
-        return [specifications]
+        return [check_specification_name(specifications.strip())]
     elif isinstance(specifications, (list, tuple)):
         # List given: normalize its content
         results = []

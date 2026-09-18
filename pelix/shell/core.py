@@ -397,8 +397,16 @@ class _ShellService(parser.Shell, ShellService):
         """
         Prints the details of the service with the given ID
         """
+        try:
+            # Parsed rather than written as is in the filter: a remote shell
+            # client could otherwise inject its own filter
+            parsed_id = int(service_id)
+        except (TypeError, ValueError):
+            session.write_line(f"Invalid service ID: {service_id}")
+            return False
+
         svc_ref: ServiceReference[Any] | None = self._context.get_service_reference(
-            None, f"({constants.SERVICE_ID}={service_id})"
+            None, f"({constants.SERVICE_ID}={parsed_id})"
         )
         if svc_ref is None:
             session.write_line(f"Service not found: {service_id}")
@@ -431,9 +439,13 @@ class _ShellService(parser.Shell, ShellService):
         headers = ("ID", "Specifications", "Bundle", "Ranking")
 
         # Lines
-        references: list[ServiceReference[Any]] = (
-            self._context.get_all_service_references(specification, None) or []
-        )
+        try:
+            references: list[ServiceReference[Any]] = (
+                self._context.get_all_service_references(specification, None) or []
+            )
+        except constants.BundleException as ex:
+            session.write_line("Invalid specification: {0}", ex)
+            return False
 
         # Construct the list of services
         lines = [

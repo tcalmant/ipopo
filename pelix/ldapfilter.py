@@ -25,6 +25,7 @@ Dependency-less LDAP filter parser for Python
     limitations under the License.
 """
 
+import functools
 import inspect
 import re
 from collections.abc import Callable, Iterable
@@ -200,6 +201,12 @@ class LDAPFilter:
 class LDAPCriteria:
     """
     Represents an LDAP criterion
+
+    With the substring comparators (``_comparator_star`` and
+    ``_comparator_approximate_star``), the value is a pattern where an
+    unescaped ``*`` is a wildcard, while ``\\*`` and ``\\\\`` stand for a
+    literal star and a literal backslash. With all other comparators, the
+    value is the literal, unescaped value.
     """
 
     __slots__ = ("comparator", "name", "value")
@@ -258,7 +265,17 @@ class LDAPCriteria:
         """
         String description
         """
-        return f"({escape_LDAP(self.name)}{comparator2str(self.comparator)}{escape_LDAP(str(self.value))})"
+        comparator = self.comparator
+        if comparator is _comparator_presence:
+            # The value is irrelevant and escaping it would turn it into a literal star
+            str_value = "*"
+        elif comparator is _comparator_star or comparator is _comparator_approximate_star:
+            # Only the literal parts must be escaped, to keep the wildcards
+            str_value = "*".join(escape_LDAP(part) or "" for part in _split_star_pattern(str(self.value)))
+        else:
+            str_value = escape_LDAP(str(self.value)) or ""
+
+        return f"({escape_LDAP(self.name)}{comparator2str(comparator)}{str_value})"
 
     def matches(self, properties: dict[str, Any]) -> bool:
         """
@@ -343,6 +360,82 @@ def unescape_LDAP(ldap_string: str | None) -> str | None:
     return "".join(result)
 
 
+def _parse_star_pattern(ldap_string: str) -> str | None:
+    """
+    Converts an escaped LDAP filter value to the pattern form used by the
+    substring comparators: the escape character is kept only in front of
+    literal stars and backslashes, so that unescaped stars stay wildcards.
+
+    :param ldap_string: An escaped LDAP filter value
+    :return: The pattern, or None if the value contains no wildcard
+    """
+    if ESCAPE_CHARACTER not in ldap_string:
+        # No escaped star: every star is a wildcard
+        return ldap_string
+
+    has_wildcard = False
+    escaped = False
+    result = []
+
+    for character in ldap_string:
+        if escaped:
+            escaped = False
+            if character == "*" or character == ESCAPE_CHARACTER:
+                # Keep the literal star (and the escape character) distinct from wildcards
+                result.append(ESCAPE_CHARACTER)
+            result.append(character)
+        elif character == ESCAPE_CHARACTER:
+            escaped = True
+        else:
+            if character == "*":
+                has_wildcard = True
+            result.append(character)
+
+    return "".join(result) if has_wildcard else None
+
+
+@functools.lru_cache(maxsize=1024)
+def _split_star_pattern(pattern: str) -> tuple[str, ...]:
+    """
+    Splits a substring pattern on its wildcards
+
+    :param pattern: A pattern as stored in a substring criterion
+    :return: The unescaped literal parts between wildcards
+    """
+    if ESCAPE_CHARACTER not in pattern:
+        return tuple(pattern.split("*"))
+
+    parts = []
+    current: list[str] = []
+    escaped = False
+
+    for character in pattern:
+        if escaped:
+            escaped = False
+            current.append(character)
+        elif character == ESCAPE_CHARACTER:
+            escaped = True
+        elif character == "*":
+            parts.append("".join(current))
+            current = []
+        else:
+            current.append(character)
+
+    parts.append("".join(current))
+    return tuple(parts)
+
+
+@functools.lru_cache(maxsize=1024)
+def _star_regex(pattern: str) -> re.Pattern[str]:
+    """
+    Compiles a substring pattern into a regular expression
+
+    :param pattern: A pattern as stored in a substring criterion
+    :return: The compiled regular expression
+    """
+    return re.compile(".*".join(re.escape(part) for part in _split_star_pattern(pattern)) + "\\Z")
+
+
 # ------------------------------------------------------------------------------
 
 
@@ -386,9 +479,7 @@ def _star_comparison(filter_value: Any, tested_value: Any) -> bool:
         # Unhandled value type...
         return False
 
-    # Convert the pattern to a regular expression
-    pattern = ".*".join(re.escape(part) for part in filter_value.split("*"))
-    return re.match(f"{pattern}\\Z", tested_value) is not None
+    return _star_regex(filter_value).match(tested_value) is not None
 
 
 def _comparator_eq(filter_value: Any, tested_value: Any) -> bool:
@@ -549,6 +640,7 @@ _COMPARATOR_SYMBOL: dict[Callable[[Any, Any], bool], str] = {
     _comparator_approximate_star: "~=",
     _comparator_eq: "=",
     _comparator_star: "=",
+    _comparator_presence: "=",
     _comparator_le: "<=",
     _comparator_lt: "<",
     _comparator_ge: ">=",
@@ -730,16 +822,19 @@ def _parse_ldap_criteria(ldap_filter: str, start_idx: int = 0, end_idx: int = -1
     # Extract the value
     value = ldap_filter[idx:end_idx].strip()
 
-    # Use the appropriate comparator if a joker is found in the filter value
+    # Use the appropriate comparator if an unescaped joker is found in the filter value
     if value == "*":
         # Presence comparator
-        comparator = _comparator_presence
-    elif "*" in value:
-        # Joker
-        if comparator == _comparator_eq:
-            comparator = _comparator_star
-        elif comparator == _comparator_approximate:
-            comparator = _comparator_approximate_star
+        return LDAPCriteria(attribute_name, value, _comparator_presence)
+    elif "*" in value and (comparator is _comparator_eq or comparator is _comparator_approximate):
+        pattern = _parse_star_pattern(value)
+        if pattern is not None:
+            # Joker
+            if comparator is _comparator_eq:
+                comparator = _comparator_star
+            else:
+                comparator = _comparator_approximate_star
+            return LDAPCriteria(attribute_name, pattern, comparator)
 
     return LDAPCriteria(attribute_name, unescape_LDAP(value), comparator)
 

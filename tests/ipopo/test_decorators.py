@@ -629,6 +629,11 @@ class SimpleDecoratorsTests(unittest.TestCase):
             with self.assertRaises(ValueError, msg=f"Accepted {invalid!r}"):
                 decorators._get_specifications(invalid)
 
+        # LDAP wildcards and delimiters, which only a hostile peer would use
+        for invalid in ("spec*", "a(b)", "a\\b", "a,b", "x=y", "a|b", ["valid", "*"]):
+            with self.assertRaises(ValueError, msg=f"Accepted {invalid!r}"):
+                decorators._get_specifications(invalid)
+
         # Test inheritance
         from tests.ipopo import ipopo_bundle
         from tests.ipopo.ipopo_bundle import Child

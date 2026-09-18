@@ -55,6 +55,7 @@ from pelix.constants import (
     PELIX_SPECIFICATION_FIELD,
     BundleException,
     FrameworkException,
+    check_specification_name,
 )
 from pelix.internals.events import BundleEvent, ServiceEvent
 from pelix.internals.registry import (
@@ -66,7 +67,7 @@ from pelix.internals.registry import (
     ServiceRegistration,
     ServiceRegistry,
 )
-from pelix.ldapfilter import LDAPCriteria, LDAPFilter
+from pelix.ldapfilter import LDAPCriteria, LDAPFilter, escape_LDAP
 
 # Generic type var
 T = TypeVar("T")
@@ -1078,10 +1079,10 @@ class Framework(Bundle):
                 svc_clazz = [svc_clazz]
 
             for spec in svc_clazz:
-                # A blank specification can't be looked up: it would be an unreachable service
-                if not isinstance(spec, str) or not spec.strip():
-                    raise BundleException(f"Invalid specification name: {spec!r}")
-                classes.append(spec)
+                try:
+                    classes.append(check_specification_name(spec))
+                except (TypeError, ValueError) as ex:
+                    raise BundleException(f"Invalid specification name: {ex}") from ex
 
         # Make the service registration
         registration = self._registry.register(bundle, classes, properties, service, factory, prototype)
@@ -1463,11 +1464,28 @@ class BundleContext:
         if specification is not None and inspect.isclass(specification):
             specification = _get_class_spec(specification)
 
+        if isinstance(specification, (list, tuple)):
+            # Classes in the list stand for their specifications
+            names: list[str] = []
+            for spec in specification:
+                spec_names = _get_class_spec(spec) if inspect.isclass(spec) else spec
+                names.extend(spec_names if isinstance(spec_names, list) else [spec_names])
+            specification = names
+
+        try:
+            if isinstance(specification, str):
+                check_specification_name(specification)
+            elif isinstance(specification, list):
+                for spec in specification:
+                    check_specification_name(spec)
+        except (TypeError, ValueError) as ex:
+            raise BundleException(f"Invalid specification name: {ex}") from ex
+
         if isinstance(specification, str):
             single_specification_filter = specification
         elif isinstance(specification, list):
             single_specification_filter = None
-            spec_filters = [f"({OBJECTCLASS}={spec})" for spec in specification]
+            spec_filters = [f"({OBJECTCLASS}={escape_LDAP(spec)})" for spec in specification]
             ldap_specification_filter = f"(&{''.join(spec_filters)})"
             if ldap_filter is None:
                 ldap_filter = ldap_specification_filter

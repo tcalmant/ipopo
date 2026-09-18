@@ -9,7 +9,13 @@ Tests the framework events.
 import unittest
 from typing import Any, Protocol
 
-from pelix.constants import PELIX_SPECIFICATION_FIELD, Specification
+from pelix.constants import (
+    FORBIDDEN_SPECIFICATION_CHARACTERS,
+    PELIX_SPECIFICATION_FIELD,
+    Specification,
+    check_specification_name,
+)
+from pelix.ldapfilter import ESCAPE_CHARACTER, ESCAPED_CHARACTERS
 
 
 class Foobar(Protocol):
@@ -113,6 +119,32 @@ class TestSpecificationDecorator(unittest.TestCase):
 
         with self.assertRaises(ValueError):
             Specification("ServiceA", "")
+
+    def test_forbidden_characters(self) -> None:
+        """
+        The special characters of LDAP filters must be rejected in specification
+        names, as well as leading and trailing spaces
+        """
+        # Kept in line with what the LDAP filters escape
+        self.assertEqual(FORBIDDEN_SPECIFICATION_CHARACTERS, set(ESCAPED_CHARACTERS) | {ESCAPE_CHARACTER})
+
+        invalid_names = [f"spec{char}name" for char in sorted(FORBIDDEN_SPECIFICATION_CHARACTERS)]
+        invalid_names += ["*", "a*b(c)", " spec", "spec ", "\tspec", "spec\n"]
+        for name in invalid_names:
+            with self.subTest(name=name):
+                with self.assertRaises(ValueError):
+                    check_specification_name(name)
+                with self.assertRaises(ValueError):
+                    Specification(name)
+                with self.assertRaises(ValueError):
+                    Specification([name])
+
+        with self.assertRaises(TypeError):
+            check_specification_name(123)
+
+        for name in ("pelix.http.servlet", "my-spec", "my_spec", "ns:spec", "a/b", "a b", "Spec2"):
+            with self.subTest(name=name):
+                self.assertEqual(check_specification_name(name), name)
 
 
 if __name__ == "__main__":
