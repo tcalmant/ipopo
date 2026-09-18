@@ -492,18 +492,19 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
 
             self._access.send_discovered(addresses[0], info.port, properties["pelix.access.path"])
         elif type_ == self._rs_type:
-            # Remote service
-            # Get the first available configuration
-            configuration = properties[pelix.remote.PROP_IMPORTED_CONFIGS]
-            if not isinstance(configuration, str):
-                configuration = configuration[0]
-
-            # Ensure we have a list of specifications
-            specs = properties[pelix.constants.OBJECTCLASS]
-            if isinstance(specs, str):
-                specs = [specs]
-
+            # Remote service: records come from the network, a malformed one
+            # must be ignored instead of raising an error in the Zeroconf thread
             try:
+                # Get the first available configuration
+                configuration = properties[pelix.remote.PROP_IMPORTED_CONFIGS]
+                if not isinstance(configuration, str):
+                    configuration = configuration[0]
+
+                # Ensure we have a list of specifications
+                specs = properties[pelix.constants.OBJECTCLASS]
+                if isinstance(specs, str):
+                    specs = [specs]
+
                 # Make an import bean
                 endpoint = beans.ImportEndpoint(
                     properties[pelix.remote.PROP_ENDPOINT_ID],
@@ -576,8 +577,8 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         elif type_ == self._rs_type:
             # Remote service update
             try:
-                # Get the stored endpoint UID
-                uid = self._imported_endpoints.pop(name)
+                # Get the stored endpoint UID, kept for the future removal
+                uid = self._imported_endpoints[name]
             except KeyError:
                 # Unknown service: try to add it
                 self.add_service(zc, type_, name)
