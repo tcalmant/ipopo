@@ -250,7 +250,7 @@ class AsyncServlet:
         await response.send_content(200, "Options", "text/plain")
 
 
-class WebSocketHandler:
+class WebSocketHandler(http.WebSocketHandler):
     """
     Accepts all WebSocket connections
     """
