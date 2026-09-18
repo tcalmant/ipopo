@@ -43,6 +43,7 @@ from pelix.http._base import (
     DEFAULT_REQUEST_QUEUE_SIZE,
     HTTP_SERVICE_EXTRA,
     LOCALHOST_ADDRESS,
+    SERVLET_PARAMETERS,
     AbstractHttpService,
     compute_sub_path,
 )
@@ -209,6 +210,12 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         """
         Ends the headers part
         """
+        # Add the CORS headers of the request, unless the servlet set them itself
+        cors_headers: dict[str, str] | None = getattr(self._handler, "cors_headers", None)
+        if cors_headers:
+            for name, value in cors_headers.items():
+                self._headers.setdefault(name.lower(), value)
+
         # Send them all at once
         for name, value in self._headers.items():
             self._handler.send_header(name, value)
@@ -255,6 +262,9 @@ class _RequestHandler(BaseHTTPRequestHandler):
         """
         self._service = http_svc
 
+        # CORS headers to add to the response of the current request, if any
+        self.cors_headers: dict[str, str] | None = None
+
         # This calls setup() then the do_* methods
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
 
@@ -285,6 +295,23 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
         # Get the corresponding servlet
         routing = self._service.resolve_request(self.path)
+
+        # Keep-alive connections reuse the handler: forget the previous request
+        self.cors_headers = None
+        cors_decision = self._service.resolve_cors(
+            routing,
+            self.command,
+            self.headers.get("Origin"),
+            self.headers.get("Access-Control-Request-Method"),
+            self.headers.get("Access-Control-Request-Headers"),
+        )
+        if cors_decision is not None:
+            if cors_decision.preflight:
+                # Preflight requests are answered by the server, not by the servlets
+                return lambda: self.send_preflight_response(cors_decision.headers)
+
+            self.cors_headers = cors_decision.headers
+
         if routing.error is not None:
             # The path itself has been refused: no servlet is looked for
             return self.send_bad_path_response
@@ -342,6 +369,22 @@ class _RequestHandler(BaseHTTPRequestHandler):
         # Use the helper to send the error page
         response = _HTTPServletResponse(self)
         response.send_content(404, self._service.make_not_found_page(path))
+
+    def send_preflight_response(self, headers: dict[str, str] | None) -> None:
+        """
+        Answers a CORS preflight request
+
+        :param headers: The CORS headers to send, or None if the request is refused
+        """
+        response = _HTTPServletResponse(self)
+        if headers is None:
+            response.send_content(403, "<html><body><h1>Forbidden</h1></body></html>")
+        else:
+            # A 204 response has neither body nor content-length (RFC 9110)
+            response.set_response(204)
+            for name, value in headers.items():
+                response.set_header(name, value)
+            response.end_headers()
 
     def send_bad_path_response(self) -> None:
         """
@@ -519,6 +562,7 @@ class _HttpServerFamily(ThreadingMixIn, HTTPServer):
 @Provides(http.HTTP_SERVICE)
 @Requires("_servlets_services", http.Servlet, True, True)
 @Requires("_error_handler", http.ErrorHandler, optional=True)
+@Requires("_cors_handler", http.CorsHandler, optional=True)
 class HttpServiceImpl(AbstractHttpService):
     """
     Basic HTTP service component
@@ -586,7 +630,7 @@ class HttpServiceImpl(AbstractHttpService):
         Called by iPOPO when the properties of a service have been updated
         """
         self._on_update(
-            service, service_reference, old_properties, (http.HTTP_SERVLET_PATH, http.HTTP_MAX_BODY_SIZE)
+            service, service_reference, old_properties, (http.HTTP_SERVLET_PATH, *SERVLET_PARAMETERS)
         )
 
     @UnbindField("_servlets_services")

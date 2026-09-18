@@ -44,6 +44,7 @@ from typing import Any, cast
 
 import pelix.remote
 from pelix import http, utilities
+from pelix.http import cors
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo import constants
 from pelix.ipopo.decorators import HiddenProperty, Property
@@ -85,7 +86,7 @@ AnyServlet = http.Servlet | http.AsyncServlet | http.WebSocketHandler
 ServletEntry = tuple[AnyServlet, dict[str, Any], http.ServletType]
 """ Servlet registry entry: (servlet, parameters, type) """
 
-SERVLET_PARAMETERS = (http.HTTP_MAX_BODY_SIZE,)
+SERVLET_PARAMETERS = (http.HTTP_MAX_BODY_SIZE, *cors.SERVLET_CORS_PARAMETERS)
 """
 Properties of a servlet service which are copied in the parameters of its
 registration, i.e. which a servlet can use to override a configuration of the
@@ -257,6 +258,7 @@ class AbstractHttpService(http.HTTPService):
 
         # Injected by iPOPO in the subclasses
         self._error_handler: http.ErrorHandler | None = None
+        self._cors_handler: http.CorsHandler | None = None
 
         # Servlet -> ServiceReference
         self._servlets_refs: dict[AnyServlet, ServiceReference[Any]] = {}
@@ -358,6 +360,39 @@ class AbstractHttpService(http.HTTPService):
         except KeyError:
             # The servlet doesn't override the configuration of the service
             return self._max_body_size
+
+    def resolve_cors(
+        self,
+        routing: "RequestRouting",
+        method: str,
+        origin: str | None,
+        request_method: str | None = None,
+        request_headers: str | None = None,
+    ) -> cors.CorsDecision | None:
+        """
+        Decides how to handle a cross-origin request.
+
+        A servlet declaring its own CORS policy in its service properties
+        overrides the CORS handler service bound to the HTTP service.
+
+        :param routing: The result of the routing of the request
+        :param method: The HTTP method of the request
+        :param origin: The value of the ``Origin`` request header, if any
+        :param request_method: Value of the ``Access-Control-Request-Method`` header
+        :param request_headers: Value of the ``Access-Control-Request-Headers`` header
+        :return: None if CORS doesn't apply to this request, else the decision
+        """
+        if not origin:
+            # Fast path: not a cross-origin request
+            return None
+
+        policy = cors.policy_from_parameters(routing.parameters) or self._cors_handler
+        try:
+            return cors.resolve_cors(policy, routing.path, method, origin, request_method, request_headers)
+        except Exception as ex:  # noqa: BLE001
+            # Refuse the request rather than letting a faulty policy allow it
+            self.log_exception("Error computing the CORS policy of %s: %s", routing.path, ex)
+            return cors.CorsDecision(bool(request_method) and method.upper() == "OPTIONS", None)
 
     def get_socket_timeout(self) -> float | None:
         """

@@ -149,6 +149,105 @@ As no servlet service has been registered, the server will only return 404
 errors.
 
 
+.. _http_cors:
+
+Cross-Origin Resource Sharing (CORS)
+------------------------------------
+
+A browser only lets a script read the response to a request sent to another
+origin (scheme, host and port) if the server allows it, with the
+``Access-Control-*`` headers defined by the
+`CORS protocol <https://fetch.spec.whatwg.org/#http-cors-protocol>`_.
+
+By default, the HTTP services don't send any of those headers: a script loaded
+from another origin can't read their responses. Both the basic and the
+asynchronous HTTP services apply a CORS policy when one is given, either for
+the whole server or per servlet:
+
+* **for the whole server**, with a :class:`CorsHandler` service. The
+  ``pelix.http.cors`` bundle provides the ``pelix.http.cors.factory`` component
+  factory (:data:`FACTORY_HTTP_CORS`), configured with the properties below.
+  The HTTP services bind the best ranked CORS handler service, if any;
+* **per servlet**, with the same properties set on the servlet service, or in
+  the parameters of :meth:`~HTTPService.register_servlet`. A servlet declares
+  its own policy by setting ``pelix.http.cors.origins``: its policy then
+  replaces the one of the CORS handler service for the requests it handles.
+
+=============================== ======= ========================================
+Property                        Default Description
+=============================== ======= ========================================
+pelix.http.cors.origins         (none)  Origins allowed to read the responses.
+                                        ``*`` allows any origin, an empty list
+                                        none
+pelix.http.cors.methods         (all)   Methods allowed in cross-origin
+                                        requests. If not set, the method
+                                        announced by a preflight is allowed
+pelix.http.cors.headers         (all)   Request headers allowed in cross-origin
+                                        requests. If not set, the headers
+                                        announced by a preflight are allowed
+pelix.http.cors.expose_headers  (none)  Response headers a script can read, in
+                                        addition to the CORS-safelisted ones
+pelix.http.cors.credentials     False   If set, requests can carry credentials
+                                        (cookies, ``Authorization``, ...)
+pelix.http.cors.max_age         (none)  Time, in seconds, a browser can cache
+                                        the result of a preflight
+=============================== ======= ========================================
+
+List properties accept a list of strings or a comma-separated string.
+
+The HTTP services then behave as follows, for requests carrying an ``Origin``
+header on a path covered by a policy:
+
+* a **preflight request** (an ``OPTIONS`` request with an
+  ``Access-Control-Request-Method`` header) is answered by the HTTP service
+  itself, even if no servlet is registered on its path: ``204`` with the
+  ``Access-Control-Allow-*`` headers if the policy accepts it, else ``403``.
+  The ``do_OPTIONS`` method of the servlet is not called;
+* the response to **any other request** gets the ``Access-Control-Allow-Origin``
+  header (and the other ones of the policy) if the policy accepts its origin,
+  including the error pages (400, 404, 413, 500, ...) and the WebSocket
+  handshakes. A header the servlet set itself is kept as is.
+
+A refused origin doesn't prevent the request from being handled: CORS is
+enforced by the browser, which won't let the script read the response. It
+doesn't protect the server against a client which ignores it.
+
+When credentials are allowed, the origin of the request is always sent back
+instead of ``*``, as browsers refuse credentials with a wildcard. A
+``Vary: Origin`` header is then added so that caches don't mix the responses
+sent to different origins.
+
+.. warning:: Allowing credentials lets the allowed origins send requests on
+   behalf of the users of the server, with their cookies. Only allow the origins
+   you trust.
+
+For example, to allow a web application served from another host to call the
+servlets of an HTTP service:
+
+.. code-block:: python
+
+    context.install_bundle("pelix.http.cors").start()
+
+    with use_ipopo(context) as ipopo:
+        ipopo.instantiate(
+            "pelix.http.cors.factory",
+            "cors-policy",
+            {
+                "pelix.http.cors.origins": ["https://app.example.com"],
+                "pelix.http.cors.headers": ["Content-Type", "Authorization"],
+                "pelix.http.cors.credentials": True,
+                "pelix.http.cors.max_age": 600,
+            },
+        )
+
+A :class:`CorsHandler` service can also be written to give a different policy
+to different paths, as each of its methods is given the path of the request:
+
+.. autoclass:: CorsHandler
+   :members:
+
+.. versionadded:: 3.2.3
+
 API
 ---
 
@@ -199,20 +298,26 @@ Note that their content and liability is implementation-dependent:
   this is always False, as it only supports synchronous servlets.
 
 A servlet can, on the other hand, configure the way the HTTP service handles
-the requests it will be given, with the following entry:
+the requests it will be given, with the following entries:
 
 * ``pelix.http.max_body_size``: the maximum size, in bytes, of the body of a
   request handled by this servlet. It overrides the property of the same name
   of the HTTP service, in both directions: a servlet can accept bodies bigger
   than the other ones, which is useful to carry RPC payloads, or restrict
   itself to smaller ones. A value lesser than or equal to 0 removes the limit.
+* ``pelix.http.cors.origins`` and the other ``pelix.http.cors.*`` entries: the
+  CORS policy of the servlet, which replaces the one of the CORS handler
+  service (see :ref:`http_cors`).
 
-It can be given either as a property of the servlet service, next to
+They can be given either as properties of the servlet service, next to
 ``pelix.http.path``, or in the ``parameters`` argument of
 :meth:`~HTTPService.register_servlet`.
 
 .. versionadded:: 3.2.2
    The ``pelix.http.max_body_size`` entry.
+
+.. versionadded:: 3.2.3
+   The ``pelix.http.cors.*`` entries.
 
 A servlet for the Pelix HTTP service has the following methods:
 
