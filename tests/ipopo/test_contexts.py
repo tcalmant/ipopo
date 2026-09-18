@@ -134,11 +134,12 @@ class ContextsTests(unittest.TestCase):
         Requirement = contexts.Requirement
 
         # Invalid specification type
-        for invalid in (None, ["specification"], 1234):
+        for invalid in (None, 1234, {"specification"}, [None], ["spec", 1234]):
             self.assertRaises(TypeError, Requirement, invalid)
 
         # Empty content
-        self.assertRaises(ValueError, Requirement, "")
+        for empty in ("", "   ", [], (), [""], ["spec", " "]):
+            self.assertRaises(ValueError, Requirement, empty)
 
         # Invalid filter type
         for invalid in (123, ["a", "b"]):

@@ -189,8 +189,9 @@ class _VariableFilterMixIn(requires._RuntimeDependency):
 
         # Compare to the "old" one
         if new_filter != self.requirement.filter:
-            # Replace the requirement filter
-            self.requirement.filter = new_filter
+            # Replace the requirement filter, refreshing the filters derived
+            # from it (specifications tests)
+            self.requirement.set_filter(new_filter)
             return True
 
         # Same filter
@@ -230,10 +231,9 @@ class _VariableFilterMixIn(requires._RuntimeDependency):
             self._ipopo_instance.update_bindings()
 
             for svc_ref in self.get_bindings():
-                # Check if the current reference matches the filter
-                if self.requirement.filter is not None and not self.requirement.filter.matches(
-                    svc_ref.get_properties()
-                ):
+                # Check if the current reference matches the whole requirement,
+                # as it can be bound through one of several specifications
+                if not self.requirement.matches(svc_ref.get_properties()):
                     # Not the case: emulate a service departure
                     # The instance life cycle will be updated as well
                     self.on_service_departure(svc_ref)

@@ -337,7 +337,9 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
         if self._context is None:
             raise ValueError("Requirement not set up")
 
-        self._context.add_service_listener(self, self.requirement.filter, self.requirement.specification)
+        self._context.add_service_listener(
+            self, self.requirement.lookup_filter, self.requirement.lookup_specification
+        )
 
     def stop(self) -> list[tuple[Any, ServiceReference[Any]]] | None:
         """
@@ -371,7 +373,7 @@ class _RuntimeDependency(constants.DependencyHandler, ServiceListener):
 
             # Get all matching services
             refs: list[ServiceReference[Any]] | None = self._context.get_all_service_references(
-                self.requirement.specification, self.requirement.filter
+                self.requirement.lookup_specification, self.requirement.lookup_filter
             )
             if not refs:
                 # No match found

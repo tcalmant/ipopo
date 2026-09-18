@@ -1077,6 +1077,10 @@ class Requires:
     The ``@Requires`` decorator defines the requirement of a service.
     A specification of requirement can be given by its name (string) or type (class/protocol).
 
+    Several specifications can be given as a list: by default, the injected
+    services must provide all of them. With ``match_any=True``, a service
+    providing at least one of them is enough.
+
     :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_REQUIRES`
 
     :Example:
@@ -1115,6 +1119,17 @@ class Requires:
 
               def call(self):
                   self._hello.greet("World")
+
+      Services providing both the ``hello.world`` and ``hello.admin``
+      specifications, or at least one of them:
+
+      .. code-block:: python
+
+          @ComponentFactory()
+          @Requires('_both', ['hello.world', 'hello.admin'])
+          @Requires('_any', ['hello.world', 'hello.admin'], match_any=True)
+          class Baz:
+              pass
     """
 
     HANDLER_ID = constants.HANDLER_REQUIRES
@@ -1123,15 +1138,17 @@ class Requires:
     def __init__(
         self,
         field: str,
-        specification: None | str | Iterable[str] | type[Any] | Iterable[type[Any]],
+        specification: None | str | type[Any] | Iterable[str | type[Any]],
         aggregate: bool = False,
         optional: bool = False,
         spec_filter: str | None = None,
         immediate_rebind: bool = False,
+        match_any: bool = False,
     ):
         """
         :param field: The field where to inject the requirement
-        :param specification: The specification of the service to inject, given by name or type
+        :param specification: The specification of the service to inject, given by name or type,
+                              or a list of specifications
         :param aggregate: If True, injects a list of services, else the first matching service
         :param optional: If True, this injection is optional: the component can be valid without it
         :param spec_filter: An LDAP query to filter injected services according
@@ -1140,13 +1157,16 @@ class Requires:
             If True, the component won't be invalidated then re-validated if a
             matching service is available when the injected dependency is
             unbound
+        :param match_any: If True, the injected services must provide at least
+                          one of the given specifications, else they must
+                          provide all of them
 
         The ``field`` and ``specification`` parameters are mandatory.
         By default, a requirement is neither aggregated nor optional
         (both are set to ``False``) and no specification filter is used.
 
         :raise TypeError: Invalid field or specification type
-        :raise ValueError: Invalid field, or more than one specification given
+        :raise ValueError: Invalid field, or no specification given
         """
         if not field:
             raise ValueError("Empty field name.")
@@ -1159,20 +1179,14 @@ class Requires:
 
         self._field = field
 
-        # Be sure that there is only one required specification
-        specifications = _get_specifications(specification)
-        if len(specifications) > 1:
-            raise ValueError(
-                f"Only one specification can be required for field '{field}', got: {specifications}"
-            )
-
         # Construct the requirement object
         self._requirement = Requirement(
-            specifications[0],
+            _get_specifications(specification),
             aggregate,
             optional,
             spec_filter,
             immediate_rebind,
+            match_any,
         )
 
     def __call__(self, clazz: type[T]) -> type[T]:
@@ -1299,24 +1313,27 @@ class RequiresBest(Requires):
     def __init__(
         self,
         field: str,
-        specification: None | str | Iterable[str] | type[Any] | Iterable[type[Any]],
+        specification: None | str | type[Any] | Iterable[str | type[Any]],
         optional: bool = False,
         spec_filter: str | None = None,
         immediate_rebind: bool = True,
+        match_any: bool = False,
     ):
         """
         :param field: The injected field
-        :param specification: The injected service specification
+        :param specification: The injected service specification, or a list of specifications
         :param optional: If True, this injection is optional
         :param spec_filter: An LDAP query to filter injected services upon
                             their properties
         :param immediate_rebind: If True, the component won't be invalidated
                                  then re-validated if a matching service is
                                  available when the injected dependency is unbound
+        :param match_any: If True, the injected service must provide at least
+                          one of the given specifications, else all of them
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter or an argument is incorrect
         """
-        super().__init__(field, specification, False, optional, spec_filter, immediate_rebind)
+        super().__init__(field, specification, False, optional, spec_filter, immediate_rebind, match_any)
 
 
 # ------------------------------------------------------------------------------
@@ -1347,16 +1364,17 @@ class RequiresMap(Requires):
     def __init__(
         self,
         field: str,
-        specification: None | str | Iterable[str] | type[Any] | Iterable[type[Any]],
+        specification: None | str | type[Any] | Iterable[str | type[Any]],
         key: str,
         allow_none: bool = False,
         aggregate: bool = False,
         optional: bool = False,
         spec_filter: str | None = None,
+        match_any: bool = False,
     ):
         """
         :param field: The injected field
-        :param specification: The injected service specification
+        :param specification: The injected service specification, or a list of specifications
         :param key: The name of the service property to use as a dictionary key
         :param allow_none: If True, also injects services with the property
                            value set to ``None`` or missing
@@ -1366,10 +1384,12 @@ class RequiresMap(Requires):
         :param optional: If True, this injection is optional
         :param spec_filter: An LDAP query to filter injected services upon
                             their properties
+        :param match_any: If True, the injected services must provide at least
+                          one of the given specifications, else all of them
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter or an argument is incorrect
         """
-        super().__init__(field, specification, aggregate, optional, spec_filter, False)
+        super().__init__(field, specification, aggregate, optional, spec_filter, False, match_any)
         # Check if key is valid
         if not key:
             raise ValueError("No property key given")
@@ -1444,26 +1464,29 @@ class RequiresBroadcast(Requires):
     def __init__(
         self,
         field: str,
-        specification: None | str | Iterable[str] | type[Any] | Iterable[type[Any]],
+        specification: None | str | type[Any] | Iterable[str | type[Any]],
         optional: bool = True,
         spec_filter: str | None = None,
         muffle_exceptions: bool = True,
         trace_exceptions: bool = True,
+        match_any: bool = False,
     ):
         """
         :param field: The injected field
-        :param specification: The injected service specification
+        :param specification: The injected service specification, or a list of specifications
         :param optional: If True, this injection is optional
         :param spec_filter: An LDAP query to filter injected services upon
                             their properties
         :param muffle_exceptions: If True, exceptions raised by underlying
                                   services are not propagated (True by default)
         :param trace_exceptions: If True, trace the exceptions that are muffled (True by default)
+        :param match_any: If True, the injected services must provide at least
+                          one of the given specifications, else all of them
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter or an argument is incorrect
         """
         # Forced flags: aggregate and immediate rebind
-        super().__init__(field, specification, True, optional, spec_filter, True)
+        super().__init__(field, specification, True, optional, spec_filter, True, match_any)
 
         # Store the flags
         self._muffle_ex = muffle_exceptions
@@ -1539,22 +1562,25 @@ class Temporal(Requires):
     def __init__(
         self,
         field: str,
-        specification: None | str | Iterable[str] | type[Any] | Iterable[type[Any]],
+        specification: None | str | type[Any] | Iterable[str | type[Any]],
         optional: bool = False,
         spec_filter: str | None = None,
         timeout: float = 10,
+        match_any: bool = False,
     ):
         """
         :param field: The injected field
-        :param specification: The injected service specification
+        :param specification: The injected service specification, or a list of specifications
         :param optional: If True, this injection is optional
         :param spec_filter: An LDAP query to filter injected services upon
                             their properties
         :param timeout: Temporal timeout, in seconds (must be greater than 0)
+        :param match_any: If True, the injected service must provide at least
+                          one of the given specifications, else all of them
         :raise TypeError: A parameter has an invalid type
         :raise ValueError: An error occurred while parsing the filter or an argument is incorrect
         """
-        super().__init__(field, specification, False, optional, spec_filter, True)
+        super().__init__(field, specification, False, optional, spec_filter, True, match_any)
         if timeout <= 0:
             _logger.warning("@Temporal timeout must be greater than 0. Using default value.")
             self._timeout: float = 10

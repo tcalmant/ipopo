@@ -487,8 +487,18 @@ class DecoratorsTest(unittest.TestCase):
             for invalid in (None, method, 123):
                 self.assertRaises(TypeError, decorator("field", "spec"), invalid)
 
-            # More than one specification
-            self.assertRaises(ValueError, decorator, "field", ["spec.1", "spec.2"])
+            # More than one specification: all of them are required by default
+            requirement = decorator("field", ["spec.1", "spec.2"])._requirement
+            self.assertEqual(requirement.specifications, ["spec.1", "spec.2"])
+            self.assertEqual(requirement.specification, "spec.1")
+            self.assertFalse(requirement.match_any)
+
+            requirement = decorator("field", ["spec.1", "spec.2"], match_any=True)._requirement
+            self.assertTrue(requirement.match_any)
+
+            # Empty list of specifications
+            for empty in ([], (), [""], ["spec.1", " "]):
+                self.assertRaises(ValueError, decorator, "field", empty)
 
             # Applied on an already manipulated class
             @decorators.ComponentFactory()

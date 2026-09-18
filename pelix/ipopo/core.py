@@ -1022,6 +1022,11 @@ class _IPopoService(IPopoService):
           following dictionary:
 
           * ``handler``: The name of the type of the dependency handler
+          * ``specification``: Specification of the required service (the
+            first one if the requirement has several specifications)
+          * ``specifications``: List of the specifications of the required service
+          * ``match_any``: If True, the required service must provide at least
+            one of the specifications, else all of them
           * ``filter`` (optional): The requirement LDAP filter
           * ``optional``: A flag indicating whether the requirement is optional
             or not
@@ -1087,6 +1092,8 @@ class _IPopoService(IPopoService):
                     req = dependency.requirement
                     if req is not None:
                         info["specification"] = req.specification
+                        info["specifications"] = list(req.specifications)
+                        info["match_any"] = req.match_any
                         info["filter"] = str(req.filter) if req.filter else None
                         info["optional"] = req.optional
                         info["aggregate"] = req.aggregate
@@ -1145,7 +1152,11 @@ class _IPopoService(IPopoService):
         * ``requirements``: List of the requirements defined by the factory
 
           * ``id``: Requirement ID (field where it is injected)
-          * ``specification``: Specification of the required service
+          * ``specification``: Specification of the required service (the
+            first one if the requirement has several specifications)
+          * ``specifications``: List of the specifications of the required service
+          * ``match_any``: If True, the required service must provide at least
+            one of the specifications, else all of them
           * ``aggregate``: If True, multiple services will be injected
           * ``optional``: If True, the requirement is optional
 
@@ -1199,6 +1210,8 @@ class _IPopoService(IPopoService):
                         {
                             "id": field,
                             "specification": requirement.specification,
+                            "specifications": list(requirement.specifications),
+                            "match_any": requirement.match_any,
                             "aggregate": requirement.aggregate,
                             "optional": requirement.optional,
                             "filter": requirement.original_filter,
