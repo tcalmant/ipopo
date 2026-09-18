@@ -482,7 +482,8 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
         :param pid: A configuration PID
         :return: True if the PID already exists
         """
-        return pid in self.__configurations or pid in self.__factories
+        with self.__lock:
+            return pid in self.__configurations or pid in self.__factories
 
     def get_configuration(self, pid: str) -> services.Configuration:
         """
@@ -530,13 +531,19 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
         :return: The set of matching configurations
         :raise ValueError: Invalid LDAP filter
         """
+        # Iterate over a snapshot: add() and delete() can change the dictionary
+        # from another thread. Filter outside the lock, as each configuration
+        # takes its own lock to read its properties
+        with self.__lock:
+            configurations = list(self.__configurations.values())
+
         if not ldap_filter:
             # matches() already ignores the deleted configurations
-            return {config for config in self.__configurations.values() if not config.is_deleted()}
+            return {config for config in configurations if not config.is_deleted()}
 
         # Using an LDAP filter
-        ldap_filter = ldapfilter.get_ldap_filter(ldap_filter)
-        return {config for config in self.__configurations.values() if config.matches(ldap_filter)}
+        parsed_filter = ldapfilter.get_ldap_filter(ldap_filter)
+        return {config for config in configurations if config.matches(parsed_filter)}
 
     def add(
         self,

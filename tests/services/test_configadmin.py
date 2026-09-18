@@ -9,6 +9,7 @@ Tests for the ConfigurationAdmin tests
 import json
 import os
 import shutil
+import sys
 import tempfile
 import threading
 import time
@@ -1610,6 +1611,56 @@ class PropertiesCopyTest(unittest.TestCase):
         properties = config.get_properties()
         assert properties is not None
         self.assertNotIn("mutated", properties)
+
+
+class DirectoryConcurrencyTest(unittest.TestCase):
+    """
+    The configurations directory must support being listed while it is
+    modified by another thread
+    """
+
+    def test_list_while_adding(self) -> None:
+        """
+        Listing the configurations while others are added must not fail
+        """
+        directory = ConfigurationDirectory()
+        directory._admin = cast(services.IConfigurationAdmin, object())
+        persistence = _MemoryPersistence()
+        for idx in range(1000):
+            directory.add(f"base.{idx}", None, persistence)
+
+        def add_configurations() -> None:
+            for idx in range(2000):
+                directory.add(f"added.{idx}", None, persistence)
+                directory.exists(f"added.{idx}")
+
+        errors: list[Exception] = []
+        nb_lists = 0
+
+        # Switch threads as often as possible, to interleave the iterations
+        # with the additions
+        switch_interval = sys.getswitchinterval()
+        sys.setswitchinterval(1e-5)
+        try:
+            adder = threading.Thread(target=add_configurations)
+            adder.start()
+            try:
+                while adder.is_alive():
+                    directory.list_configurations()
+                    directory.list_configurations("(answer=42)")
+                    nb_lists += 1
+            except RuntimeError as ex:
+                # "dictionary changed size during iteration"
+                errors.append(ex)
+            finally:
+                adder.join()
+        finally:
+            sys.setswitchinterval(switch_interval)
+
+        self.assertEqual(errors, [])
+        self.assertGreater(nb_lists, 0)
+        self.assertEqual(len(list(directory.list_configurations())), 3000)
+        self.assertTrue(directory.exists("added.1999"))
 
 
 # ------------------------------------------------------------------------------
