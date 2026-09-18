@@ -42,6 +42,26 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "FACTORY_REMOTE_SHELL",
+    "FACTORY_XMPP_SHELL",
+    "REMOTE_SHELL_SPEC",
+    "SERVICE_SHELL",
+    "SERVICE_SHELL_COMMAND",
+    "SERVICE_SHELL_REMOTE",
+    "SERVICE_SHELL_REPORT",
+    "SERVICE_SHELL_UTILS",
+    "SHELL_COMMAND_SPEC",
+    "SHELL_SERVICE_SPEC",
+    "SHELL_UTILS_SERVICE_SPEC",
+    "RemoteShell",
+    "ShellCommandMethod",
+    "ShellCommandsProvider",
+    "ShellReport",
+    "ShellService",
+    "ShellUtils",
+]
+
 # ------------------------------------------------------------------------------
 
 SERVICE_SHELL = "pelix.shell"

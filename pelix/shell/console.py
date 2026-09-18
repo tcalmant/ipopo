@@ -59,6 +59,15 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "PROP_INIT_FILE",
+    "PROP_RUN_FILE",
+    "InteractiveShell",
+    "handle_common_arguments",
+    "main",
+    "make_common_parser",
+]
+
 # ------------------------------------------------------------------------------
 
 PROP_INIT_FILE = "pelix.shell.console.init_file"

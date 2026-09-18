@@ -44,6 +44,20 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "ATTR_COMPLETERS",
+    "BUNDLE",
+    "COMPONENT",
+    "DUMMY",
+    "FACTORY",
+    "FACTORY_PROPERTY",
+    "PROP_COMPLETER_ID",
+    "SERVICE",
+    "SVC_COMPLETER",
+    "Completer",
+    "CompletionInfo",
+]
+
 # ------------------------------------------------------------------------------
 
 DUMMY = "dummy"
