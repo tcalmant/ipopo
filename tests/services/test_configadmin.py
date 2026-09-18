@@ -1540,6 +1540,78 @@ class JsonPersistencePidTest(unittest.TestCase):
         self.assertFalse(self.persistence.exists("test.pid"))
 
 
+class _MutatingService(services.IManagedService):
+    """
+    Managed service which modifies the properties it is given
+    """
+
+    def __init__(self) -> None:
+        """
+        Sets up members
+        """
+        self.received: list[dict[str, Any] | None] = []
+
+    def updated(self, properties: dict[str, Any] | None) -> None:
+        """
+        Called by the ConfigurationAdmin service
+        """
+        self.received.append(None if properties is None else properties.copy())
+        if properties is not None:
+            properties["mutated"] = True
+
+
+class PropertiesCopyTest(unittest.TestCase):
+    """
+    Each managed service must get its own copy of the configuration properties
+    """
+
+    PID = "test.ca.copy"
+
+    def setUp(self) -> None:
+        """
+        Starts a framework with ConfigurationAdmin
+        """
+        self.conf_folder = tempfile.mkdtemp(prefix="ipopo-configadmin-copy-")
+        self.framework = pelix.framework.create_framework(
+            ("pelix.ipopo.core", "pelix.services.configadmin"), {"configuration.folder": self.conf_folder}
+        )
+        self.framework.start()
+        self.context = self.framework.get_bundle_context()
+
+    def tearDown(self) -> None:
+        """
+        Stops the framework
+        """
+        pelix.framework.FrameworkFactory.delete_framework()
+        shutil.rmtree(self.conf_folder, ignore_errors=True)
+
+    def test_services_get_copies(self) -> None:
+        """
+        A managed service modifying its properties must not alter those given
+        to the others, nor the stored configuration
+        """
+        managed = [_MutatingService(), _MutatingService()]
+        for svc in managed:
+            self.context.register_service(services.IManagedService, svc, {constants.SERVICE_PID: self.PID})
+
+        ref = self.context.get_service_reference(services.IConfigurationAdmin)
+        assert ref is not None
+        config = self.context.get_service(ref).get_configuration(self.PID)
+
+        # Notified synchronously, one service after the other
+        config.update({"answer": 42})
+        for svc in managed:
+            self.assertEqual(len(svc.received), 1)
+            received = svc.received[0]
+            assert received is not None
+            self.assertEqual(received["answer"], 42)
+            self.assertNotIn("mutated", received)
+
+        properties = config.get_properties()
+        assert properties is not None
+        self.assertNotIn("mutated", properties)
+
+
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":

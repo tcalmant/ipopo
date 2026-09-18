@@ -1037,8 +1037,8 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
                 continue
 
             try:
-                # Only give the properties to the service
-                svc.updated(pid, properties)
+                # Each service gets its own copy: it can modify it
+                svc.updated(pid, None if properties is None else properties.copy())
             except Exception:
                 _logger.exception("Error updating factory")
 
@@ -1080,8 +1080,8 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
                 continue
 
             try:
-                # Only give the properties to the service
-                svc.updated(properties)
+                # Each service gets its own copy: it can modify it
+                svc.updated(None if properties is None else properties.copy())
             except Exception:
                 _logger.exception("Error updating service")
 
