@@ -45,6 +45,20 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "HTTP_ROUTE_ATTRIBUTE",
+    "TYPE_CONVERTERS",
+    "TYPE_PATTERNS",
+    "Http",
+    "HttpDelete",
+    "HttpGet",
+    "HttpHead",
+    "HttpPost",
+    "HttpPut",
+    "RestDispatcher",
+    "path_filter",
+]
+
 # ------------------------------------------------------------------------------
 
 HTTP_ROUTE_ATTRIBUTE = "__pelix_http_route__"

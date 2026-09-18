@@ -37,20 +37,10 @@ IGNORED_MODULES = {
 }
 
 # Modules allowed to lack __all__ for now
-MISSING_ALL_EXEMPTIONS = {
-    # pelix.http is being reworked on other branches: its __all__ will be added
-    # separately
-    "pelix.http",
-    "pelix.http._base",
-    "pelix.http.routing",
-}
+MISSING_ALL_EXEMPTIONS: set[str] = set()
 
 # Modules whose public classes and functions are not checked against __all__
-PUBLIC_NAMES_EXEMPTIONS = {
-    # Same reason as above: the existing __all__ only lists backward-compatible names
-    "pelix.http.basic",
-    "pelix.http.basic_async",
-}
+PUBLIC_NAMES_EXEMPTIONS: set[str] = set()
 
 # Public classes and functions intentionally left out of __all__, per module.
 # Bundle activators and iPOPO component factories are detected and skipped

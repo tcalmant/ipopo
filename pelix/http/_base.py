@@ -59,6 +59,19 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "DEFAULT_BIND_ADDRESS",
+    "DEFAULT_REQUEST_QUEUE_SIZE",
+    "HTTP_SERVICE_EXTRA",
+    "LOCALHOST_ADDRESS",
+    "SERVLET_PARAMETERS",
+    "AbstractHttpService",
+    "RequestRouting",
+    "compute_sub_path",
+    "normalize_max_body_size",
+    "normalize_request_path",
+]
+
 # ------------------------------------------------------------------------------
 
 HTTP_SERVICE_EXTRA = "http.extra"

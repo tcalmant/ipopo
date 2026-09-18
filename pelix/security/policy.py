@@ -102,7 +102,12 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-__all__ = ["PolicyError", "PolicyFile", "PolicyTable"]
+__all__ = [
+    "PolicyError",
+    "PolicyFile",
+    "PolicyTable",
+    "normalize_fingerprint",
+]
 
 _logger = logging.getLogger(__name__)
 

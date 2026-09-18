@@ -45,6 +45,7 @@ __docformat__ = "restructuredtext en"
 __all__ = [
     "ACTIVATOR",
     "ACTIVATOR_LEGACY",
+    "FORBIDDEN_SPECIFICATION_CHARACTERS",
     "FRAMEWORK_UID",
     "OBJECTCLASS",
     "OSGI_FRAMEWORK_UUID",
@@ -62,6 +63,7 @@ __all__ = [
     "BundleException",
     "FrameworkException",
     "Specification",
+    "check_specification_name",
     "is_from_parent",
 ]
 

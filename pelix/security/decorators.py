@@ -69,6 +69,7 @@ __all__ = [
     "DenyAll",
     "RunAs",
     "set_authorization",
+    "set_denial_listener",
 ]
 
 _logger = logging.getLogger(__name__)
