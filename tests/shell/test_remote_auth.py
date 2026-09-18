@@ -318,6 +318,7 @@ operator = ["jobs.read"]
         self.assertEqual(identity["User"], "certuser")
         self.assertEqual(identity["Authenticated"], "yes")
         self.assertEqual(identity["Method"], "certificate")
+        self.assertEqual(identity["Transport"], "shell")
         self.assertEqual(identity["Roles"], "operator")
 
     def test_a_certificate_mapped_by_subject(self) -> None:
@@ -582,7 +583,14 @@ class SessionSubjectTest(unittest.TestCase):
 
         self.assertEqual(
             identity,
-            {"User": "batch", "Authenticated": "yes", "Method": "test", "Groups": "ops", "Roles": "operator"},
+            {
+                "User": "batch",
+                "Authenticated": "yes",
+                "Method": "test",
+                "Transport": "-",
+                "Groups": "ops",
+                "Roles": "operator",
+            },
         )
 
     def test_whoami_when_anonymous(self) -> None:
@@ -590,7 +598,15 @@ class SessionSubjectTest(unittest.TestCase):
         identity = self.run_whoami(beans.ShellSession(beans.IOHandler(None, output)), output)
 
         self.assertEqual(
-            identity, {"User": "anonymous", "Authenticated": "no", "Method": "-", "Groups": "-", "Roles": "-"}
+            identity,
+            {
+                "User": "anonymous",
+                "Authenticated": "no",
+                "Method": "-",
+                "Transport": "-",
+                "Groups": "-",
+                "Roles": "-",
+            },
         )
 
 

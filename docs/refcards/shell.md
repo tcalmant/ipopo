@@ -200,7 +200,9 @@ Each command then runs as the subject of the session (see
 {func}`pelix.security.run_as`), the anonymous one when nobody logged in, so that the
 security decorators of the command providers apply to shell users. The `whoami`
 command prints that subject: its name, whether it is authenticated, the method which
-authenticated it (`certificate` or `password`), its groups and its roles.
+authenticated it (`certificate` or `password`), the transport (`shell`), its groups and
+its roles. The same method and transport are given to the audit events of the security
+layer.
 
 Each command is logged at the `INFO` level with the user, the client address and the
 command name, as in `User thomas from 10.0.0.1 ran ipopo.instances`, but without its

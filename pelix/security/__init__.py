@@ -136,7 +136,10 @@ EVENT_PROP_KIND = "kind"
 """ Event property: kind of the credentials of an authentication """
 
 EVENT_PROP_METHOD = "method"
-""" Event property: mechanism of an authentication, as its transport named it """
+""" Event property: mechanism of an authentication: "password", "certificate", "basic", ... """
+
+EVENT_PROP_TRANSPORT = "transport"
+""" Event property: transport an authentication came through: "http", "shell", ... """
 
 EVENT_PROP_SOURCE = "source"
 """ Event property: where an authentication came from, as its transport named it """
@@ -206,6 +209,13 @@ class Subject:
     authenticated: bool = False
     method: str | None = None
     """ Name of the mechanism which authenticated this subject: "basic", "oidc", ... """
+    transport: str | None = None
+    """
+    Name of the transport this subject authenticated through: "http", "shell", ...
+
+    Kept apart from ``method``: two transports can use the same mechanism, and an audit
+    must tell an administration shell login from a service call.
+    """
 
     def __post_init__(self) -> None:
         # frozen=True is not immutability: the caller may still hold the mapping it gave
@@ -220,7 +230,7 @@ class Subject:
         return (
             f"Subject(name={self.name!r}, groups={sorted(self.groups)}, "
             f"roles={sorted(self.roles)}, attributes=[{', '.join(sorted(self.attributes))}], "
-            f"authenticated={self.authenticated}, method={self.method!r})"
+            f"authenticated={self.authenticated}, method={self.method!r}, transport={self.transport!r})"
         )
 
 

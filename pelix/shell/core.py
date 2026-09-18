@@ -301,6 +301,7 @@ class _ShellService(parser.Shell, ShellService):
         session.write_line("User          : {0}", subject.name)
         session.write_line("Authenticated : {0}", "yes" if subject.authenticated else "no")
         session.write_line("Method        : {0}", subject.method or "-")
+        session.write_line("Transport     : {0}", subject.transport or "-")
         session.write_line("Groups        : {0}", ", ".join(sorted(subject.groups)) or "-")
         session.write_line("Roles         : {0}", ", ".join(sorted(subject.roles)) or "-")
 

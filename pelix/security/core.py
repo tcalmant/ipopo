@@ -65,6 +65,7 @@ from pelix.security import (
     EVENT_PROP_PERMISSION,
     EVENT_PROP_REASON,
     EVENT_PROP_SOURCE,
+    EVENT_PROP_TRANSPORT,
     EVENT_PROP_USER,
     PROP_CREDENTIAL_KINDS,
     PROP_THROTTLE_LOCKOUT,
@@ -451,7 +452,11 @@ def _post_denial(subject: Subject, properties: dict[str, Any]) -> None:
 
 
 def authenticate(
-    credentials: Credentials, source: str | None = None, *, method: str | None = None
+    credentials: Credentials,
+    source: str | None = None,
+    *,
+    method: str | None = None,
+    transport: str | None = None,
 ) -> Subject:
     """
     Turns credentials into a subject, with its groups and roles resolved.
@@ -468,12 +473,13 @@ def authenticate(
        contribute roles. The two passes are what lets a policy grant a role from a group
        a *different* provider asserted: with a single pass that rule would silently
        never fire;
-    4. the final subject is returned, authenticated, with ``method`` set to the given
-       one, unset by default.
+    4. the final subject is returned, authenticated, with ``method`` and ``transport``
+       set to the given ones, unset by default.
 
-    ``method`` names the mechanism, which is exactly what a transport-neutral pipeline
-    cannot know: the caller gives it, or stamps it later with ``dataclasses.replace``.
-    Giving it here also puts it in the audit events.
+    ``method`` names the mechanism and ``transport`` the way the request came in, which
+    is exactly what a transport-neutral pipeline cannot know: the caller gives them, or
+    stamps them later with ``dataclasses.replace``. Giving them here also puts them in
+    the audit events.
 
     Failures are throttled per account and, when ``source`` is given, per source. A
     locked-out key is refused before any authenticator is consulted, with the same
@@ -483,7 +489,8 @@ def authenticate(
     :param credentials: What a transport extracted
     :param source: Where the credentials came from, such as the client IP address, if
                    the transport knows
-    :param method: Name of the authentication mechanism: "basic", "shell-password", ...
+    :param method: Name of the authentication mechanism: "password", "certificate", "basic", ...
+    :param transport: Name of the transport: "http", "shell", ...
     :return: The authenticated subject
     :raise AuthenticationFailed: The credentials are wrong, no authenticator accepted
                                  them, or they are locked out
@@ -498,6 +505,7 @@ def authenticate(
         EVENT_PROP_USER: credentials.username if isinstance(credentials, UsernamePassword) else None,
         EVENT_PROP_KIND: credentials.KIND,
         EVENT_PROP_METHOD: method,
+        EVENT_PROP_TRANSPORT: transport,
         EVENT_PROP_SOURCE: source,
     }
 
@@ -517,8 +525,8 @@ def authenticate(
     if throttle is not None and account_key is not None:
         throttle.record_success(account_key)
 
-    if method is not None:
-        subject = dataclasses.replace(subject, method=method)
+    if method is not None or transport is not None:
+        subject = dataclasses.replace(subject, method=method, transport=transport)
 
     post_event(TOPIC_AUTH_SUCCESS, {**event, EVENT_PROP_USER: subject.name})
     return subject

@@ -118,6 +118,9 @@ METHOD_CERTIFICATE = "certificate"
 METHOD_PASSWORD = "password"
 """ Authentication method of a session opened with a login and a password """
 
+TRANSPORT = "shell"
+""" Transport name given to the security layer, telling shell logins from others in audits """
+
 MAX_LOGIN_ATTEMPTS = 3
 """ Password attempts a connection gets before it is closed """
 
@@ -732,7 +735,7 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         # Looked up at each call: when its bundle is reinstalled, the module is reloaded,
         # and a reference taken at import time would point to a stopped copy
         core = importlib.import_module("pelix.security.core")
-        return core.authenticate(credentials, client_ip, method=method)
+        return core.authenticate(credentials, client_ip, method=method, transport=TRANSPORT)
 
     def is_debug_allowed(self, subject: Subject) -> bool:
         """

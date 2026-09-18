@@ -19,6 +19,7 @@ from pelix.security import (
     EVENT_PROP_PERMISSION,
     EVENT_PROP_REASON,
     EVENT_PROP_SOURCE,
+    EVENT_PROP_TRANSPORT,
     EVENT_PROP_USER,
     PROP_CREDENTIAL_KINDS,
     TOPIC_ACCESS_DENIED,
@@ -159,10 +160,11 @@ class AuthenticationEventsTest(AuditTestCase):
 
     def test_a_success(self) -> None:
         subject = self.core.authenticate(
-            UsernamePassword("alice", SECRET), "10.0.0.1", method="shell-password"
+            UsernamePassword("alice", SECRET), "10.0.0.1", method="password", transport="shell"
         )
 
-        self.assertEqual(subject.method, "shell-password")
+        self.assertEqual(subject.method, "password")
+        self.assertEqual(subject.transport, "shell")
         self.assertEqual(
             self.events.events,
             [
@@ -171,7 +173,8 @@ class AuthenticationEventsTest(AuditTestCase):
                     {
                         EVENT_PROP_USER: "alice",
                         EVENT_PROP_KIND: "password",
-                        EVENT_PROP_METHOD: "shell-password",
+                        EVENT_PROP_METHOD: "password",
+                        EVENT_PROP_TRANSPORT: "shell",
                         EVENT_PROP_SOURCE: "10.0.0.1",
                     },
                 )
@@ -180,8 +183,23 @@ class AuthenticationEventsTest(AuditTestCase):
         self.assertNoSecret()
 
     def test_the_method_is_optional(self) -> None:
-        self.assertIsNone(self.core.authenticate(UsernamePassword("alice", SECRET)).method)
+        subject = self.core.authenticate(UsernamePassword("alice", SECRET))
+        self.assertIsNone(subject.method)
+        self.assertIsNone(subject.transport)
         self.assertIsNone(self.events.events[0][1][EVENT_PROP_METHOD])
+        self.assertIsNone(self.events.events[0][1][EVENT_PROP_TRANSPORT])
+
+    def test_same_method_different_transports(self) -> None:
+        # The case the separate field exists for: the audit tells both logins apart
+        for transport in ("shell", "http"):
+            self.core.authenticate(
+                UsernamePassword("alice", SECRET), "10.0.0.1", method="password", transport=transport
+            )
+
+        self.assertEqual(
+            [(props[EVENT_PROP_METHOD], props[EVENT_PROP_TRANSPORT]) for _, props in self.events.events],
+            [("password", "shell"), ("password", "http")],
+        )
 
     def test_a_wrong_password(self) -> None:
         with self.assertRaises(AuthenticationFailed):

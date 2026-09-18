@@ -228,7 +228,7 @@ not starting the bundle, means those methods raise.**
 The pipeline
 ============
 
-``pelix.security.core.authenticate(credentials, source=None, *, method=None)`` turns
+``pelix.security.core.authenticate(credentials, source=None, *, method=None, transport=None)`` turns
 credentials into a subject:
 
 1. every :class:`Authenticator` accepting this kind of credentials is consulted in
@@ -236,8 +236,13 @@ credentials into a subject:
 2. every :class:`MembershipProvider` contributes groups, and the results are unioned;
 3. the subject is rebuilt with those groups, and only then does every provider
    contribute roles;
-4. the subject is returned, authenticated, with ``method`` set to the ``method``
-   argument the transport gave, or left unset for the transport to stamp later.
+4. the subject is returned, authenticated, with ``method`` and ``transport`` set to
+   the arguments the transport gave, or left unset for the transport to stamp later.
+
+``method`` names the mechanism (``password``, ``certificate``, ``basic``, ...) and
+``transport`` the way the request came in (``http``, ``shell``, ...). They are kept
+apart because several transports can use the same mechanism, and an audit has to tell
+a login to an administration shell from a call to a service.
 
 Step 3 is two passes rather than one, and that is load-bearing: it is what lets the
 policy file grant a role from a group a *different* provider asserted. With a single
@@ -485,6 +490,7 @@ Property          Value
                   user name a password tried, ``None`` for other credentials
 ``kind``          the credential kind: ``password``, ``certificate``, ...
 ``method``        the ``method`` argument of ``authenticate()``, or ``None``
+``transport``     the ``transport`` argument of ``authenticate()``, or ``None``
 ``source``        the ``source`` argument of ``authenticate()``, or ``None``
 ``reason``        failures only: ``rejected`` for wrong or unknown credentials,
                   ``throttled`` for a locked-out key
