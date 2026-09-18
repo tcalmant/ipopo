@@ -135,6 +135,25 @@ This factory accepts the following properties:
 | `pelix.shell.ssl.cert` | `None` | Path to the server's SSL certificate file |
 | `pelix.shell.ssl.key` | `None` | Path to the server's private key |
 | `pelix.shell.ssl.key_password` | `None` | Password of the server's private key |
+| `pelix.shell.auth.required` | `False` | Refuse every command until the client is authenticated (see [](#remote-shell-authentication)) |
+| `pelix.shell.max_line_length` | 65536 | Longest line, in bytes, a client can send. `0` removes the limit |
+| `pelix.shell.idle_timeout` | 3600 | Seconds without input before a session is closed. `0` removes the limit |
+| `pelix.shell.login_timeout` | 60 | Seconds a client gets to finish the TLS handshake and to log in. `0` removes the limit |
+| `pelix.shell.max_clients` | 32 | Maximum number of simultaneous clients. `0` removes the limit |
+
+The last four properties protect the server from its clients: a line longer than
+the limit, including data sent without any end of line, closes the session, as
+does an idle session or a client which doesn't finish its TLS handshake or its
+login in time. The TLS handshake is done in the thread of the client, so a client
+which never finishes it doesn't delay the others. Connections past the maximum
+number of clients are closed as soon as they are accepted.
+
+:::{versionadded} 3.2.3
+The `pelix.shell.max_line_length`, `pelix.shell.idle_timeout`,
+`pelix.shell.login_timeout` and `pelix.shell.max_clients` properties. Before, a
+client could make the server buffer an endless line, keep a thread forever, or
+block every new connection by never finishing its TLS handshake.
+:::
 
 :::{warning}
 `pelix.shell.ssl.ca` is not optional when `pelix.shell.ssl.cert` is set.
@@ -147,6 +166,69 @@ by a shell which can install and start arbitrary bundles.
 iPOPO 3.2.2 logs an error when it detects this configuration, but still starts.
 Starting with iPOPO 3.3.0, this configuration will be refused.
 :::
+
+#### Remote shell authentication
+
+The remote shell can identify its users through the security layer described in
+{doc}`security`. It needs the `pelix.security.core` bundle, plus at least one
+credential store: typically `pelix.security.htpasswd` for passwords and
+`pelix.security.policy` for certificates, groups, roles and permissions.
+
+A client is authenticated when it connects, before it can run anything:
+
+1. **With its TLS client certificate.** On a TLS connection, the certificate the
+   client presented, already verified against `pelix.shell.ssl.ca`, is mapped to a
+   user by the `[certificates]` tables of the policy file. A mapped certificate opens
+   the session as that user, without any prompt.
+2. **With a login and a password**, only when `pelix.shell.auth.required` is set and
+   the certificate, if any, is not mapped to a user. The shell prompts `Login:` and
+   `Password:`, and closes the connection after 3 failed attempts.
+3. **Anonymously**, when `pelix.shell.auth.required` is not set (the default) and no
+   certificate is mapped: this is the behaviour of the previous versions.
+
+When authentication is required, nothing runs before a successful login: not even
+`help`. Whatever is written at the `Login:` prompt is a user name, never a command.
+
+```toml
+# The policy file: certificates mapped to users, and what those users may do
+[certificates.fingerprints]
+"3F:5A:...:E9" = "thomas"
+
+[roles.admin]
+users = ["thomas"]
+
+[permissions]
+admin = ["pelix.shell.debug"]
+```
+
+:::{warning}
+**Certificates are the recommended way to log in.** A password typed in a basic client
+like `nc` or `telnet` is **echoed** on the screen, like any other input. And on a
+connection without TLS, it travels **in clear text** over the network: the remote shell
+logs a warning when it starts in that configuration, and each time it prompts for a
+password over such a connection.
+:::
+
+The client address is given to the security layer as the source of the attempt, so
+that its brute-force throttling (see {doc}`security`) locks out both an account and a
+client address which fail too often. A locked-out account gets the same `Login
+incorrect` answer as a wrong password.
+
+Each command then runs as the subject of the session (see
+{func}`pelix.security.run_as`), the anonymous one when nobody logged in, so that the
+security decorators of the command providers apply to shell users. The `whoami`
+command prints that subject: its name, whether it is authenticated, the method which
+authenticated it (`certificate` or `password`), the transport (`shell`), its groups and
+its roles. The same method and transport are given to the audit events of the security
+layer.
+
+Each command is logged at the `INFO` level with the user, the client address and the
+command name, as in `User thomas from 10.0.0.1 ran ipopo.instances`, but without its
+arguments, which may hold secrets. The full line is only logged at the `DEBUG` level.
+
+When an error happens outside of a command, its stack trace is sent to the client only
+if the subject of the session is granted the `pelix.shell.debug` permission. Other
+clients get an error ID, which the log associates with the stack trace.
 
 ### XMPP Shell
 

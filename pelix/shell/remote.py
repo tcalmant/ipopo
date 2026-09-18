@@ -6,6 +6,11 @@ iPOPO remote shell
 Provides a remote interface for the Pelix shell that can be accessed using
 telnet or netcat.
 
+Authentication is optional and based on :mod:`pelix.security`: a TLS client
+certificate the security layer maps to a user, or a login and password prompt when
+``pelix.shell.auth.required`` is set. Every command then runs as the authenticated
+subject, or as the anonymous one when authentication is not required.
+
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
@@ -29,11 +34,16 @@ telnet or netcat.
 """
 
 import argparse
+import importlib
 import logging
+import shlex
 import socket
 import socketserver
 import sys
 import threading
+import time
+import traceback
+import uuid
 from select import select
 from typing import TYPE_CHECKING, Any, cast
 
@@ -50,6 +60,17 @@ from pelix.ipopo.decorators import (
     Provides,
     Requires,
     Validate,
+)
+from pelix.security import (
+    ANONYMOUS,
+    AuthenticationFailed,
+    Authorization,
+    ClientCertificate,
+    Credentials,
+    Permission,
+    Subject,
+    UsernamePassword,
+    run_as,
 )
 from pelix.shell import beans
 from pelix.shell.console import handle_common_arguments, make_common_parser
@@ -86,6 +107,79 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
+PROP_AUTH_REQUIRED = "pelix.shell.auth.required"
+""" Component property: refuse every command until the client authenticated. Default: False """
+
+PERMISSION_DEBUG = Permission("pelix.shell.debug")
+""" Permission to see the stack trace of an error outside a command """
+
+METHOD_CERTIFICATE = "certificate"
+""" Authentication method of a session opened with a TLS client certificate """
+
+METHOD_PASSWORD = "password"
+""" Authentication method of a session opened with a login and a password """
+
+TRANSPORT = "shell"
+""" Transport name given to the security layer, telling shell logins from others in audits """
+
+MAX_LOGIN_ATTEMPTS = 3
+""" Password attempts a connection gets before it is closed """
+
+PROP_MAX_LINE_LENGTH = "pelix.shell.max_line_length"
+""" Component property: longest line, in bytes, a client can send. Default: 65536. 0: no limit """
+
+PROP_IDLE_TIMEOUT = "pelix.shell.idle_timeout"
+""" Component property: seconds without input before a session is closed. Default: 3600. 0: never """
+
+PROP_LOGIN_TIMEOUT = "pelix.shell.login_timeout"
+"""
+Component property: seconds a client gets to finish the TLS handshake and to log in.
+Default: 60. 0: no limit
+"""
+
+PROP_MAX_CLIENTS = "pelix.shell.max_clients"
+""" Component property: maximum number of simultaneous clients. Default: 32. 0: no limit """
+
+DEFAULT_MAX_LINE_LENGTH = 64 * 1024
+DEFAULT_IDLE_TIMEOUT = 3600.0
+DEFAULT_LOGIN_TIMEOUT = 60.0
+DEFAULT_MAX_CLIENTS = 32
+
+POLL_INTERVAL = 0.5
+""" Seconds between two checks of the server state while waiting for a client """
+
+# ------------------------------------------------------------------------------
+
+
+def _to_limit(value: Any, default: float) -> float | None:
+    """
+    Normalizes a limit given as a component property
+
+    :param value: The raw property value
+    :param default: The value to use if the property is invalid
+    :return: The limit, or None if it is disabled (lesser than or equal to 0)
+    """
+    try:
+        limit = float(value)
+    except (TypeError, ValueError):
+        _logger.error("Invalid remote shell limit %r: using %s", value, default)
+        limit = default
+
+    return limit if limit > 0 else None
+
+
+def _to_bool(value: Any) -> bool:
+    """
+    Reads a boolean component property, which a configuration file may give as a string
+
+    :param value: The property value
+    :return: The boolean it means
+    """
+    if isinstance(value, str):
+        return value.strip().lower() in ("1", "true", "yes", "on")
+
+    return bool(value)
+
 
 class SharedBoolean:
     """
@@ -117,10 +211,149 @@ class SharedBoolean:
 # ------------------------------------------------------------------------------
 
 
+class _SessionClosed(Exception):
+    """
+    The session must be closed: the client broke one of the limits of the shell
+    """
+
+    def __init__(self, reason: str) -> None:
+        """
+        :param reason: The message sent to the client
+        """
+        super().__init__(reason)
+        self.reason = reason
+
+
+class _LineReader:
+    """
+    Reads lines from a client socket, enforcing the limits of the shell.
+
+    The socket is read in chunks rather than through a buffered file: a file would
+    block until the end of a line, so that a client sending half a line would keep a
+    thread forever, whatever the timeouts.
+    """
+
+    def __init__(self, connection: socket.socket, active: SharedBoolean, max_line_length: int | None) -> None:
+        """
+        :param connection: The client socket (TLS handshake already done)
+        :param active: The flag telling if the server is still running
+        :param max_line_length: The longest accepted line, in bytes, or None
+        """
+        self._connection = connection
+        self._active = active
+        self._max_line_length = max_line_length
+        self._buffer = bytearray()
+        self._eof = False
+
+        # Once a limit is broken, every read fails: a command reading its own input
+        # (prompt) must not let the session go on
+        self._failure: _SessionClosed | None = None
+
+    def _wait_readable(self, deadline: float | None) -> bool:
+        """
+        Waits for data to read, for at most one poll interval
+
+        :param deadline: Monotonic time after which to give up, or None
+        :return: True if data can be read
+        """
+        if HAS_SSL and isinstance(self._connection, ssl.SSLSocket) and self._connection.pending():
+            # Already decrypted by the TLS layer: the socket itself may have nothing left
+            return True
+
+        wait = POLL_INTERVAL
+        if deadline is not None:
+            wait = max(0.0, min(wait, deadline - time.monotonic()))
+
+        return bool(select([self._connection], [], [], wait)[0])
+
+    def readline(self, timeout: float | None) -> bytes | None:
+        """
+        Reads a line, with its end of line
+
+        :param timeout: Seconds to wait for the complete line, or None
+        :return: The line, or None if the client is gone or the server is stopping
+        :raise _SessionClosed: The line is too long, or took too long to come
+        """
+        if self._failure is not None:
+            raise self._failure
+
+        deadline = time.monotonic() + timeout if timeout is not None else None
+        while True:
+            end = self._buffer.find(b"\n")
+            limit = self._max_line_length
+            if end >= 0 and (limit is None or end <= limit):
+                line = bytes(self._buffer[: end + 1])
+                del self._buffer[: end + 1]
+                return line
+
+            if limit is not None and (end > limit or len(self._buffer) > limit):
+                self._failure = _SessionClosed(f"Line too long: the limit is {limit} bytes.")
+                raise self._failure
+
+            if self._eof:
+                if self._buffer:
+                    # Last line, without its end of line
+                    line = bytes(self._buffer)
+                    self._buffer.clear()
+                    return line
+                return None
+
+            if not self._active.get_value():
+                return None
+
+            if deadline is not None and time.monotonic() >= deadline:
+                self._failure = _SessionClosed("Timeout: closing the session.")
+                raise self._failure
+
+            if not self._wait_readable(deadline):
+                continue
+
+            try:
+                chunk = self._connection.recv(4096)
+            except BlockingIOError:
+                # Readable socket, but not a full TLS record yet
+                continue
+            except OSError:
+                chunk = b""
+
+            if chunk:
+                self._buffer.extend(chunk)
+            else:
+                self._eof = True
+
+
+class _ReaderInput:
+    """
+    File-like input given to the shell session, for the commands reading their own
+    input: it shares the buffer and the limits of the session reader
+    """
+
+    def __init__(self, reader: _LineReader, timeout: float | None) -> None:
+        """
+        :param reader: The line reader of the session
+        :param timeout: Seconds a command waits for its input, or None
+        """
+        self._reader = reader
+        self._timeout = timeout
+
+    def readline(self, size: int = -1) -> bytes:
+        """
+        Reads a line. Returns an empty line when the session is over: the reader then
+        fails again on the next read of the session loop, which closes it.
+        """
+        try:
+            return self._reader.readline(self._timeout) or b""
+        except _SessionClosed:
+            return b""
+
+
 class RemoteConsole(socketserver.StreamRequestHandler):
     """
     Handles incoming connections and redirect network stream to the Pelix shell
     """
+
+    # Unbuffered: the input is read by a _LineReader, directly on the socket
+    rbufsize = 0
 
     def __init__(self, shell_svc: "IPopoRemoteShell", active_flag: SharedBoolean, *args: Any) -> None:
         """
@@ -131,7 +364,42 @@ class RemoteConsole(socketserver.StreamRequestHandler):
         """
         self._shell = shell_svc
         self._active = active_flag
+        self._connected_at = time.monotonic()
+        self._handshake_done = False
+        self._reader: _LineReader | None = None
         socketserver.StreamRequestHandler.__init__(self, *args)
+
+    def setup(self) -> None:
+        """
+        Prepares the connection, in the thread of the client.
+
+        The TLS handshake happens here rather than when the connection is accepted: a
+        client which never finishes it would otherwise block every other client.
+        """
+        super().setup()
+
+        connection = self.connection
+        if HAS_SSL and isinstance(connection, ssl.SSLSocket):
+            try:
+                connection.settimeout(self._shell.get_login_timeout())
+                connection.do_handshake()
+                connection.settimeout(None)
+            except (OSError, ssl.SSLError) as ex:
+                _logger.warning("TLS handshake failed with %s: %s", self.client_address, ex)
+                return
+
+        self._handshake_done = True
+        self._reader = _LineReader(connection, self._active, self._shell.get_max_line_length())
+
+    def _login_remaining(self) -> float | None:
+        """
+        Returns the seconds left to log in, or None if there is no limit
+        """
+        timeout = self._shell.get_login_timeout()
+        if timeout is None:
+            return None
+
+        return max(0.0, self._connected_at + timeout - time.monotonic())
 
     def send(self, data: str) -> bool:
         """
@@ -154,67 +422,195 @@ class RemoteConsole(socketserver.StreamRequestHandler):
             # disconnect (i.e. "echo stop 0 | nc localhost 9000")
             return False
 
+    def _is_tls(self) -> bool:
+        """
+        Tells whether the client is connected over TLS
+        """
+        return HAS_SSL and isinstance(self.connection, ssl.SSLSocket)
+
+    def read_line(self, timeout: float | None = None) -> str | None:
+        """
+        Waits for a line from the client, as long as the server is active.
+
+        :param timeout: Seconds to wait for the line; the idle timeout if None
+        :return: The line, with its end of line, or None if the client is gone or the
+                 server is stopping
+        :raise _SessionClosed: The client broke a limit of the shell
+        """
+        assert self._reader is not None
+        data = self._reader.readline(timeout if timeout is not None else self._shell.get_idle_timeout())
+        if data is None:
+            return None
+
+        return data.decode(self._shell.get_encoding(), errors="replace")
+
+    def _login(self, client_ip: str) -> Subject | None:
+        """
+        Authenticates the client: first with its TLS certificate, then with a login and
+        a password if authentication is required.
+
+        :param client_ip: The address of the client
+        :return: The subject of the session, or None to close the connection
+        """
+        # Without the security core, a shell which does not require authentication
+        # behaves as it always did, without even a warning about missing authenticators
+        if self._is_tls() and self._shell.is_security_active():
+            certificate = ClientCertificate.from_socket(cast(ssl.SSLSocket, self.connection))
+            if certificate is not None:
+                try:
+                    subject = self._shell.authenticate(certificate, client_ip, METHOD_CERTIFICATE)
+                except AuthenticationFailed:
+                    # The TLS layer verified it: it is simply not mapped to any user
+                    _logger.info(
+                        "Client certificate %s (%s) from %s is not mapped to a user",
+                        certificate.fingerprint,
+                        certificate.subject,
+                        client_ip,
+                    )
+                else:
+                    _logger.info("User %s from %s authenticated by certificate", subject.name, client_ip)
+                    return subject
+
+        if not self._shell.is_auth_required():
+            return ANONYMOUS
+
+        if not self._is_tls():
+            _logger.warning(
+                "Password login prompted to %s over a clear-text connection: "
+                "the password will travel unencrypted",
+                client_ip,
+            )
+
+        for attempt in range(1, MAX_LOGIN_ATTEMPTS + 1):
+            self.send("Login: ")
+            username = self.read_line(self._login_remaining())
+            if username is None:
+                return None
+
+            self.send("Password: ")
+            password = self.read_line(self._login_remaining())
+            if password is None:
+                return None
+
+            try:
+                # Only the end of line is removed: a password may start or end with a space
+                subject = self._shell.authenticate(
+                    UsernamePassword(username.strip(), password.rstrip("\r\n")), client_ip, METHOD_PASSWORD
+                )
+            except AuthenticationFailed:
+                # The attempted name is not logged: it is sometimes a password typed too early
+                _logger.warning("Failed login %d/%d from %s", attempt, MAX_LOGIN_ATTEMPTS, client_ip)
+                self.send("Login incorrect\n")
+            else:
+                _logger.info("User %s from %s authenticated by password", subject.name, client_ip)
+                return subject
+
+        _logger.warning("Too many failed logins from %s: closing the connection", client_ip)
+        self.send("Too many failed login attempts.\n")
+        return None
+
+    def _report_error(self, session: beans.ShellSession, client_ip: str, ex: Exception) -> None:
+        """
+        Reports an error which happened outside of a command.
+
+        A stack trace describes the server and the data it handles, so it is only sent
+        to a subject granted the debug permission. It is always logged, with the error ID
+        the client gets instead.
+
+        :param session: The session of the client
+        :param client_ip: The address of the client
+        :param ex: The error
+        """
+        error_id = uuid.uuid4().hex
+        stack = traceback.format_exc()
+        _logger.error(
+            "Error %s in the session of %s from %s:\n%s", error_id, session.subject.name, client_ip, stack
+        )
+
+        if self._shell.is_debug_allowed(session.subject):
+            self.send(f"\nError during last command: {ex}\n")
+            self.send(stack)
+        else:
+            self.send(f"\nError during last command. Error ID: {error_id}\n")
+
+    def _audit(self, session: beans.ShellSession, client_ip: str, line: str) -> None:
+        """
+        Logs a command line about to be executed.
+
+        Only the command name goes to the INFO level: its arguments may be secrets, like
+        the password of a configuration entry.
+
+        :param session: The session of the client
+        :param client_ip: The address of the client
+        :param line: The command line
+        """
+        _logger.info(
+            "User %s from %s ran %s",
+            session.subject.name,
+            client_ip,
+            self._shell.get_command_name(line) or "an unknown command",
+        )
+        _logger.debug("User %s from %s ran: %s", session.subject.name, client_ip, line)
+
     def handle(self) -> None:
         """
         Handles a TCP client
         """
-        _logger.info(
-            "RemoteConsole client connected: [%s]:%d",
-            self.client_address[0],
-            self.client_address[1],
-        )
+        client_ip = self.client_address[0]
+        if not self._handshake_done or self._reader is None:
+            # Already logged by setup()
+            return
 
-        # Prepare the session
-        session = beans.ShellSession(
-            beans.IOHandler(self.rfile, self.wfile),
-            {"remote_client_ip": self.client_address[0]},
-        )
-
-        # Print the banner
-        def get_ps1() -> str:
-            """
-            Gets the prompt string from the session of the shell service
-
-            :return: The prompt string
-            """
-            try:
-                ps1_var = session.get("PS1")
-                return str(ps1_var) if ps1_var else ""
-            except KeyError:
-                return self._shell.get_ps1()
-
-        self.send(self._shell.get_banner())
-        self.send(get_ps1())
+        _logger.info("RemoteConsole client connected: [%s]:%d", client_ip, self.client_address[1])
 
         try:
-            while self._active.get_value():
-                # Wait for data
-                rlist = select([self.connection], [], [], 0.5)[0]
-                if not rlist:
-                    # Nothing to do (poll timed out)
-                    continue
+            # Print the banner
+            self.send(self._shell.get_banner())
 
-                data = self.rfile.readline()
-                if not data:
-                    # End of stream (client gone)
+            # No command at all, not even "help", before the client is authenticated
+            subject = self._login(client_ip)
+            if subject is None:
+                return
+
+            # Prepare the session: commands reading their own input share the reader
+            # and its limits
+            session = beans.ShellSession(
+                beans.IOHandler(
+                    cast(Any, _ReaderInput(self._reader, self._shell.get_idle_timeout())), self.wfile
+                ),
+                {"remote_client_ip": client_ip},
+                subject,
+            )
+
+            def get_ps1() -> str:
+                """
+                Gets the prompt string from the session of the shell service
+
+                :return: The prompt string
+                """
+                try:
+                    ps1_var = session.get("PS1")
+                    return str(ps1_var) if ps1_var else ""
+                except KeyError:
+                    return self._shell.get_ps1()
+
+            self.send(get_ps1())
+
+            while True:
+                line = self.read_line()
+                if line is None:
                     break
-
-                # Convert data
-                if isinstance(data, bytes):
-                    line = data.decode(self._shell.get_encoding())
-                elif isinstance(data, str):
-                    line = cast(str, data)
-                else:
-                    _logger.error("Unsupported data received: %s", type(data).__name__)
-                    self.send("Unsupported data type")
-                    continue
 
                 # Strip the line
                 line = line.strip()
                 if line:
+                    self._audit(session, client_ip, line)
+
                     # Execute it
                     try:
-                        self._shell.handle_line(line, session)
+                        # Every command, so that the security decorators see who runs it
+                        with run_as(session.subject):
+                            self._shell.handle_line(line, session)
                     except KeyboardInterrupt:
                         # Stop there on interruption
                         self.send("\nInterruption received.")
@@ -225,19 +621,15 @@ class RemoteConsole(socketserver.StreamRequestHandler):
                         break
                     except Exception as ex:  # noqa: BLE001
                         # Other exceptions are not important
-                        import traceback
-
-                        self.send(f"\nError during last command: {ex}\n")
-                        self.send(traceback.format_exc())
+                        self._report_error(session, client_ip, ex)
 
                 # Print the prompt
                 self.send(get_ps1())
+        except _SessionClosed as ex:
+            _logger.warning("Closing the session of %s: %s", client_ip, ex.reason)
+            self.send(f"\n{ex.reason}\n")
         finally:
-            _logger.info(
-                "RemoteConsole client gone: [%s]:%d",
-                self.client_address[0],
-                self.client_address[1],
-            )
+            _logger.info("RemoteConsole client gone: [%s]:%d", client_ip, self.client_address[1])
 
             try:
                 # Be polite
@@ -263,6 +655,7 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
         key_file: str | None = None,
         key_password: str | None = None,
         ca_file: str | None = None,
+        max_clients: int | None = None,
     ):
         """
         Sets up the TCP server. Doesn't bind nor activate it.
@@ -273,7 +666,13 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
         :param key_file: Path to the server private key
         :param key_password: Password for the key file
         :param ca_file: Path to Certificate Authority to authenticate clients
+        :param max_clients: Maximum number of simultaneous clients, or None
         """
+        # Clients being handled, to refuse new ones past the limit
+        self.max_clients = max_clients
+        self._clients = 0
+        self._clients_lock = threading.Lock()
+
         # Determine the address family
         addr_info = socket.getaddrinfo(server_address[0], server_address[1], 0, 0, socket.SOL_TCP)
 
@@ -350,9 +749,13 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
 
         if self.ssl_context is not None:
             try:
-                # SSL handshake
+                # The handshake is done by the thread of the client (see RemoteConsole.setup):
+                # done here, a client which never finishes it would block the whole server
                 client_stream = cast(
-                    socket.socket, self.ssl_context.wrap_socket(client_socket, server_side=True)
+                    socket.socket,
+                    self.ssl_context.wrap_socket(
+                        client_socket, server_side=True, do_handshake_on_connect=False
+                    ),
                 )
             except ssl.SSLError as ex:
                 # Explicitly log the exception before re-raising it
@@ -376,7 +779,48 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
         bookkeeping.
         """
         threading.current_thread().name = f"RemoteShell-{self.server_address[1]}-Client-{client_address[:2]}"
-        super().process_request_thread(request, client_address)
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            self._release_client()
+
+    def verify_request(
+        self, request: socket.socket | tuple[bytes, socket.socket], client_address: Any
+    ) -> bool:
+        """
+        Refuses a new client when the maximum number of clients is reached.
+
+        The slot is reserved here, in the thread accepting the connections, and
+        released when the thread of the client ends.
+        """
+        with self._clients_lock:
+            if self.max_clients is not None and self._clients >= self.max_clients:
+                _logger.warning(
+                    "Refusing the connection of %s: already %d clients", client_address, self._clients
+                )
+                return False
+
+            self._clients += 1
+            return True
+
+    def process_request(
+        self, request: socket.socket | tuple[bytes, socket.socket], client_address: Any
+    ) -> None:
+        """
+        Starts the thread of a client, releasing its slot if that fails
+        """
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._release_client()
+            raise
+
+    def _release_client(self) -> None:
+        """
+        Frees the slot of a client which is gone
+        """
+        with self._clients_lock:
+            self._clients = max(0, self._clients - 1)
 
 
 def _create_server(
@@ -387,6 +831,7 @@ def _create_server(
     key_file: str | None = None,
     key_password: str | None = None,
     ca_file: str | None = None,
+    max_clients: int | None = None,
 ) -> tuple[threading.Thread, socketserver.TCPServer, SharedBoolean]:
     """
     Creates the TCP console on the given address and port
@@ -398,6 +843,7 @@ def _create_server(
     :param key_file: Path to the server private key
     :param key_password: Password for the key file
     :param ca_file: Path to Certificate Authority to authenticate clients
+    :param max_clients: Maximum number of simultaneous clients, or None
     :return: A tuple: Server thread, TCP server object, Server active flag
     """
     # Set up the request handler creator
@@ -417,6 +863,7 @@ def _create_server(
         key_file,
         key_password,
         ca_file,
+        max_clients,
     )
 
     # Set flags
@@ -441,6 +888,12 @@ def _create_server(
 @ComponentFactory(pelix.shell.FACTORY_REMOTE_SHELL)
 @Provides(pelix.shell.RemoteShell)
 @Requires("_shell", pelix.shell.ShellService)
+@Requires("_authorization", Authorization, optional=True)
+@Property("_auth_required", PROP_AUTH_REQUIRED, False)
+@Property("_max_line_length", PROP_MAX_LINE_LENGTH, DEFAULT_MAX_LINE_LENGTH)
+@Property("_idle_timeout", PROP_IDLE_TIMEOUT, DEFAULT_IDLE_TIMEOUT)
+@Property("_login_timeout", PROP_LOGIN_TIMEOUT, DEFAULT_LOGIN_TIMEOUT)
+@Property("_max_clients", PROP_MAX_CLIENTS, DEFAULT_MAX_CLIENTS)
 @Property("_address", "pelix.shell.address", "localhost")
 @Property("_port", "pelix.shell.port", 9000)
 @Property("_encoding", "pelix.shell.encoding", "utf-8")
@@ -454,11 +907,26 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
     """
 
     _shell: pelix.shell.ShellService
+    _authorization: Authorization | None
 
     def __init__(self) -> None:
         """
         Sets up the component
         """
+        # Security configuration
+        self._auth_required: bool = False
+        self._authorization = None
+
+        # Limits (None: no limit)
+        self._max_line_length: Any = DEFAULT_MAX_LINE_LENGTH
+        self._idle_timeout: Any = DEFAULT_IDLE_TIMEOUT
+        self._login_timeout: Any = DEFAULT_LOGIN_TIMEOUT
+        self._max_clients: Any = DEFAULT_MAX_CLIENTS
+        self.__max_line_length: int | None = DEFAULT_MAX_LINE_LENGTH
+        self.__idle_timeout: float | None = DEFAULT_IDLE_TIMEOUT
+        self.__login_timeout: float | None = DEFAULT_LOGIN_TIMEOUT
+        self.__max_clients: int | None = DEFAULT_MAX_CLIENTS
+
         # Server configuration
         self._address: str | None = None
         self._port: int | None = 0
@@ -507,6 +975,93 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         """
         return self._shell.get_ps1()
 
+    def get_max_line_length(self) -> int | None:
+        """
+        Returns the longest line, in bytes, a client can send, or None
+        """
+        return self.__max_line_length
+
+    def get_idle_timeout(self) -> float | None:
+        """
+        Returns the seconds without input before a session is closed, or None
+        """
+        return self.__idle_timeout
+
+    def get_login_timeout(self) -> float | None:
+        """
+        Returns the seconds a client gets to finish the TLS handshake and log in, or None
+        """
+        return self.__login_timeout
+
+    def is_auth_required(self) -> bool:
+        """
+        Tells whether a client must authenticate before running any command
+        """
+        return self._auth_required
+
+    def is_security_active(self) -> bool:
+        """
+        Tells whether the security core is active, which its authorization service shows
+        """
+        return self._authorization is not None
+
+    def authenticate(self, credentials: Credentials, client_ip: str, method: str) -> Subject:
+        """
+        Authenticates a client through the security layer.
+
+        :param credentials: What the client presented
+        :param client_ip: The address of the client, for the brute-force throttle
+        :param method: Name of the authentication mechanism
+        :return: The authenticated subject
+        :raise AuthenticationFailed: The credentials are wrong, unknown, or locked out
+        """
+        if not self.is_security_active():
+            _logger.error(
+                "Cannot authenticate a remote shell client: the pelix.security.core bundle is not active"
+            )
+            raise AuthenticationFailed("No security core")
+
+        # Looked up at each call: when its bundle is reinstalled, the module is reloaded,
+        # and a reference taken at import time would point to a stopped copy
+        core = importlib.import_module("pelix.security.core")
+        return core.authenticate(credentials, client_ip, method=method, transport=TRANSPORT)
+
+    def is_debug_allowed(self, subject: Subject) -> bool:
+        """
+        Tells whether a subject may see the stack trace of an error
+
+        :param subject: The subject of a session
+        :return: True if it is granted the debug permission
+        """
+        authorization = self._authorization
+        if authorization is None:
+            return False
+
+        try:
+            return authorization.is_permitted(PERMISSION_DEBUG, subject)
+        except Exception:
+            # Denying is the only safe answer of a policy which cannot answer
+            _logger.exception("Error checking the %s permission", PERMISSION_DEBUG)
+            return False
+
+    def get_command_name(self, line: str) -> str | None:
+        """
+        Resolves the command a line would run, without its arguments.
+
+        :param line: A command line
+        :return: The command, as ``namespace.command``, or None if it is unknown
+        """
+        try:
+            tokens = shlex.split(line, True, True)
+            if not tokens:
+                return None
+
+            namespace, command = self._shell.get_ns_command(tokens[0])
+        except ValueError:
+            return None
+
+        return f"{namespace}.{command}"
+
     def handle_line(self, line: str, session: beans.ShellSession) -> bool:
         """
         Handles the command line.
@@ -540,6 +1095,21 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         if not self._encoding:
             self._encoding = "utf-8"
 
+        # Normalized into private copies: the property fields keep what was configured
+        max_line_length = _to_limit(self._max_line_length, DEFAULT_MAX_LINE_LENGTH)
+        self.__max_line_length = int(max_line_length) if max_line_length is not None else None
+        self.__idle_timeout = _to_limit(self._idle_timeout, DEFAULT_IDLE_TIMEOUT)
+        self.__login_timeout = _to_limit(self._login_timeout, DEFAULT_LOGIN_TIMEOUT)
+        max_clients = _to_limit(self._max_clients, DEFAULT_MAX_CLIENTS)
+        self.__max_clients = int(max_clients) if max_clients is not None else None
+
+        self._auth_required = _to_bool(self._auth_required)
+        if self._auth_required and not self._cert_file:
+            _logger.warning(
+                "The remote shell requires authentication without TLS: passwords will travel "
+                "in clear text. Set pelix.shell.ssl.cert and pelix.shell.ssl.ca"
+            )
+
         if self._cert_file and not self._ca_file:
             # Without an explicit authority chain, any client certificate signed
             # by any CA of the system trust store would be accepted
@@ -559,6 +1129,7 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
             self._key_file,
             self._key_password,
             self._ca_file,
+            self.__max_clients,
         )
 
         # Property update (if port was 0)

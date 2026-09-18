@@ -16,6 +16,15 @@ One rule runs through both: **an exception never grants**. An authorizer which r
 denies, and a provider which raises stops the authentication rather than returning a
 subject whose roles are quietly incomplete.
 
+:func:`authenticate` also throttles brute force: after too many failures for an
+account or a source, that key is locked out for a while and refused without any
+authenticator being consulted.
+
+Both halves report to the EventAdmin service, when one is registered: every
+authentication success and failure, and every refusal of ``check_permitted()``. That
+report is an audit trail, never a condition: an EventAdmin which is missing or broken
+changes nothing to the decision.
+
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
@@ -39,27 +48,49 @@ subject whose roles are quietly incomplete.
 """
 
 import contextlib
+import dataclasses
 import logging
-from collections.abc import Generator
+import threading
+import time
+from collections import OrderedDict, deque
+from collections.abc import Callable, Generator, Iterable
 from typing import TYPE_CHECKING, Any
 
 from pelix.constants import ActivatorProto, BundleActivator, BundleException
 from pelix.ldapfilter import escape_LDAP
 from pelix.security import (
+    EVENT_PROP_AUTHENTICATED,
+    EVENT_PROP_KIND,
+    EVENT_PROP_METHOD,
+    EVENT_PROP_PERMISSION,
+    EVENT_PROP_REASON,
+    EVENT_PROP_SOURCE,
+    EVENT_PROP_TRANSPORT,
+    EVENT_PROP_USER,
     PROP_CREDENTIAL_KINDS,
+    PROP_THROTTLE_LOCKOUT,
+    PROP_THROTTLE_MAX_FAILURES,
+    PROP_THROTTLE_MAX_LOCKOUT,
+    PROP_THROTTLE_WINDOW,
+    TOPIC_ACCESS_DENIED,
+    TOPIC_AUTH_FAILURE,
+    TOPIC_AUTH_SUCCESS,
     AccessDenied,
     AuthenticationFailed,
     Authenticator,
     Authorization,
     Authorizer,
+    ClientCertificate,
     Credentials,
     Decision,
     MembershipProvider,
     Permission,
     Subject,
+    UsernamePassword,
     get_current_subject,
 )
-from pelix.security.decorators import set_authorization
+from pelix.security.decorators import set_authorization, set_denial_listener
+from pelix.services import EventAdmin
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
@@ -86,6 +117,225 @@ _warned_kinds: set[str] = set()
 
 # Set once the absence of any authorizer has been reported
 _warned_no_authorizer = False
+
+# The brute-force throttle of authenticate(), or None when it is disabled: one writer,
+# the activator below
+_throttle: "Throttle | None" = None
+
+# ------------------------------------------------------------------------------
+
+DEFAULT_MAX_FAILURES = 5
+""" Failures of a key within the window which lock it out """
+
+DEFAULT_WINDOW = 900.0
+""" Length of the sliding window failures are counted in, in seconds """
+
+DEFAULT_LOCKOUT = 60.0
+""" Length of the first lockout of a key, in seconds """
+
+DEFAULT_MAX_LOCKOUT = 900.0
+""" Upper bound of a lockout, however many times it doubled, in seconds """
+
+DEFAULT_MAX_KEYS = 10000
+""" Number of keys the throttle tracks at most """
+
+
+class _KeyState:
+    """
+    What the throttle knows about one key
+    """
+
+    __slots__ = ("failures", "locked_until", "lockouts")
+
+    def __init__(self, max_failures: int) -> None:
+        # Only the latest max_failures timestamps matter to the sliding window
+        self.failures: deque[float] = deque(maxlen=max_failures)
+        self.locked_until = 0.0
+        self.lockouts = 0
+
+
+class Throttle:
+    """
+    Tracks authentication failures per key and locks out the keys which fail too often.
+
+    A key is an account or a source. After ``max_failures`` failures within ``window``
+    seconds, the key is locked out for ``lockout`` seconds, doubling on each new lockout
+    up to ``max_lockout``. The count is a sliding window: once a lockout ends, one more
+    failure within the window locks the key again, for twice as long.
+
+    Everything is in memory, and bounded: past ``max_keys`` tracked keys, the least
+    recently touched one is forgotten, so that a flood of sources costs a fixed amount
+    of memory. The price is that such a flood can also make the throttle forget a key
+    early.
+    """
+
+    def __init__(
+        self,
+        max_failures: int = DEFAULT_MAX_FAILURES,
+        window: float = DEFAULT_WINDOW,
+        lockout: float = DEFAULT_LOCKOUT,
+        max_lockout: float = DEFAULT_MAX_LOCKOUT,
+        max_keys: int = DEFAULT_MAX_KEYS,
+        clock: Callable[[], float] = time.monotonic,
+    ) -> None:
+        """
+        :param max_failures: Failures within the window which lock a key out
+        :param window: Length of the sliding window, in seconds
+        :param lockout: Length of the first lockout, in seconds
+        :param max_lockout: Upper bound of a lockout, in seconds
+        :param max_keys: Number of keys tracked at most
+        :param clock: A monotonic clock, in seconds: the wall clock can jump
+        :raise ValueError: max_failures or max_keys is not strictly positive
+        """
+        if max_failures <= 0 or max_keys <= 0:
+            raise ValueError("max_failures and max_keys must be strictly positive")
+
+        self.max_failures = max_failures
+        self.window = window
+        self.lockout = lockout
+        self.max_lockout = max(max_lockout, lockout)
+        self.max_keys = max_keys
+        self._clock = clock
+        self._lock = threading.Lock()
+        self._keys: OrderedDict[str, _KeyState] = OrderedDict()
+
+    def __len__(self) -> int:
+        with self._lock:
+            return len(self._keys)
+
+    def __is_stale(self, state: _KeyState, now: float) -> bool:
+        """
+        A key whose lockout is over and which has not failed within the window has
+        nothing left to remember, not even how many times it was locked out
+        """
+        return state.locked_until <= now and (not state.failures or state.failures[-1] <= now - self.window)
+
+    def is_locked(self, keys: Iterable[str]) -> bool:
+        """
+        Tells whether any of the given keys is locked out.
+
+        :param keys: The keys of an authentication attempt
+        :return: True if at least one of them is locked out
+        """
+        now = self._clock()
+        with self._lock:
+            return any(
+                state is not None and state.locked_until > now
+                for state in (self._keys.get(key) for key in keys)
+            )
+
+    def record_failure(self, keys: Iterable[str]) -> None:
+        """
+        Counts a failure against each of the given keys, locking out those which failed
+        too often.
+
+        :param keys: The keys of the failed attempt
+        """
+        now = self._clock()
+        with self._lock:
+            for key in keys:
+                state = self._keys.get(key)
+                if state is None or self.__is_stale(state, now):
+                    state = _KeyState(self.max_failures)
+                    self._keys[key] = state
+                    while len(self._keys) > self.max_keys:
+                        self._keys.popitem(last=False)
+
+                self._keys.move_to_end(key)
+                state.failures.append(now)
+
+                if (
+                    state.locked_until <= now
+                    and len(state.failures) >= self.max_failures
+                    and state.failures[0] > now - self.window
+                ):
+                    duration = min(self.lockout * 2**state.lockouts, self.max_lockout)
+                    state.lockouts += 1
+                    state.locked_until = now + duration
+                    _logger.warning(
+                        "%d authentication failures within %d seconds for %s: locked out for %d seconds",
+                        len(state.failures),
+                        self.window,
+                        key,
+                        duration,
+                    )
+
+    def record_success(self, key: str) -> None:
+        """
+        Forgets the failures of a key, after a successful authentication.
+
+        Only the account key is cleared this way: a source which guessed one password
+        right is not cleared of the failures it made on other accounts.
+
+        :param key: The account key of the successful attempt
+        """
+        with self._lock:
+            self._keys.pop(key, None)
+
+
+def throttle_keys(credentials: Credentials, source: str | None) -> tuple[str | None, str | None]:
+    """
+    Computes the throttle keys of an authentication attempt.
+
+    :param credentials: The presented credentials
+    :param source: Where they came from, if the transport knows
+    :return: A tuple: the account key (None for credentials naming no account), the
+             source key (None without a source)
+    """
+    account: str | None = None
+    if isinstance(credentials, UsernamePassword):
+        account = f"{credentials.KIND}:{credentials.username}"
+    elif isinstance(credentials, ClientCertificate):
+        account = f"{credentials.KIND}:{credentials.fingerprint}"
+
+    return account, (f"source:{source}" if source is not None else None)
+
+
+def _read_setting(
+    context: "BundleContext", name: str, default: float, convert: Callable[[Any], float]
+) -> float:
+    """
+    Reads one numeric framework property, falling back to its default when it is
+    absent or unreadable.
+
+    :param context: The bundle context
+    :param name: The property name
+    :param default: The value used when the property is absent or invalid
+    :param convert: int or float
+    :return: The value
+    """
+    value = context.get_property(name)
+    if value is None or value == "":
+        return default
+
+    try:
+        return convert(value)
+    except (TypeError, ValueError):
+        _logger.error("Invalid value for %s: %r. Using %s", name, value, default)
+        return default
+
+
+def _make_throttle(context: "BundleContext") -> Throttle | None:
+    """
+    Builds the throttle the framework properties describe.
+
+    :param context: The bundle context
+    :return: The throttle, or None if it is disabled
+    """
+    max_failures = int(_read_setting(context, PROP_THROTTLE_MAX_FAILURES, DEFAULT_MAX_FAILURES, int))
+    if max_failures <= 0:
+        _logger.warning(
+            "Brute-force throttling of authentication is disabled (%s)", PROP_THROTTLE_MAX_FAILURES
+        )
+        return None
+
+    return Throttle(
+        max_failures,
+        _read_setting(context, PROP_THROTTLE_WINDOW, DEFAULT_WINDOW, float),
+        _read_setting(context, PROP_THROTTLE_LOCKOUT, DEFAULT_LOCKOUT, float),
+        _read_setting(context, PROP_THROTTLE_MAX_LOCKOUT, DEFAULT_MAX_LOCKOUT, float),
+    )
+
 
 # ------------------------------------------------------------------------------
 
@@ -157,7 +407,57 @@ def _warn_about_missing_authenticator(kind: str) -> None:
         _logger.warning("No Authenticator is registered: refusing to authenticate '%s' credentials", kind)
 
 
-def authenticate(credentials: Credentials) -> Subject:
+def post_event(topic: str, properties: dict[str, Any]) -> None:
+    """
+    Posts an audit event through the EventAdmin service, if one is registered.
+
+    The service is looked up at call time, since EventAdmin is optional and may come
+    and go. The event is posted asynchronously and any error is logged and swallowed:
+    an audit trail which could make authentication or authorization fail would turn a
+    missing bundle into a denial of service, or worse, into a grant.
+
+    :param topic: The event topic
+    :param properties: The event properties, which must never hold a secret
+    """
+    context = _context
+    if context is None:
+        return
+
+    try:
+        reference = context.get_service_reference(EventAdmin)
+        if reference is None:
+            return
+
+        event_admin = context.get_service(reference)
+        try:
+            event_admin.post(topic, properties)
+        finally:
+            with contextlib.suppress(BundleException):
+                context.unget_service(reference)
+    except Exception:
+        _logger.exception("Error posting the %s event", topic)
+
+
+def _post_denial(subject: Subject, properties: dict[str, Any]) -> None:
+    """
+    Posts an access denied event.
+
+    :param subject: The refused subject
+    :param properties: What was refused
+    """
+    post_event(
+        TOPIC_ACCESS_DENIED,
+        {EVENT_PROP_USER: subject.name, EVENT_PROP_AUTHENTICATED: subject.authenticated, **properties},
+    )
+
+
+def authenticate(
+    credentials: Credentials,
+    source: str | None = None,
+    *,
+    method: str | None = None,
+    transport: str | None = None,
+) -> Subject:
     """
     Turns credentials into a subject, with its groups and roles resolved.
 
@@ -173,10 +473,68 @@ def authenticate(credentials: Credentials) -> Subject:
        contribute roles. The two passes are what lets a policy grant a role from a group
        a *different* provider asserted: with a single pass that rule would silently
        never fire;
-    4. the final subject is returned, authenticated, with ``method`` left unset.
+    4. the final subject is returned, authenticated, with ``method`` and ``transport``
+       set to the given ones, unset by default.
 
-    ``method`` names the mechanism, which is exactly what a transport-neutral pipeline
-    cannot know: the caller stamps it with ``dataclasses.replace``.
+    ``method`` names the mechanism and ``transport`` the way the request came in, which
+    is exactly what a transport-neutral pipeline cannot know: the caller gives them, or
+    stamps them later with ``dataclasses.replace``. Giving them here also puts them in
+    the audit events.
+
+    Failures are throttled per account and, when ``source`` is given, per source. A
+    locked-out key is refused before any authenticator is consulted, with the same
+    exception as a wrong password: telling the caller that an account is locked would
+    tell it that the account exists.
+
+    :param credentials: What a transport extracted
+    :param source: Where the credentials came from, such as the client IP address, if
+                   the transport knows
+    :param method: Name of the authentication mechanism: "password", "certificate", "basic", ...
+    :param transport: Name of the transport: "http", "shell", ...
+    :return: The authenticated subject
+    :raise AuthenticationFailed: The credentials are wrong, no authenticator accepted
+                                 them, or they are locked out
+    """
+    throttle = _throttle
+    account_key, source_key = throttle_keys(credentials, source)
+    keys = [key for key in (account_key, source_key) if key is not None]
+
+    # Never the credentials themselves: the user name of a password is the only part of
+    # them which is not a secret
+    event = {
+        EVENT_PROP_USER: credentials.username if isinstance(credentials, UsernamePassword) else None,
+        EVENT_PROP_KIND: credentials.KIND,
+        EVENT_PROP_METHOD: method,
+        EVENT_PROP_TRANSPORT: transport,
+        EVENT_PROP_SOURCE: source,
+    }
+
+    if throttle is not None and throttle.is_locked(keys):
+        post_event(TOPIC_AUTH_FAILURE, {**event, EVENT_PROP_REASON: "throttled"})
+        raise AuthenticationFailed("Authentication failed")
+
+    try:
+        subject = _authenticate(credentials)
+    except AuthenticationFailed:
+        if throttle is not None:
+            throttle.record_failure(keys)
+
+        post_event(TOPIC_AUTH_FAILURE, {**event, EVENT_PROP_REASON: "rejected"})
+        raise
+
+    if throttle is not None and account_key is not None:
+        throttle.record_success(account_key)
+
+    if method is not None or transport is not None:
+        subject = dataclasses.replace(subject, method=method, transport=transport)
+
+    post_event(TOPIC_AUTH_SUCCESS, {**event, EVENT_PROP_USER: subject.name})
+    return subject
+
+
+def _authenticate(credentials: Credentials) -> Subject:
+    """
+    The pipeline of :func:`authenticate`, with no throttling.
 
     :param credentials: What a transport extracted
     :return: The authenticated subject
@@ -268,7 +626,13 @@ class _AuthorizationImpl(Authorization):
             return permitted
 
     def check_permitted(self, permission: Permission, subject: Subject | None = None) -> None:
+        if subject is None:
+            subject = get_current_subject()
+
         if not self.is_permitted(permission, subject):
+            # Only here, not in is_permitted(): a question is not a refusal, and a menu
+            # asking about ten entries must not report ten denials
+            _post_denial(subject, {EVENT_PROP_PERMISSION: str(permission)})
             raise AccessDenied(f"Not permitted: {permission}")
 
     def has_role(self, role: str, subject: Subject | None = None) -> bool:
@@ -310,22 +674,26 @@ class Activator(ActivatorProto):
         """
         Bundle started: publish the facade and fill the single decorator slot
         """
-        global _context
+        global _context, _throttle
         _context = context
+        _throttle = _make_throttle(context)
 
         authorization = _AuthorizationImpl()
         self.__registration = context.register_service(Authorization, authorization, {})
         set_authorization(authorization)
+        set_denial_listener(_post_denial)
 
     def stop(self, context: "BundleContext") -> None:
         """
         Bundle stopped: from here on, @AllowPermission denies
         """
-        global _context
+        global _context, _throttle
 
         set_authorization(None)
+        set_denial_listener(None)
         if self.__registration is not None:
             self.__registration.unregister()
             self.__registration = None
 
         _context = None
+        _throttle = None

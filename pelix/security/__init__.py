@@ -40,6 +40,7 @@ against remote callers, not against locally installed bundles.
 
 import contextlib
 import contextvars
+import hashlib
 from collections.abc import Generator, Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum
@@ -49,6 +50,8 @@ from typing import TYPE_CHECKING, Any, ClassVar, Protocol
 from pelix.constants import BundleException, Specification
 
 if TYPE_CHECKING:
+    import ssl
+
     from pelix.framework import BundleContext
 
 # Module version
@@ -89,6 +92,18 @@ PROP_HTPASSWD_PLAINTEXT = "pelix.security.htpasswd.allow_plaintext"
 PROP_POLICY_FILE = "pelix.security.policy.file"
 """ Path to the TOML policy file of the policy component """
 
+PROP_THROTTLE_MAX_FAILURES = "pelix.security.throttle.max_failures"
+""" Framework property: failures of an account or a source which lock it out. Default: 5, 0 disables """
+
+PROP_THROTTLE_WINDOW = "pelix.security.throttle.window"
+""" Framework property: seconds within which failures are counted. Default: 900 """
+
+PROP_THROTTLE_LOCKOUT = "pelix.security.throttle.lockout"
+""" Framework property: seconds of the first lockout, doubling on each new one. Default: 60 """
+
+PROP_THROTTLE_MAX_LOCKOUT = "pelix.security.throttle.max_lockout"
+""" Framework property: upper bound of a lockout, in seconds. Default: 900 """
+
 # ------------------------------------------------------------------------------
 
 FACTORY_HTPASSWD = "pelix.security.htpasswd.factory"
@@ -113,6 +128,33 @@ TOPIC_AUTH_FAILURE = "pelix/security/AUTH_FAILURE"
 
 TOPIC_ACCESS_DENIED = "pelix/security/ACCESS_DENIED"
 """ EventAdmin topic of a refused authorization """
+
+EVENT_PROP_USER = "user"
+""" Event property: name of the subject, or the user name an authentication tried """
+
+EVENT_PROP_KIND = "kind"
+""" Event property: kind of the credentials of an authentication """
+
+EVENT_PROP_METHOD = "method"
+""" Event property: mechanism of an authentication: "password", "certificate", "basic", ... """
+
+EVENT_PROP_TRANSPORT = "transport"
+""" Event property: transport an authentication came through: "http", "shell", ... """
+
+EVENT_PROP_SOURCE = "source"
+""" Event property: where an authentication came from, as its transport named it """
+
+EVENT_PROP_REASON = "reason"
+""" Event property: generic reason of a failure: "rejected" or "throttled" """
+
+EVENT_PROP_AUTHENTICATED = "authenticated"
+""" Event property: whether the refused subject was authenticated """
+
+EVENT_PROP_PERMISSION = "permission"
+""" Event property: the refused permission, as a string """
+
+EVENT_PROP_DECLARATION = "declaration"
+""" Event property: the security decorator which refused a call """
 
 # ------------------------------------------------------------------------------
 
@@ -167,6 +209,13 @@ class Subject:
     authenticated: bool = False
     method: str | None = None
     """ Name of the mechanism which authenticated this subject: "basic", "oidc", ... """
+    transport: str | None = None
+    """
+    Name of the transport this subject authenticated through: "http", "shell", ...
+
+    Kept apart from ``method``: two transports can use the same mechanism, and an audit
+    must tell an administration shell login from a service call.
+    """
 
     def __post_init__(self) -> None:
         # frozen=True is not immutability: the caller may still hold the mapping it gave
@@ -181,7 +230,7 @@ class Subject:
         return (
             f"Subject(name={self.name!r}, groups={sorted(self.groups)}, "
             f"roles={sorted(self.roles)}, attributes=[{', '.join(sorted(self.attributes))}], "
-            f"authenticated={self.authenticated}, method={self.method!r})"
+            f"authenticated={self.authenticated}, method={self.method!r}, transport={self.transport!r})"
         )
 
 
@@ -213,6 +262,129 @@ class UsernamePassword(Credentials):
     username: str
     # repr=False, or the first traceback which touches this prints the password
     password: str = field(repr=False)
+
+
+# Short names RFC 4514 section 3 defines, keyed by the long names the ssl module uses.
+# Anything else keeps its ssl name, which is why the output is only "RFC 4514 style"
+_RFC4514_NAMES = {
+    "commonName": "CN",
+    "localityName": "L",
+    "stateOrProvinceName": "ST",
+    "organizationName": "O",
+    "organizationalUnitName": "OU",
+    "countryName": "C",
+    "streetAddress": "STREET",
+    "domainComponent": "DC",
+    "userId": "UID",
+}
+
+
+def _escape_dn_value(value: str) -> str:
+    """
+    Escapes an attribute value as RFC 4514 section 2.4 requires.
+
+    Without it, a subject whose CN contains ``,O=Acme`` would print exactly like a
+    certificate issued to organization Acme.
+
+    :param value: The raw attribute value
+    :return: The escaped value
+    """
+    last = len(value) - 1
+    escaped: list[str] = []
+    for index, char in enumerate(value):
+        if char == "\x00":
+            escaped.append("\\00")
+        elif char in ',+"\\<>;' or (index == 0 and char in " #") or (index == last and char == " "):
+            escaped.append("\\" + char)
+        else:
+            escaped.append(char)
+
+    return "".join(escaped)
+
+
+def _format_dn(rdns: Iterable[Iterable[tuple[str, str]]]) -> str:
+    """
+    Formats a distinguished name, as the ssl module decodes it, as an RFC 4514 style
+    string.
+
+    The ssl module lists the RDNs in certificate order, most significant first, while
+    RFC 4514 writes them the other way round: ``CN=batch,O=Acme,C=FR``.
+
+    :param rdns: The ``subject`` entry of ``SSLSocket.getpeercert()``
+    :return: The distinguished name as a string
+    """
+    return ",".join(
+        "+".join(f"{_RFC4514_NAMES.get(name, name)}={_escape_dn_value(value)}" for name, value in rdn)
+        for rdn in reversed(list(rdns))
+    )
+
+
+@dataclass(frozen=True)
+class ClientCertificate(Credentials):
+    """
+    A client certificate, as a TLS transport received it.
+
+    **Only build one from a certificate the TLS layer already verified** (a server
+    context with ``verify_mode = ssl.CERT_REQUIRED`` and a trusted authority chain).
+    Nothing here checks a signature, a validity period or a revocation: presenting this
+    object means "the TLS handshake proved the peer holds the private key of this
+    certificate, issued by an authority I trust". An authenticator only maps it to a
+    user.
+
+    ``fingerprint`` identifies this very certificate, whoever issued it. ``subject``
+    and ``alt_names`` are only as trustworthy as every authority the transport trusts,
+    since any of them can issue another certificate with the same names.
+    """
+
+    KIND: ClassVar[str] = "certificate"
+
+    fingerprint: str
+    """ SHA-256 of the DER certificate, in lowercase hexadecimal, with no separator """
+
+    subject: str = ""
+    """ The subject, as an RFC 4514 style string: ``CN=batch,O=Acme,C=FR`` """
+
+    alt_names: tuple[str, ...] = ()
+    """ The subject alternative names, as ``type:value`` strings: ``DNS:host.example.com`` """
+
+    @classmethod
+    def from_der(cls, der: bytes, details: Mapping[str, Any] | None = None) -> "ClientCertificate":
+        """
+        Builds the credentials of a verified certificate.
+
+        The standard library cannot decode a DER certificate, so the subject and the
+        alternative names come from the dictionary form of
+        ``SSLSocket.getpeercert()``, which the ssl module only fills for a verified
+        certificate. Without it, only the fingerprint is known.
+
+        :param der: The certificate, in DER form: ``getpeercert(binary_form=True)``
+        :param details: The certificate as ``getpeercert()`` decoded it, if available
+        :return: The credentials
+        """
+        subject = ""
+        alt_names: tuple[str, ...] = ()
+        if details:
+            subject = _format_dn(details.get("subject", ()))
+            alt_names = tuple(f"{kind}:{value}" for kind, value in details.get("subjectAltName", ()))
+
+        return cls(hashlib.sha256(der).hexdigest(), subject, alt_names)
+
+    @classmethod
+    def from_socket(cls, sock: "ssl.SSLSocket") -> "ClientCertificate | None":
+        """
+        Builds the credentials of the certificate the peer of a TLS socket presented.
+
+        The socket must come from a context which verified that certificate: see the
+        class documentation.
+
+        :param sock: A TLS socket, after its handshake
+        :return: The credentials, or None if the peer presented no certificate
+        """
+        der = sock.getpeercert(binary_form=True)
+        if not der:
+            return None
+
+        return cls.from_der(der, sock.getpeercert())
 
 
 @dataclass(frozen=True)

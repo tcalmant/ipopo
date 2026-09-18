@@ -39,6 +39,7 @@ from pelix import constants
 from pelix.framework import Bundle, BundleContext
 from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceListener, ServiceReference, ServiceRegistration
+from pelix.security import get_current_subject
 from pelix.shell import ShellCommandsProvider, ShellService, ShellUtils, parser
 from pelix.shell.completion import BUNDLE, SERVICE
 from pelix.shell.completion.decorators import Completion
@@ -217,6 +218,8 @@ class _ShellService(parser.Shell, ShellService):
         self.register_command(None, "cd", self.change_dir)
         self.register_command(None, "pwd", self.print_dir)
 
+        self.register_command(None, "whoami", self.whoami)
+
     def bind_handler(self, svc_ref: ServiceReference[ShellCommandsProvider]) -> bool:
         """
         Called if a command service has been found.
@@ -286,6 +289,21 @@ class _ShellService(parser.Shell, ShellService):
                 name = name.strip()
                 session.set(name, value)
                 session.write_line("{0}={1}", name, value)
+
+    @staticmethod
+    def whoami(session: "ShellSession") -> None:
+        """
+        Prints the identity the commands run as
+        """
+        # The current subject rather than the session's: it is what a security
+        # decorator checks, and a local console may run under a subject the process chose
+        subject = get_current_subject()
+        session.write_line("User          : {0}", subject.name)
+        session.write_line("Authenticated : {0}", "yes" if subject.authenticated else "no")
+        session.write_line("Method        : {0}", subject.method or "-")
+        session.write_line("Transport     : {0}", subject.transport or "-")
+        session.write_line("Groups        : {0}", ", ".join(sorted(subject.groups)) or "-")
+        session.write_line("Roles         : {0}", ", ".join(sorted(subject.roles)) or "-")
 
     @Completion(BUNDLE)
     def bundle_details(self, session: "ShellSession", bundle_id: int | str) -> Any:

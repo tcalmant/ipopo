@@ -41,6 +41,8 @@ from collections.abc import Callable
 from typing import Any
 
 from pelix.security import (
+    EVENT_PROP_DECLARATION,
+    EVENT_PROP_PERMISSION,
     AccessDenied,
     AuthenticationRequired,
     Authorization,
@@ -68,6 +70,10 @@ SECURITY_ATTRIBUTE = "__pelix_security__"
 # holding it: one writer, the activator of the pelix.security.core bundle
 _authorization: Authorization | None = None
 
+# Told about every refusal, so that the core can post it as an audit event. Same single
+# writer as the slot above, for the same reason: this module must not reach a service
+_denial_listener: Callable[[Subject, dict[str, Any]], None] | None = None
+
 # Permissions already reported as undecidable, so that a stopped bundle costs one
 # warning per distinct permission rather than one per call
 _warned_permissions: set[str] = set()
@@ -88,9 +94,46 @@ def set_authorization(service: Authorization | None) -> None:
     _authorization = service
 
 
-def _refuse(subject: Subject, reason: str) -> None:
+def set_denial_listener(listener: Callable[[Subject, dict[str, Any]], None] | None) -> None:
     """
-    Raises the refusal which fits the subject.
+    Publishes the callable told about every refusal of a decorator.
+
+    There is exactly one writer, the activator of the ``pelix.security.core`` bundle,
+    which posts each refusal as an audit event.
+
+    :param listener: Called with the refused subject and the event properties
+                     describing the refusal, or None to clear the slot
+    """
+    global _denial_listener
+    _denial_listener = listener
+
+
+def _report(subject: Subject, declaration: str, permission: str | None = None) -> None:
+    """
+    Tells the listener about a refusal, if there is one.
+
+    :param subject: The subject which was refused
+    :param declaration: The declaration which refused it, as the shell would print it
+    :param permission: The permission it was refused, for ``@AllowPermission``
+    """
+    listener = _denial_listener
+    if listener is None:
+        return
+
+    properties: dict[str, Any] = {EVENT_PROP_DECLARATION: declaration}
+    if permission is not None:
+        properties[EVENT_PROP_PERMISSION] = permission
+
+    try:
+        listener(subject, properties)
+    except Exception:
+        # An audit trail which fails must not change the refusal into something else
+        _logger.exception("Error reporting a refusal of %s", declaration)
+
+
+def _refuse(subject: Subject, reason: str, declaration: str, permission: str | None = None) -> None:
+    """
+    Reports the refusal, then raises the exception which fits the subject.
 
     The choice is mechanical: an unauthenticated caller can still be helped by a
     challenge, an authenticated one cannot, and a transport maps the two exceptions to
@@ -98,9 +141,13 @@ def _refuse(subject: Subject, reason: str) -> None:
 
     :param subject: The subject which was refused
     :param reason: Why it was refused
+    :param declaration: The declaration which refused it
+    :param permission: The permission it was refused, for ``@AllowPermission``
     :raise AuthenticationRequired: The subject is not authenticated
     :raise AccessDenied: The subject is authenticated and still not allowed
     """
+    _report(subject, declaration, permission)
+
     if not subject.authenticated:
         raise AuthenticationRequired(reason)
 
@@ -248,7 +295,7 @@ def AllowAuthenticated(target: Any) -> Any:
 
     def check(subject: Subject) -> None:
         if not subject.authenticated:
-            _refuse(subject, "Authentication required")
+            _refuse(subject, "Authentication required", "AllowAuthenticated")
 
     return _decorate(target, _Declaration("AllowAuthenticated", check=check))
 
@@ -272,6 +319,7 @@ def DenyAll(target: Any) -> Any:
     """
 
     def check(subject: Subject) -> None:
+        _report(subject, "DenyAll")
         raise AccessDenied("Denied to everyone")
 
     return _decorate(target, _Declaration("DenyAll", check=check))
@@ -300,7 +348,7 @@ class AllowGroup:
 
         def check(subject: Subject) -> None:
             if not subject.groups.intersection(groups):
-                _refuse(subject, f"Not a member of any of the groups {groups}")
+                _refuse(subject, f"Not a member of any of the groups {groups}", f"AllowGroup{groups}")
 
         return _decorate(target, _Declaration("AllowGroup", groups, check))
 
@@ -328,7 +376,7 @@ class AllowRole:
 
         def check(subject: Subject) -> None:
             if not subject.roles.intersection(roles):
-                _refuse(subject, f"Does not hold any of the roles {roles}")
+                _refuse(subject, f"Does not hold any of the roles {roles}", f"AllowRole{roles}")
 
         return _decorate(target, _Declaration("AllowRole", roles, check))
 
@@ -371,7 +419,12 @@ class AllowPermission:
                 raise AccessDenied(f"No authorization service to decide {permission}")
 
             if not authorization.is_permitted(permission, subject):
-                _refuse(subject, f"Not permitted: {permission}")
+                _refuse(
+                    subject,
+                    f"Not permitted: {permission}",
+                    f"AllowPermission{(str(permission),)}",
+                    str(permission),
+                )
 
         return _decorate(target, _Declaration("AllowPermission", (str(permission),), check))
 

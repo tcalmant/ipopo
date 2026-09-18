@@ -30,7 +30,7 @@ Four questions, four services
 Question                                       Service                        Shipped implementation
 ============================================== ============================== ==========================
 How do I get credentials off this transport?   (transport-specific)           see the HTTP reference card
-Are these credentials valid, and who is it?    :class:`Authenticator`         ``.htpasswd``
+Are these credentials valid, and who is it?    :class:`Authenticator`         ``.htpasswd``, policy file
 Which groups and roles does this subject have? :class:`MembershipProvider`    ``.htgroup``, policy file
 May this subject do this?                      :class:`Authorizer`            policy file
 ============================================== ============================== ==========================
@@ -46,7 +46,8 @@ Bundle                        What it brings
 ============================= =============================================================
 ``pelix.security.core``       ``authenticate()``, the :class:`Authorization` facade
 ``pelix.security.htpasswd``   an :class:`Authenticator` and a :class:`MembershipProvider`
-``pelix.security.policy``     roles from groups, permissions from roles, and the escape hatch
+``pelix.security.policy``     roles from groups, permissions from roles, certificates to
+                              users, and the escape hatch
 ============================= =============================================================
 
 :mod:`pelix.security` itself, holding the beans and the current subject, needs no
@@ -227,15 +228,21 @@ not starting the bundle, means those methods raise.**
 The pipeline
 ============
 
-``pelix.security.core.authenticate(credentials)`` turns credentials into a subject:
+``pelix.security.core.authenticate(credentials, source=None, *, method=None, transport=None)`` turns
+credentials into a subject:
 
 1. every :class:`Authenticator` accepting this kind of credentials is consulted in
    ``service.ranking`` order;
 2. every :class:`MembershipProvider` contributes groups, and the results are unioned;
 3. the subject is rebuilt with those groups, and only then does every provider
    contribute roles;
-4. the subject is returned, authenticated, with ``method`` left unset for the
-   transport to stamp.
+4. the subject is returned, authenticated, with ``method`` and ``transport`` set to
+   the arguments the transport gave, or left unset for the transport to stamp later.
+
+``method`` names the mechanism (``password``, ``certificate``, ``basic``, ...) and
+``transport`` the way the request came in (``http``, ``shell``, ...). They are kept
+apart because several transports can use the same mechanism, and an audit has to tell
+a login to an administration shell from a call to a service.
 
 Step 3 is two passes rather than one, and that is load-bearing: it is what lets the
 policy file grant a role from a group a *different* provider asserted. With a single
@@ -261,6 +268,62 @@ one keeps working forever.
 An :class:`Authenticator` must declare the credential kinds it accepts, in its
 ``pelix.security.credentials`` service property. One which does not is never
 consulted.
+
+Brute-force throttling
+----------------------
+
+``authenticate(credentials, source=None)`` counts its failures, and refuses the
+credentials of a key which failed too often **without consulting any
+authenticator**. Two keys are tracked for each attempt:
+
+* the **account**: the credential kind and the user name for a password, the
+  fingerprint for a certificate. Credentials naming no account have no account key;
+* the **source**, when the transport gives one in the ``source`` argument, typically
+  the client IP address.
+
+After ``max_failures`` failures of a key within ``window`` seconds, that key is locked
+out for ``lockout`` seconds. The count is a sliding window: once a lockout is over, one
+more failure within the window locks the key out again, for twice as long, up to
+``max_lockout`` seconds. A key which stayed quiet for a whole window starts again from
+scratch. A successful authentication clears the failures of its account, never those
+of its source: a source which guessed one password right is not forgiven the failures
+it made on other accounts.
+
+A locked-out attempt raises the same :class:`AuthenticationFailed` as a wrong
+password, so that a caller cannot use the lockout to learn that an account exists. A
+``WARNING`` is logged once when a lockout starts, naming the key.
+
+The throttle is configured with framework properties, read when the
+``pelix.security.core`` bundle starts:
+
+========================================= ======= ====================================
+Framework property                        Default Meaning
+========================================= ======= ====================================
+``pelix.security.throttle.max_failures``  5       failures which lock a key out.
+                                                  ``0`` or less disables the throttle
+``pelix.security.throttle.window``        900     seconds within which failures count
+``pelix.security.throttle.lockout``       60      seconds of the first lockout
+``pelix.security.throttle.max_lockout``   900     upper bound of a lockout, in seconds
+========================================= ======= ====================================
+
+It lives in memory, in the framework process: a restart forgets it, and several
+frameworks behind a load balancer each count on their own. It tracks at most 10000
+keys and forgets the least recently touched one beyond that, so that a flood of
+sources costs a bounded amount of memory; the price is that such a flood can make it
+forget a key early.
+
+**The trade-off.** Anybody who knows a user name can lock that account out, by failing
+on purpose, and the legitimate user is then refused from every source until the
+lockout ends. Two things limit the damage. The failures which lock an account also
+count against the attacker's own source, so one source can only keep about one account
+locked at a time, and gets locked out longer and longer while doing so. And a lockout
+never exceeds ``max_lockout``, so the denial of service ends on its own. A deployment
+which cannot accept it for an account should authenticate that account with a client
+certificate, which cannot be guessed, rather than with a password.
+
+The locked-out answer is also immediate, while a wrong password costs a hash
+computation: timing tells a patient attacker that a key is locked, not whether its
+password was right.
 
 Combining authorizers
 ---------------------
@@ -350,6 +413,107 @@ This authorizer never returns ``DENY``, only ``PERMIT`` or ``ABSTAIN``: the form
 expresses grants only, so a policy file can never veto a permission another, looser
 authorizer allows. There is no implicit all-grant either: an empty ``[permissions]``
 table denies everything.
+
+Client certificates
+===================
+
+A transport which authenticated its peer with a TLS client certificate, such as the
+remote shell (see :doc:`shell`), turns it into :class:`ClientCertificate`
+credentials, of kind ``certificate``:
+
+* ``fingerprint``: the SHA-256 of the DER certificate, in lowercase hexadecimal with no
+  separator;
+* ``subject``: the subject, as an RFC 4514 style string, most specific name first:
+  ``CN=batch,O=Acme,C=FR``;
+* ``alt_names``: the subject alternative names, as ``type:value`` strings:
+  ``DNS:batch.example.com``.
+
+**These credentials must only be built from a certificate the TLS layer already
+verified**, from a context requiring a client certificate signed by a trusted
+authority. Nothing in this layer checks a signature, a validity period or a
+revocation: the object says "the peer proved it holds this certificate", and an
+authenticator only maps it to a user.
+
+The policy file maps certificates to users in its ``[certificates]`` tables, which
+makes its component an :class:`Authenticator` of ``certificate`` credentials:
+
+.. code-block:: toml
+
+    [certificates.fingerprints]
+    "3F:5A:...:E9" = "thomas"
+
+    [certificates.subjects]
+    "CN=batch,O=Acme,C=FR" = "batch"
+
+The groups and roles of the mapped user then come from the usual membership providers,
+exactly as after a password login: a ``.htgroup`` file, the ``[roles]`` of the policy.
+
+The two tables do not give the same guarantee:
+
+* a **fingerprint** names this very certificate, whoever issued it. It is written as
+  ``openssl x509 -noout -fingerprint -sha256 -in client.crt`` prints it, or in lowercase,
+  with or without the ``:`` separators. Anything which is not a SHA-256 fingerprint,
+  such as the SHA-1 one many tools print by default, refuses the file;
+* a **subject** names whatever any trusted authority chose to issue under that name. It
+  is only as strong as the *least careful* authority the transport trusts, so map
+  subjects only behind a dedicated authority. It is compared exactly, like every other
+  name of this layer: ``CN=batch, O=Acme`` with spaces is another string.
+
+When a certificate matches both tables, the fingerprint wins. An unmapped certificate
+abstains rather than fails: it passed the TLS verification, so it is not "presented and
+wrong", and another :class:`Authenticator` may know it. The ``[certificates]`` tables
+are validated as strictly as the rest of the file: an unknown key, a user name which is
+not a non-empty string, or the same fingerprint written twice refuses the file.
+
+Audit events
+============
+
+When an EventAdmin service is registered (see :doc:`eventadmin`), the
+``pelix.security.core`` bundle posts an event for every authentication and every
+refusal:
+
+=================================== ======================================================
+Topic                               Posted when
+=================================== ======================================================
+``pelix/security/AUTH_SUCCESS``     ``authenticate()`` returned a subject
+``pelix/security/AUTH_FAILURE``     ``authenticate()`` raised :class:`AuthenticationFailed`
+``pelix/security/ACCESS_DENIED``    ``Authorization.check_permitted()`` or a decorator
+                                    refused a subject
+=================================== ======================================================
+
+The properties of the two authentication events:
+
+================= ==================================================================
+Property          Value
+================= ==================================================================
+``user``          the name of the authenticated subject on success; on failure, the
+                  user name a password tried, ``None`` for other credentials
+``kind``          the credential kind: ``password``, ``certificate``, ...
+``method``        the ``method`` argument of ``authenticate()``, or ``None``
+``transport``     the ``transport`` argument of ``authenticate()``, or ``None``
+``source``        the ``source`` argument of ``authenticate()``, or ``None``
+``reason``        failures only: ``rejected`` for wrong or unknown credentials,
+                  ``throttled`` for a locked-out key
+================= ==================================================================
+
+And those of an access denied event: ``user`` and ``authenticated``, from the refused
+subject, plus ``permission`` (the refused permission, as a string) and ``declaration``
+(the decorator which refused it, such as ``AllowGroup('dev',)``) when they apply.
+
+**No event ever holds a secret**: neither a password nor any other part of the
+credentials but the user name. The failure reason is deliberately generic, like the
+exception a caller gets. Keep in mind that a user name field sometimes receives a
+password typed one line too early.
+
+``Authorization.is_permitted()`` posts nothing: a question is not a refusal, and a
+page asking about ten menu entries must not report ten denials. Neither does
+``@AllowPermission`` with the ``pelix.security.core`` bundle stopped, since there is
+then nothing to post through.
+
+The events are posted asynchronously, and the EventAdmin service is looked up at each
+event: it may come and go. An event which cannot be posted is logged and dropped. The
+audit trail is never a condition of the decision: a missing or broken EventAdmin
+changes neither an authentication nor an authorization.
 
 Reloading
 =========
@@ -442,6 +606,9 @@ Beans
 .. autoclass:: UsernamePassword
    :members:
 
+.. autoclass:: ClientCertificate
+   :members:
+
 .. autoclass:: Permission
    :members:
 
@@ -477,3 +644,13 @@ The pipeline
 ------------
 
 .. autofunction:: pelix.security.core.authenticate
+
+.. autofunction:: pelix.security.core.post_event
+
+.. autoclass:: pelix.security.core.Throttle
+   :members: is_locked, record_failure, record_success
+
+The policy file
+---------------
+
+.. autofunction:: pelix.security.policy.normalize_fingerprint
