@@ -1521,16 +1521,19 @@ def set_append(input_set: set[T], item: None | T | Iterable[T]) -> set[T]:
     """
     Appends in-place the given item to the set.
     If the item is a list, all elements are added to the set.
+    Strings are considered as single items.
 
     :param input_set: An existing set
     :param item: The item or list of items to add
     :return: The given set
     """
     if item:
-        if isinstance(item, collections.abc.Iterable):
+        # String+ properties can hold a single string, not to be split in characters
+        if isinstance(item, collections.abc.Iterable) and not isinstance(item, (str, bytes)):
             input_set.update(item)
         else:
-            input_set.add(item)
+            # A string is narrowed as a possible Iterable[T], but is a T here
+            input_set.add(cast(T, item))
     return input_set
 
 

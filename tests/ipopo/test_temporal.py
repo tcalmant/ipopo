@@ -9,10 +9,13 @@ Tests the iPOPO @Provides decorator.
 import random
 import time
 import unittest
+from typing import Any
 
 from pelix.framework import BundleContext, FrameworkFactory
-from pelix.ipopo.constants import IPopoEvent
+from pelix.ipopo.constants import IPOPO_REQUIRES_FILTERS, IPOPO_TEMPORAL_TIMEOUTS, IPopoEvent
+from pelix.ipopo.contexts import Requirement
 from pelix.ipopo.decorators import Temporal, get_factory_context
+from pelix.ipopo.handlers.temporal import _HandlerFactory
 from tests.interfaces import IEchoService
 from tests.ipopo import install_bundle, install_ipopo
 
@@ -230,6 +233,126 @@ class TemporalTest(unittest.TestCase):
         # Check state
         self.assertListEqual([IPopoEvent.INVALIDATED, IPopoEvent.UNBOUND], consumer.states)
         consumer.reset()
+
+
+class TemporalConfigurationTest(unittest.TestCase):
+    """
+    Tests the override of the temporal requirements by component properties
+    """
+
+    def setUp(self) -> None:
+        self.requirement = Requirement("test.spec", spec_filter="(a=1)")
+        self.configs = {"field": (self.requirement, 5)}
+
+    def prepare(self, filters: Any = None, timeouts: Any = None) -> dict[str, Any]:
+        """
+        Calls the configuration method as the handler factory does
+        """
+        return _HandlerFactory._prepare_configs(self.configs, filters, timeouts)
+
+    def test_no_override(self) -> None:
+        """
+        Without (valid) overrides, the factory configuration is used as is
+        """
+        for filters, timeouts in ((None, None), ({}, {}), ("(a=2)", ["field"])):
+            self.assertIs(self.configs, self.prepare(filters, timeouts))
+
+    def test_filter_override(self) -> None:
+        """
+        The filter override applies to a copy of the requirement
+        """
+        new_configs = self.prepare({"field": "(a=2)"})
+        requirement, timeout = new_configs["field"]
+        self.assertIsNot(self.requirement, requirement)
+        self.assertEqual("(a=2)", str(requirement.original_filter))
+        self.assertEqual("(a=1)", str(self.requirement.original_filter))
+        self.assertEqual(5, timeout)
+
+        # Invalid filters are ignored
+        self.assertIs(self.configs["field"], self.prepare({"field": "(a=2"})["field"])
+        self.assertIs(self.configs["field"], self.prepare({"field": 42})["field"])
+
+    def test_timeout_override(self) -> None:
+        """
+        Invalid timeout overrides are replaced by the factory timeout
+        """
+        for value, expected in (("3", 3), (7, 7), (None, 5), (0, 5), (-1, 5), ("abc", 5), ([1], 5)):
+            new_configs = self.prepare(timeouts={"field": value})
+            requirement, timeout = new_configs["field"]
+            self.assertEqual(expected, timeout, value)
+            self.assertEqual("(a=1)", str(requirement.original_filter))
+
+    def test_float_timeout_override(self) -> None:
+        """
+        Sub-second and fractional timeouts are accepted by @Temporal, they are
+        accepted as overrides too, but not non-finite values
+        """
+        self.assertEqual(0.5, self.prepare(timeouts={"field": 0.5})["field"][1])
+        self.assertEqual(2.5, self.prepare(timeouts={"field": 2.5})["field"][1])
+        self.assertEqual(1.5, self.prepare(timeouts={"field": "1.5"})["field"][1])
+        for value in ("nan", float("inf"), -0.5):
+            self.assertEqual(5, self.prepare(timeouts={"field": value})["field"][1], value)
+
+
+class TemporalPropertiesTest(unittest.TestCase):
+    """
+    Tests the temporal requirement overrides given as instance properties
+    """
+
+    def setUp(self) -> None:
+        self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(FrameworkFactory.delete_framework)
+        self.addCleanup(self.framework.delete, True)
+        self.framework.start()
+        self.ipopo = install_ipopo(self.framework)
+        self.module = install_bundle(self.framework)
+        self.context = self.framework.get_bundle_context()
+
+    def test_overrides(self) -> None:
+        """
+        Filter and timeout overrides are applied to the injected proxy
+        """
+        from pelix.ipopo.handlers.temporal import TemporalException
+
+        consumer = self.ipopo.instantiate(
+            self.module.FACTORY_TEMPORAL,
+            NAME_A,
+            {IPOPO_REQUIRES_FILTERS: {"service": "(answer=42)"}, IPOPO_TEMPORAL_TIMEOUTS: {"service": 1}},
+        )
+        consumer.reset()
+
+        # Only the service matching the overriding filter is injected
+        self.context.register_service(IEchoService, Dummy(), {"answer": 0})
+        self.assertListEqual([], consumer.states)
+
+        svc = Dummy()
+        reg = self.context.register_service(IEchoService, svc, {"answer": 42})
+        self.assertListEqual([IPopoEvent.BOUND, IPopoEvent.VALIDATED], consumer.states)
+        self.assertEqual(svc.method(), consumer.call())
+
+        # The overriding timeout (1s) is used instead of the factory one (2s)
+        reg.unregister()
+        start = time.time()
+        with self.assertRaises(TemporalException):
+            consumer.call()
+        self.assertLess(time.time() - start, 1.8)
+
+    def test_invalid_properties(self) -> None:
+        """
+        Invalid overrides are logged and ignored
+        """
+        with self.assertLogs("pelix.ipopo.handlers.temporal", "WARNING") as logs:
+            consumer = self.ipopo.instantiate(
+                self.module.FACTORY_TEMPORAL,
+                NAME_A,
+                {IPOPO_REQUIRES_FILTERS: "(answer=42)", IPOPO_TEMPORAL_TIMEOUTS: 1},
+            )
+        self.assertEqual(2, len(logs.records))
+
+        # The factory filter (none) is still used
+        consumer.reset()
+        self.context.register_service(IEchoService, Dummy(), {})
+        self.assertListEqual([IPopoEvent.BOUND, IPopoEvent.VALIDATED], consumer.states)
 
 
 # ------------------------------------------------------------------------------

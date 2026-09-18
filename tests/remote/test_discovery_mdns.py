@@ -1,25 +1,29 @@
 #!/usr/bin/env python
 # -- Content-Encoding: UTF-8 --
 """
-Unit tests for the mDNS/Zeroconf discovery property (de)serialization
-(no network setup required)
+Unit tests for the mDNS/Zeroconf discovery property (de)serialization and
+records handling (no network setup required)
 
 :author: Thomas Calmant
 """
 
 import importlib.util
+import json
 import os
 import shutil
+import socket
 import tempfile
+import types
 import unittest
-from typing import Any
+from typing import Any, cast
 
 if importlib.util.find_spec("zeroconf") is None:
     raise unittest.SkipTest("zeroconf is missing: can't test mDNS discovery")
 
 import pelix.constants
 import pelix.remote
-from pelix.remote.discovery.mdns import PELIX_TYPE_PREFIX, ZeroconfDiscovery
+from pelix.remote.beans import ExportEndpoint, ImportEndpoint
+from pelix.remote.discovery.mdns import DEFAULT_ZEROCONF_TYPE, PELIX_TYPE_PREFIX, ZeroconfDiscovery
 
 # ------------------------------------------------------------------------------
 
@@ -362,6 +366,318 @@ class SerializationTest(unittest.TestCase):
         }
         serialized = ZeroconfDiscovery._serialize_properties(props)
         self.assertEqual(ZeroconfDiscovery._deserialize_properties(serialized), props)  # type: ignore
+
+
+# ------------------------------------------------------------------------------
+
+LOCAL_FW = "local-framework"
+REMOTE_FW = "remote-framework"
+RS_NAME = f"remote-endpoint.{DEFAULT_ZEROCONF_TYPE}"
+DISPATCHER_NAME = f"{REMOTE_FW}.{ZeroconfDiscovery.DNS_DISPATCHER_TYPE}"
+
+
+class FakeZeroconf:
+    """
+    Zeroconf stand-in: returns the service information given by the test
+    """
+
+    def __init__(self) -> None:
+        self.infos: dict[str, Any] = {}
+        self.unregistered: list[Any] = []
+
+    def get_service_info(self, svc_type: str, name: str) -> Any:
+        return self.infos.get(name)
+
+    def unregister_service(self, info: Any) -> None:
+        self.unregistered.append(info)
+
+
+class FakeRegistry:
+    """
+    Imported endpoints registry stand-in
+    """
+
+    def __init__(self) -> None:
+        self.accept = True
+        self.added: list[ImportEndpoint] = []
+        self.updated: list[tuple[str, dict[str, Any]]] = []
+        self.removed: list[str] = []
+        self.lost: list[str] = []
+
+    def add(self, endpoint: ImportEndpoint) -> bool:
+        self.added.append(endpoint)
+        return self.accept
+
+    def update(self, uid: str, properties: dict[str, Any]) -> None:
+        self.updated.append((uid, properties))
+
+    def remove(self, uid: str) -> None:
+        self.removed.append(uid)
+
+    def lost_framework(self, uid: str) -> None:
+        self.lost.append(uid)
+
+
+class FakeAccess:
+    """
+    Dispatcher servlet stand-in
+    """
+
+    def __init__(self) -> None:
+        self.discovered: list[tuple[str, int, str]] = []
+
+    def get_access(self) -> tuple[int, str] | None:
+        return None
+
+    def send_discovered(self, host: str, port: int, path: str) -> None:
+        self.discovered.append((host, port, path))
+
+
+def make_info(properties: dict[str, Any], **kwargs: Any) -> Any:
+    """
+    Prepares a service information bean with JSON-encoded properties
+    """
+    kwargs.setdefault("port", 8080)
+    kwargs.setdefault("addresses", [socket.inet_aton("192.168.1.2")])
+    kwargs.setdefault("server", None)
+    raw_props = {key.encode(): json.dumps(value).encode() for key, value in properties.items()}
+    return types.SimpleNamespace(properties=raw_props, **kwargs)
+
+
+def endpoint_props(framework: str = REMOTE_FW, **extra: Any) -> dict[str, Any]:
+    """
+    Prepares the properties of a remote service record
+    """
+    props: dict[str, Any] = {
+        pelix.remote.PROP_ENDPOINT_ID: "endpoint-uid",
+        pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID: framework,
+        pelix.remote.PROP_IMPORTED_CONFIGS: ["jsonrpc", "xmlrpc"],
+        pelix.constants.OBJECTCLASS: "sample.spec",
+    }
+    props.update(extra)
+    return props
+
+
+class ZeroconfRecordsTest(unittest.TestCase):
+    """
+    Tests the handling of the mDNS records notified by Zeroconf
+    """
+
+    def setUp(self) -> None:
+        self.zeroconf = FakeZeroconf()
+        self.registry = FakeRegistry()
+        self.access = FakeAccess()
+
+        self.discovery = ZeroconfDiscovery()
+        self.discovery._fw_uid = LOCAL_FW
+        self.discovery._zeroconf = cast(Any, self.zeroconf)
+        self.discovery._registry = cast(Any, self.registry)
+        self.discovery._access = cast(Any, self.access)
+        self.zc = cast(Any, self.zeroconf)
+
+    def add_service(self, name: str = RS_NAME, type_: str = DEFAULT_ZEROCONF_TYPE) -> None:
+        """
+        Notifies the discovery of a new record
+        """
+        self.discovery.add_service(self.zc, type_, name)
+
+    def test_ignored_records(self) -> None:
+        """
+        Unreadable, local and non-Pelix records are ignored
+        """
+        with self.assertLogs(LOGGER_NAME, "WARNING"):
+            self.add_service()
+
+        self.zeroconf.infos[RS_NAME] = make_info(endpoint_props(LOCAL_FW))
+        self.add_service()
+
+        self.zeroconf.infos[RS_NAME] = make_info({"some": "property"})
+        with self.assertLogs(LOGGER_NAME, "WARNING"):
+            self.add_service()
+
+        self.assertEqual([], self.registry.added)
+        self.assertEqual([], self.access.discovered)
+
+    def test_dispatcher_record(self) -> None:
+        """
+        The access to a remote dispatcher is given to the dispatcher servlet
+        """
+        props = {pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID: REMOTE_FW, "pelix.access.path": "/dispatcher"}
+        dispatcher_type = ZeroconfDiscovery.DNS_DISPATCHER_TYPE
+        self.zeroconf.infos[DISPATCHER_NAME] = make_info(props)
+        self.add_service(DISPATCHER_NAME, dispatcher_type)
+        self.assertEqual([("192.168.1.2", 8080, "/dispatcher")], self.access.discovered)
+
+        # Without address, the server name is used
+        self.zeroconf.infos[DISPATCHER_NAME] = make_info(props, addresses=[], server="remote.local.")
+        self.add_service(DISPATCHER_NAME, dispatcher_type)
+        self.assertEqual(("remote.local.", 8080, "/dispatcher"), self.access.discovered[-1])
+
+        # Incomplete records are ignored
+        for kwargs in ({"port": None}, {"addresses": [], "server": None}):
+            self.zeroconf.infos[DISPATCHER_NAME] = make_info(props, **kwargs)
+            with self.assertLogs(LOGGER_NAME, "WARNING"):
+                self.add_service(DISPATCHER_NAME, dispatcher_type)
+        self.assertEqual(2, len(self.access.discovered))
+
+    def test_dispatcher_lost(self) -> None:
+        """
+        The loss of a remote dispatcher means the loss of its framework
+        """
+        dispatcher_type = ZeroconfDiscovery.DNS_DISPATCHER_TYPE
+        self.discovery.remove_service(self.zc, dispatcher_type, f"{LOCAL_FW}.{dispatcher_type}")
+        self.assertEqual([], self.registry.lost)
+
+        self.discovery.remove_service(self.zc, dispatcher_type, DISPATCHER_NAME)
+        self.assertEqual([REMOTE_FW], self.registry.lost)
+
+    def test_dispatcher_update(self) -> None:
+        """
+        A remote dispatcher update is handled as a removal then an addition
+        """
+        dispatcher_type = ZeroconfDiscovery.DNS_DISPATCHER_TYPE
+        self.discovery.update_service(self.zc, dispatcher_type, f"{LOCAL_FW}.{dispatcher_type}")
+        self.assertEqual([], self.registry.lost)
+
+        self.zeroconf.infos[DISPATCHER_NAME] = make_info(
+            {pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID: REMOTE_FW, "pelix.access.path": "/dispatcher"}
+        )
+        self.discovery.update_service(self.zc, dispatcher_type, DISPATCHER_NAME)
+        self.assertEqual([REMOTE_FW], self.registry.lost)
+        self.assertEqual([("192.168.1.2", 8080, "/dispatcher")], self.access.discovered)
+
+    def test_remote_service(self) -> None:
+        """
+        A remote service record is converted to an import endpoint
+        """
+        self.zeroconf.infos[RS_NAME] = make_info(endpoint_props())
+        self.add_service()
+
+        self.assertEqual(1, len(self.registry.added))
+        endpoint = self.registry.added[0]
+        self.assertEqual("endpoint-uid", endpoint.uid)
+        self.assertEqual(REMOTE_FW, endpoint.framework)
+        self.assertEqual(["jsonrpc"], list(endpoint.configurations))
+        self.assertEqual(["sample.spec"], list(endpoint.specifications))
+
+        # Removal of unknown services is ignored
+        self.discovery.remove_service(self.zc, DEFAULT_ZEROCONF_TYPE, "unknown")
+        self.assertEqual([], self.registry.removed)
+
+        self.discovery.remove_service(self.zc, DEFAULT_ZEROCONF_TYPE, RS_NAME)
+        self.assertEqual(["endpoint-uid"], self.registry.removed)
+
+        # Already removed
+        self.discovery.remove_service(self.zc, DEFAULT_ZEROCONF_TYPE, RS_NAME)
+        self.assertEqual(["endpoint-uid"], self.registry.removed)
+
+    def test_refused_remote_service(self) -> None:
+        """
+        An endpoint refused by the registry isn't associated to its record
+        """
+        self.registry.accept = False
+        self.zeroconf.infos[RS_NAME] = make_info(
+            endpoint_props(**{pelix.remote.PROP_IMPORTED_CONFIGS: "xmlrpc"})
+        )
+        self.add_service()
+        self.assertEqual(["xmlrpc"], list(self.registry.added[0].configurations))
+
+        self.discovery.remove_service(self.zc, DEFAULT_ZEROCONF_TYPE, RS_NAME)
+        self.assertEqual([], self.registry.removed)
+
+    def test_incomplete_remote_service(self) -> None:
+        """
+        A remote service record without endpoint ID is ignored
+        """
+        props = endpoint_props()
+        del props[pelix.remote.PROP_ENDPOINT_ID]
+        self.zeroconf.infos[RS_NAME] = make_info(props)
+        with self.assertLogs(LOGGER_NAME, "WARNING"):
+            self.add_service()
+        self.assertEqual([], self.registry.added)
+
+    def test_record_without_specification(self) -> None:
+        """
+        A remote service record without specification or imported
+        configuration is ignored with a warning, like records without
+        endpoint ID
+        """
+        for key in (pelix.constants.OBJECTCLASS, pelix.remote.PROP_IMPORTED_CONFIGS):
+            props = endpoint_props()
+            del props[key]
+            self.zeroconf.infos[RS_NAME] = make_info(props)
+            with self.assertLogs(LOGGER_NAME, "WARNING"):
+                self.add_service()
+            self.assertEqual([], self.registry.added)
+
+    def test_remote_service_update(self) -> None:
+        """
+        A remote service update updates the imported endpoint, or imports it
+        if it is unknown
+        """
+        self.zeroconf.infos[RS_NAME] = make_info(endpoint_props())
+        self.discovery.update_service(self.zc, DEFAULT_ZEROCONF_TYPE, RS_NAME)
+        self.assertEqual(1, len(self.registry.added))
+
+        self.zeroconf.infos[RS_NAME] = make_info(endpoint_props(answer=42))
+        self.discovery.update_service(self.zc, DEFAULT_ZEROCONF_TYPE, RS_NAME)
+        self.assertEqual(1, len(self.registry.added))
+        self.assertEqual(1, len(self.registry.updated))
+        uid, properties = self.registry.updated[0]
+        self.assertEqual("endpoint-uid", uid)
+        self.assertEqual(42, properties["answer"])
+
+    def test_remote_service_update_timeout(self) -> None:
+        """
+        An update without readable information is ignored
+        """
+        self.zeroconf.infos[RS_NAME] = make_info(endpoint_props())
+        self.add_service()
+
+        del self.zeroconf.infos[RS_NAME]
+        with self.assertLogs(LOGGER_NAME, "WARNING"):
+            self.discovery.update_service(self.zc, DEFAULT_ZEROCONF_TYPE, RS_NAME)
+        self.assertEqual([], self.registry.updated)
+
+    def test_remove_after_update(self) -> None:
+        """
+        A remote service removed after an update is removed from the registry:
+        the update keeps the record name -> endpoint UID association
+        """
+        self.zeroconf.infos[RS_NAME] = make_info(endpoint_props())
+        self.add_service()
+        self.discovery.update_service(self.zc, DEFAULT_ZEROCONF_TYPE, RS_NAME)
+
+        self.discovery.remove_service(self.zc, DEFAULT_ZEROCONF_TYPE, RS_NAME)
+        self.assertEqual(["endpoint-uid"], self.registry.removed)
+
+    def test_exported_endpoints(self) -> None:
+        """
+        Exported endpoints are only handled when Zeroconf and the dispatcher
+        are ready
+        """
+        # Only the UID of the endpoint is used before Zeroconf registration
+        exp_endpoint = cast(ExportEndpoint, types.SimpleNamespace(uid="uid"))
+        with self.assertLogs(LOGGER_NAME, "ERROR"):
+            self.discovery.endpoints_added([exp_endpoint])
+
+        # Unknown endpoint: nothing to unregister
+        self.discovery.endpoint_removed(exp_endpoint)
+        self.assertEqual([], self.zeroconf.unregistered)
+
+        info = object()
+        self.discovery._export_infos["uid"] = cast(Any, info)
+        self.discovery.endpoint_updated(exp_endpoint, {})
+        self.discovery.endpoint_removed(exp_endpoint)
+        self.assertEqual([info], self.zeroconf.unregistered)
+        self.assertEqual({}, self.discovery._export_infos)
+
+        # Zeroconf not ready
+        self.discovery._zeroconf = None
+        with self.assertLogs(LOGGER_NAME, "ERROR"):
+            self.discovery.endpoints_added([exp_endpoint])
+        with self.assertLogs(LOGGER_NAME, "ERROR"):
+            self.discovery.endpoint_removed(exp_endpoint)
 
 
 # ------------------------------------------------------------------------------
