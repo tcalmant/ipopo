@@ -1663,6 +1663,91 @@ class DirectoryConcurrencyTest(unittest.TestCase):
         self.assertTrue(directory.exists("added.1999"))
 
 
+class _SlowService(services.IManagedService):
+    """
+    Managed service taking some time to handle its configuration, recording
+    the order of its notifications and how many ran at the same time
+    """
+
+    def __init__(self) -> None:
+        """
+        Sets up members
+        """
+        self.received: list[Any] = []
+        self.max_concurrent = 0
+        self.__concurrent = 0
+        self.__lock = threading.Lock()
+        self.done = threading.Event()
+        self.expected = 0
+
+    def updated(self, properties: dict[str, Any] | None) -> None:
+        """
+        Called by the ConfigurationAdmin service
+        """
+        with self.__lock:
+            self.__concurrent += 1
+            self.max_concurrent = max(self.max_concurrent, self.__concurrent)
+
+        # Leave time for another delivery to start
+        time.sleep(0.05)
+
+        with self.__lock:
+            self.__concurrent -= 1
+            self.received.append(None if properties is None else properties.get("index"))
+            if len(self.received) >= self.expected:
+                self.done.set()
+
+
+class DeliveryOrderTest(unittest.TestCase):
+    """
+    The asynchronous notifications to a managed service must be given one at a
+    time, in the order they have been triggered
+    """
+
+    def setUp(self) -> None:
+        """
+        Starts a framework with ConfigurationAdmin
+        """
+        self.conf_folder = tempfile.mkdtemp(prefix="ipopo-configadmin-order-")
+        self.framework = pelix.framework.create_framework(
+            ("pelix.ipopo.core", "pelix.services.configadmin"), {"configuration.folder": self.conf_folder}
+        )
+        self.framework.start()
+        self.context = self.framework.get_bundle_context()
+
+        ref = self.context.get_service_reference(services.IConfigurationAdmin)
+        assert ref is not None
+        self.config = self.context.get_service(ref)
+
+    def tearDown(self) -> None:
+        """
+        Stops the framework
+        """
+        pelix.framework.FrameworkFactory.delete_framework()
+        shutil.rmtree(self.conf_folder, ignore_errors=True)
+
+    def test_ordered_delivery(self) -> None:
+        """
+        Successive notifications given by the pool must not overlap nor be
+        reordered
+        """
+        nb_pids = 5
+        for idx in range(nb_pids):
+            self.config.get_configuration(f"test.ca.order.{idx}").update({"index": idx})
+
+        # Each registration makes the pool deliver the configuration of its PID
+        svc = _SlowService()
+        svc.expected = nb_pids
+        for idx in range(nb_pids):
+            self.context.register_service(
+                services.IManagedService, svc, {constants.SERVICE_PID: f"test.ca.order.{idx}"}
+            )
+
+        self.assertTrue(svc.done.wait(5), "Configurations not delivered")
+        self.assertEqual(svc.max_concurrent, 1, "Concurrent notifications")
+        self.assertEqual(svc.received, list(range(nb_pids)))
+
+
 # ------------------------------------------------------------------------------
 
 if __name__ == "__main__":

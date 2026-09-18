@@ -740,8 +740,13 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         Component validated
         """
         with self.__lock:
-            # Create the update thread pool
-            self._pool = pelix.threadpool.ThreadPool(2, logname="ConfigAdmin")
+            # Create the notification pool. A single thread keeps the
+            # notifications ordered: with more, a managed service could be
+            # given two configurations at the same time, and keep the oldest.
+            # The trade-off is that a slow updated() delays the notifications
+            # of the other services. No task waits for another one, so this
+            # single thread can't deadlock by itself
+            self._pool = pelix.threadpool.ThreadPool(1, logname="ConfigAdmin")
             self._pool.start()
 
             # Validation flag
