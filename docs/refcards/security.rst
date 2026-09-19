@@ -4,7 +4,7 @@
 Authentication and Authorization
 ################################
 
-.. versionadded:: 3.3.0
+.. versionadded:: 3.2.3
 
 Pelix provides an authentication and authorization layer: who is calling, which
 groups and roles they hold, and what they may do. It is transport-neutral, so the

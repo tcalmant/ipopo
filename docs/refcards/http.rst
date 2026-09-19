@@ -63,7 +63,7 @@ pelix.http.auth.realm           Pelix   Protection space given in the
    and a request without a ``Content-Length`` header blocked its handling
    thread until the client closed the connection.
 
-.. versionadded:: 3.3.0
+.. versionadded:: 3.2.3
    ``pelix.http.case_sensitive_paths``.
 
 .. note:: ``pelix.http.socket_timeout`` is only applied by the synchronous HTTP
@@ -89,7 +89,7 @@ router and the servlet can never disagree about what was requested.
 Servlet paths are matched **case-sensitively**: ``/admin`` and ``/Admin`` are
 two different resources, as RFC 3986 defines them to be.
 
-.. versionchanged:: 3.3.0
+.. versionchanged:: 3.2.3
    Paths used to be matched after being lowered, and were neither decoded nor
    resolved. A servlet was given the original path while the server routed on
    the folded one, so a check made on the path a servlet received could be

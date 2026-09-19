@@ -46,7 +46,7 @@ pelix.http.case_sensitive_paths True    If set, servlet paths are matched
                                         folding of earlier releases
 =============================== ======= ========================================
 
-.. versionadded:: 3.3.0
+.. versionadded:: 3.2.3
    ``pelix.http.case_sensitive_paths``.
 
 Request paths are normalized exactly as they are by the synchronous service:
@@ -54,7 +54,7 @@ see :ref:`its reference card <refcard_http>`.
 Both services now give the router the same raw request target, so they agree on
 the path a servlet is given.
 
-.. versionchanged:: 3.3.0
+.. versionchanged:: 3.2.3
    The asynchronous service used to route on the path ``aiohttp`` had already
    decoded, while the synchronous one routed on the raw target. The two could
    therefore resolve the same request differently.
@@ -118,7 +118,7 @@ variable set before the dispatch is visible to ``do_GET()`` and the like.
 What the servlet sets stays in that copy: it reaches neither the event loop nor
 the next request handled by the same thread.
 
-.. versionchanged:: 3.3.0
+.. versionchanged:: 3.2.3
    The context variables of the request used to be dropped, the servlet running
    in whatever context the worker thread of the pool happened to hold.
 
