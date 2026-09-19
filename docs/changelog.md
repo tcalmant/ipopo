@@ -1,114 +1,102 @@
 # Release Notes
 
-## iPOPO 3.x.x
+## iPOPO 3.2.3
 
 :::{admonition} Release Date
 :class: info
 
-Unreleased
+2026-09-19
 :::
 
-### Remote
+### Project
 
-* The gRPC code used by the etcd3 discovery provider has been regenerated from
-  the upstream etcd `.proto` files. Those files now live in the `proto` folder,
-  outside the `pelix` package, and are compiled by `proto/generate.sh`, which
-  runs [buf](https://buf.build/) in a container
-* The `pelix.rsa.providers.discovery.etcd3.etcdrpc` package has been replaced by
-  `pelix.rsa.providers.discovery.etcd3.rpc`. This is a breaking change for the
-  code importing the generated modules directly, which is not expected outside
-  of the provider itself
-* The generated code now requires a `protobuf` runtime 6.33.2 or newer
-* Fixed `pelix.rsa.time_since_epoch()`: it returned a nonsensical value
-  (`time.time() - 1000`, a timestamp about 16 minutes in the past) instead of
-  the current time in milliseconds expected for the `ECF_ENDPOINT_TIMESTAMP`
-  endpoint property
-
-### iPOPO
-
-* Components can now be managed by ConfigurationAdmin, with the new
-  `pelix.ipopo.configadmin` bundle
-  ([#112](https://github.com/tcalmant/ipopo/issues/112)):
-* Added `IPopoService.reconfigure(name, properties)`, to update the properties
-  of a running component from the outside.
-* Added `IPopoWaitingList.update(component, properties, removed)`, to change the
-  properties of a component of the waiting list.
-* Added `IPopoService.get_instance_properties(name)`, which returns the
-  properties of a component with their real value, where
-  `get_instance_details(name)` converts them to their string representation
-* The iPOPO waiting list no longer holds its lock while instantiating, killing
-  or reconfiguring a component: the callbacks of a component can call back into
-  the waiting list from another thread
-* Decorator misuse (`@ComponentFactory` applied twice or out of order, a
-  duplicate `@Instantiate` name, a multi-specification `@Requires`) now raises
-  `FactoryManipulationError`, `ValueError` or `NameError` instead of logging a
-  warning and continuing (breaking change)
-* `RequiresBroadcast.handle_call()` now returns `True` only if at least one
-  bound service's call actually succeeded, instead of `True` as soon as any
-  service was bound regardless of the call outcome (breaking change)
-* Fixed `ServiceRegistry.find_service_references()`: filtering matches used to
-  go through a `set`, which could silently drop the ranking/service ID order
-  of the result
-* Fixed `BundleContext.get_service_references()`: iterating over the result
-  list while removing entries from it could skip references that should have
-  been filtered out
-
-### Services
-
-* Fixed a deadlock in FileInstall: the notification of a folder listener could
-  block the invalidation of the service
-* Fixed a deadlock in ConfigurationAdmin during the update and the deletion of
-  a configuration.
-
-### Tests
-
-* Added tests for the configuration of ConfigurationAdmin managed service
-  factories
-
-### HTTP service
-
-* Request paths are now normalized (decoded, collapsed, resolved) before
-  routing, and `get_path()` / `get_sub_path()` return that normalized path
-* A malformed or out-of-root path now gets a 400 error instead of reaching a
-  servlet
-* The Remote Services dispatcher servlet now routes on its relative path
-  instead of counting segments
-* The asynchronous HTTP service now carries the caller's context variables
-  into the servlet it dispatches to
-
-### Utilities
-
-* `ThreadPool` now runs each task in a copy of its caller's context instead
-  of the previous task's
-
-### Authentication and authorization
-
-A new `pelix.security` package adds a transport-neutral notion of a caller:
-identity, groups, roles and permissions. See its reference card for details.
-
-* `pelix.security`: core beans, service specifications (`Authenticator`,
-  `MembershipProvider`, `Authorizer`, `Authorization`) and the current
-  subject
-* `pelix.security.decorators`: declarative `@Allow*`, `@DenyAll` and
-  `@RunAs` decorators
-* `pelix.security.core`: the identity and authorization pipeline
-* `pelix.security.htpasswd`: authentication against Apache `.htpasswd` /
-  `.htgroup` files
-* `pelix.security.policy`: roles and permissions from a TOML file
-
-Nothing is permissive by default.
+* Every module now declares its public API in `__all__`, which is checked by
+  the tests
+* Added a `CLAUDE.md` file
 
 ### Dependencies
 
 * Added `tomli` (Python 3.10 only) and the optional `bcrypt` extra
+* The etcd3 discovery provider now requires `protobuf` 6.33.2 or newer
+
+### Pelix
+
+* Fixed the ranking order of `find_service_references()` and the filtering of
+  `get_service_references()`
+* Empty or blank specification names are now refused
+* An escaped star (`\*`) is no longer handled as a wildcard in LDAP filters
+* `ThreadPool` tasks now run in a copy of the context of their caller
+
+### iPOPO
+
+* `@Requires` and its variants accept several specifications: services must
+  provide all of them, or any of them with `match_any=True`
+* Components can be managed by ConfigurationAdmin, with the new
+  `pelix.ipopo.configadmin` bundle
+  ([#112](https://github.com/tcalmant/ipopo/issues/112))
+* Added `reconfigure()` and `get_instance_properties()` to the iPOPO service,
+  and `update()` to its waiting list
+* Decorator misuse now raises an error instead of logging a warning (breaking
+  change)
+* `RequiresBroadcast.handle_call()` now returns `True` only if a call succeeded
+  (breaking change)
+* Fixed float timeout overrides of `@Temporal`
+
+### Services
+
+* Fixed deadlocks in ConfigurationAdmin
+  ([#114](https://github.com/tcalmant/ipopo/issues/114)) and FileInstall
+* Fixed the ordering of ConfigurationAdmin notifications, and each managed
+  service now gets its own copy of the properties
+* The JSON persistence of ConfigurationAdmin now writes atomically and ignores
+  the other files of its folder
+
+### HTTP service
+
+* Added CORS support, with the new `pelix.http.cors` bundle
+* Added HTTP Basic authentication, based on `pelix.security`
+* Request paths are normalized before routing: a malformed path gets a 400 error
+* The asynchronous service now carries the context variables of the request
+  into the servlet
+* Fixed the route selection of `RestDispatcher` when a parameter is not given
+
+### Remote
+
+* The etcd3 gRPC code is now generated from the upstream `.proto` files, and
+  its package was renamed to `pelix.rsa.providers.discovery.etcd3.rpc`
+* Fixed `pelix.rsa.time_since_epoch()`, the RSA unregistration events and the
+  handling of string intents
+* Fixed the handling of malformed and updated records in mDNS discovery
+
+### Shell
+
+* The remote shell can now authenticate its users, with a certificate or a
+  password
+* Fixed the console completion of an empty line
+
+### Authentication and authorization
+
+* Added the `pelix.security` package: a transport-neutral notion of a caller
+  (identity, groups, roles and permissions), with `.htpasswd`, TOML policy and
+  certificate stores, brute-force throttling and audit events.
+  Nothing is permissive by default
 
 ### Security
 
 All versions up to 3.2.2 are affected.
 
 * Servlet paths are now matched case-sensitively (breaking change: see
-  `pelix.http.case_sensitive_paths` to opt out)
-* Servlet paths are no longer vulnerable to path traversal
+  `pelix.http.case_sensitive_paths` to opt out) and are no longer vulnerable to
+  path traversal
+* The 404 error page only lists the servlet paths if `pelix.http.debug` is set
+* Specification names holding LDAP special characters are now refused, and the
+  shell `sd` command no longer injects its argument in an LDAP filter
+* The remote shell now limits the length of a line, the idle and login times,
+  and the number of clients
+
+### Tests
+
+* Added tests for the discovery providers, RSA, the console and `ipv6utils`
 
 ## iPOPO 3.2.2
 
