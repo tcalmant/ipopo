@@ -8,7 +8,7 @@ Provides an implementation of the Pelix HTTP service based on aiohttp.
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.2
+:version: 3.2.3
 
 ..
 
@@ -73,7 +73,7 @@ if TYPE_CHECKING:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 2)
+__version_info__ = (3, 2, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

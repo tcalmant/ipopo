@@ -42,7 +42,7 @@ from tests.ipopo.configadmin_bundle import (
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 2)
+__version_info__ = (3, 2, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Folder of the configurations of the tests

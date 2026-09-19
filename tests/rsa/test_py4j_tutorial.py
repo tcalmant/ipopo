@@ -32,7 +32,7 @@ if importlib.util.find_spec("osgiservicebridge") is None:
 
 KARAF_URL = "https://archive.apache.org/dist/karaf/4.4.11/apache-karaf-4.4.11.tar.gz"
 
-__version_info__ = (3, 2, 2)
+__version_info__ = (3, 2, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------

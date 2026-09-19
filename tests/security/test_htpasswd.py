@@ -28,7 +28,7 @@ from pelix.security.htpasswd import HtpasswdStore, parse_htgroup, parse_htpasswd
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 2)
+__version_info__ = (3, 2, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # "good", hashed with SHA-crypt over SHA-512

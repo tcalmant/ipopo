@@ -21,7 +21,7 @@ from tests.http.utils import DEFAULT_HOST, install_ipopo
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 2)
+__version_info__ = (3, 2, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Name of the request handling threads of the basic HTTP service
