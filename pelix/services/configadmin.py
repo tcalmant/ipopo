@@ -364,7 +364,8 @@ class Configuration(services.Configuration):
         If the corresponding Managed Service/Managed Service Factory is
         registered, its updated method is called synchronously, from the
         calling thread (unlike the spec's asynchronous delivery: this avoids
-        deadlocks when the caller already holds a lock the handler needs).
+        deadlocks when the caller already holds a lock the handler needs),
+        after the end of the notification it is handling, if any.
         Else, this callback is delayed until aforementioned registration
         occurs.
 
@@ -726,6 +727,9 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         # (id(service), PID) -> last properties given to the service
         self.__delivered: dict[tuple[int, str], dict[str, Any] | None] = {}
 
+        # id(service) -> lock serializing the notifications of that service
+        self.__delivery_locks: dict[int, threading.RLock] = {}
+
     def __set_up(self) -> None:
         """
         Set up the configuration administration service.
@@ -780,6 +784,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
 
             # Give the configurations again after a new validation
             self.__delivered.clear()
+            self.__delivery_locks.clear()
 
         if pool is not None:
             # Don't wait for the pool here: a notification being delivered can
@@ -973,9 +978,8 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
             _logger.error("Error loading configuration %s: %s", pid, ex)
             return
 
-        if configuration is not None and configuration.is_valid():
-            # Valid configuration found, update the service
-            self.__notify_services((svc,), pid, configuration.get_properties())
+        if configuration is not None:
+            self.__deliver_to_service(svc, pid, configuration)
 
     def __notify_factory(self, factory_pid: str, svc: services.IManagedServiceFactory) -> None:
         """
@@ -1006,8 +1010,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         if configurations:
             for configuration in configurations:
                 if configuration.is_valid():
-                    # Valid configurations found, call update for each one
-                    self.__notify_factories((svc,), configuration.get_pid(), configuration.get_properties())
+                    self.__deliver_to_factory(svc, configuration.get_pid(), configuration)
 
     def __must_deliver(self, svc: Any, pid: str, properties: dict[str, Any] | None) -> bool:
         """
@@ -1042,71 +1045,129 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
             for key in [key for key in self.__delivered if key[0] == svc_id]:
                 del self.__delivered[key]
 
-    def __notify_factories(
-        self,
-        factories: Iterable[services.IManagedServiceFactory],
-        pid: str,
-        properties: dict[str, Any] | None,
-    ) -> None:
+            # The ID can be reused by another object
+            self.__delivery_locks.pop(svc_id, None)
+
+    def __delivery_lock(self, svc: Any) -> threading.RLock:
         """
-        Calls the updated(pid, properties) method of managed service factories.
+        Returns the lock serializing the notifications of the given service
 
-        :param factories: A list of managed service factories
-        :param pid: PID of the deleted configuration
-        :param properties: New configuration properties
+        :param svc: A managed service or managed service factory
+        :return: The lock of the service
         """
-        for svc in factories:
-            if not self.__must_deliver(svc, pid, properties):
-                continue
+        with self.__lock:
+            return self.__delivery_locks.setdefault(id(svc), threading.RLock())
 
-            try:
-                # Each service gets its own copy: it can modify it
-                svc.updated(pid, None if properties is None else properties.copy())
-            except Exception:
-                _logger.exception("Error updating factory")
-
-    def __notify_factories_delete(
-        self, factories: Iterable[services.IManagedServiceFactory], pid: str
-    ) -> None:
+    def __current_properties(
+        self, pid: str, configuration: services.Configuration
+    ) -> tuple[bool, dict[str, Any] | None]:
         """
-        Calls the deleted(pid) method of the given managed service factories.
+        Reads the latest state of a configuration, to be called while holding
+        the delivery lock of the notified service: a notification waiting for
+        that lock must not give properties read before the previous one
 
-        :param factories: A list of managed service factories
-        :param pid: PID of the deleted configuration
-        """
-        for svc in factories:
-            with self.__lock:
-                # A new configuration can reuse this PID
-                self.__delivered.pop((id(svc), pid), None)
-
-            try:
-                svc.deleted(pid)
-            except Exception:
-                _logger.exception("Error notifying a factory")
-
-    def __notify_services(
-        self,
-        managed_services: Iterable[services.IManagedService],
-        pid: str,
-        properties: dict[str, Any] | None,
-    ) -> None:
-        """
-        Calls the updated(properties) method of managed services.
-        Logs errors if necessary.
-
-        :param managed_services: Managed services to be notified
         :param pid: PID of the configuration
-        :param properties: New configuration properties
+        :param configuration: The configuration
+        :return: A (valid, properties) tuple, valid being False if the
+                 configuration has been deleted or never updated
         """
-        for svc in managed_services:
+        try:
+            if cast(Configuration, configuration).is_deleted():
+                # Another configuration can have taken this PID in the meantime
+                configuration = self._directory.get_configuration(pid)
+
+            if configuration.is_valid():
+                return True, configuration.get_properties()
+        except (KeyError, ValueError):
+            # Deleted without replacement, or while reading it
+            pass
+
+        return False, None
+
+    def __deliver_to_service(
+        self,
+        svc: services.IManagedService,
+        pid: str,
+        configuration: services.Configuration,
+        deleting: bool = False,
+    ) -> None:
+        """
+        Calls the updated(properties) method of a managed service with the
+        latest state of the given configuration. Logs errors if necessary.
+
+        The notifications of a service are serialized, whether they come from
+        the pool or from the thread updating the configuration: a thread
+        notifying a service waits for the end of its current notification.
+
+        :param svc: The managed service to notify
+        :param pid: PID of the configuration
+        :param configuration: The updated or deleted configuration
+        :param deleting: If True, the configuration is being deleted
+        """
+        with self.__delivery_lock(svc):
+            with self.__lock:
+                if svc not in self._managed_refs.values():
+                    # Service gone while waiting for its lock
+                    return
+
+            valid, properties = self.__current_properties(pid, configuration)
+            if not valid and not deleting:
+                # Only the deleting thread tells the service about a deletion
+                return
+
             if not self.__must_deliver(svc, pid, properties):
-                continue
+                return
 
             try:
                 # Each service gets its own copy: it can modify it
                 svc.updated(None if properties is None else properties.copy())
             except Exception:
                 _logger.exception("Error updating service")
+
+    def __deliver_to_factory(
+        self,
+        svc: services.IManagedServiceFactory,
+        pid: str,
+        configuration: services.Configuration,
+        deleting: bool = False,
+    ) -> None:
+        """
+        Calls the updated(pid, properties) or deleted(pid) method of a managed
+        service factory, according to the latest state of the given
+        configuration. Logs errors if necessary.
+
+        Notifications are serialized per factory (see __deliver_to_service()).
+
+        :param svc: The managed service factory to notify
+        :param pid: PID of the configuration
+        :param configuration: The updated or deleted configuration
+        :param deleting: If True, the configuration is being deleted
+        """
+        with self.__delivery_lock(svc):
+            with self.__lock:
+                if svc not in self._factories_refs.values():
+                    # Service gone while waiting for its lock
+                    return
+
+            valid, properties = self.__current_properties(pid, configuration)
+            if valid:
+                if not self.__must_deliver(svc, pid, properties):
+                    return
+
+                try:
+                    # Each service gets its own copy: it can modify it
+                    svc.updated(pid, None if properties is None else properties.copy())
+                except Exception:
+                    _logger.exception("Error updating factory")
+            elif deleting:
+                with self.__lock:
+                    # A new configuration can reuse this PID
+                    self.__delivered.pop((id(svc), pid), None)
+
+                try:
+                    svc.deleted(pid)
+                except Exception:
+                    _logger.exception("Error notifying a factory")
 
     def _update(self, configuration: services.Configuration) -> None:
         """
@@ -1120,7 +1181,6 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
             # Get configuration data
             factory_pid = configuration.get_factory_pid()
             pid = configuration.get_pid()
-            properties = configuration.get_properties()
 
             factories: list[services.IManagedServiceFactory] = []
             managed: list[services.IManagedService] = []
@@ -1135,10 +1195,11 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         # the notification to the pool and waiting for its result would block
         # forever if the caller holds a lock the notified service needs, e.g.
         # the iPOPO instances registry
-        if factories:
-            self.__notify_factories(factories, pid, properties)
-        elif managed:
-            self.__notify_services(managed, pid, properties)
+        for factory in factories:
+            self.__deliver_to_factory(factory, pid, configuration)
+
+        for svc in managed:
+            self.__deliver_to_service(svc, pid, configuration)
 
     def _delete(self, configuration: Configuration, notify_services: bool, directory_updated: bool) -> None:
         """
@@ -1170,10 +1231,11 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
 
         # Notify the services in the calling thread, outside the lock (see
         # _update() for the reason)
-        if factories:
-            self.__notify_factories_delete(factories, pid)
-        elif managed:
-            self.__notify_services(managed, pid, None)
+        for factory in factories:
+            self.__deliver_to_factory(factory, pid, configuration, True)
+
+        for svc in managed:
+            self.__deliver_to_service(svc, pid, configuration, True)
 
     def create_factory_configuration(self, factory_pid: str) -> services.Configuration:
         """

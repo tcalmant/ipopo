@@ -680,10 +680,12 @@ class _ReentrantService(services.IManagedService):
         # Call back into ConfigurationAdmin from another thread: a direct call
         # would deadlock if the directory is locked, whereas this one is only
         # delayed until this notification returns
-        self.__thread = threading.Thread(target=self.__create_configuration, daemon=True)
-        self.__thread.start()
-        self.__thread.join(5)
-        self.directory_free = not self.__thread.is_alive()
+        # Work on a local reference: reset() can clear the member
+        thread = threading.Thread(target=self.__create_configuration, daemon=True)
+        self.__thread = thread
+        thread.start()
+        thread.join(5)
+        self.directory_free = not thread.is_alive()
 
     def reset(self) -> bool:
         """
@@ -1994,6 +1996,25 @@ class PoolDeliveryRaceTest(unittest.TestCase):
         self.addCleanup(release.set)
         return read, release
 
+    def run_while_held(self, release: threading.Event, method: Any, *args: Any) -> None:
+        """
+        Calls a method from another thread while the pool is held, then
+        releases the pool and waits for both to finish
+
+        :param release: Event releasing the pool
+        :param method: Method to call
+        :param args: Method arguments
+        """
+        caller = threading.Thread(target=method, args=args, daemon=True)
+        caller.start()
+
+        # Let the caller notify the service, or wait for the pool to do it
+        caller.join(0.2)
+        release.set()
+        caller.join(5)
+        self.assertFalse(caller.is_alive(), "Caller blocked")
+        self.wait_pool()
+
     def test_no_stale_delivery_after_update(self) -> None:
         """
         A managed service must end up with the latest properties when its
@@ -2007,9 +2028,7 @@ class PoolDeliveryRaceTest(unittest.TestCase):
         self.context.register_service(services.IManagedService, svc, {constants.SERVICE_PID: self.PID})
         self.assertTrue(read.wait(5), "Pool didn't look for the configuration")
 
-        configuration.update({"index": 1})
-        release.set()
-        self.wait_pool()
+        self.run_while_held(release, configuration.update, {"index": 1})
 
         self.assertEqual(svc.received[-1], 1, f"Stale configuration given last: {svc.received}")
 
@@ -2026,9 +2045,7 @@ class PoolDeliveryRaceTest(unittest.TestCase):
         self.context.register_service(services.IManagedService, svc, {constants.SERVICE_PID: self.PID})
         self.assertTrue(read.wait(5), "Pool didn't look for the configuration")
 
-        configuration.delete()
-        release.set()
-        self.wait_pool()
+        self.run_while_held(release, configuration.delete)
 
         self.assertIsNone(svc.received[-1], f"Deleted configuration given last: {svc.received}")
 
@@ -2048,9 +2065,7 @@ class PoolDeliveryRaceTest(unittest.TestCase):
         )
         self.assertTrue(read.wait(5), "Pool didn't look for the configurations")
 
-        configuration.update({"index": 1})
-        release.set()
-        self.wait_pool()
+        self.run_while_held(release, configuration.update, {"index": 1})
 
         self.assertEqual(factory.configurations.get(pid), 1, "Stale configuration given last")
 
