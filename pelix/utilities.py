@@ -29,13 +29,17 @@ import collections
 import contextlib
 import functools
 import inspect
+import io
 import logging
 import threading
 import traceback
-from collections.abc import Callable, Generator, Iterable
+from collections.abc import Callable, Generator, Iterable, Iterator
+from types import TracebackType
 from typing import (
+    IO,
     TYPE_CHECKING,
     Any,
+    AnyStr,
     Concatenate,
     Generic,
     ParamSpec,
@@ -66,6 +70,7 @@ __all__ = [
     "CountdownEvent",
     "Deprecated",
     "EventData",
+    "StreamBase",
     "Synchronized",
     "SynchronizedClassMethod",
     "add_listener",
@@ -713,6 +718,151 @@ class CountdownEvent:
         :return: True if the event as been set, else False
         """
         return self.__event.wait(timeout)
+
+
+# ------------------------------------------------------------------------------
+
+
+class StreamBase(IO[AnyStr]):
+    """
+    Base class for the file-like objects implemented by Pelix.
+
+    Implements the parts of the ``IO`` interface that can be derived from
+    ``read()``, ``readline()`` and ``write()``, which subclasses override
+    according to the direction(s) they support. Operations that can't make
+    sense on such streams raise ``io.UnsupportedOperation``, like the
+    standard library does on non-seekable streams.
+    """
+
+    _MODE: str = ""
+    """ Stream mode, as given to ``open()`` """
+
+    _READABLE: bool = False
+    """ Flag indicating if the stream can be read """
+
+    _WRITABLE: bool = False
+    """ Flag indicating if the stream can be written """
+
+    def __init__(self) -> None:
+        """
+        Sets up members
+        """
+        self._closed = False
+
+    def __enter__(self) -> "StreamBase[AnyStr]":
+        return self
+
+    def __exit__(
+        self,
+        exc_type: type[BaseException] | None,
+        exc_value: BaseException | None,
+        traceback: TracebackType | None,
+    ) -> None:
+        self.close()
+
+    def __iter__(self) -> Iterator[AnyStr]:
+        return self
+
+    def __next__(self) -> AnyStr:
+        line = self.readline()
+        if not line:
+            raise StopIteration
+        return line
+
+    def _check_open(self) -> None:
+        """
+        Raises a ValueError if the stream has been closed, as the standard
+        library does
+
+        :raise ValueError: Stream is closed
+        """
+        if self._closed:
+            raise ValueError("I/O operation on closed file.")
+
+    @property
+    def closed(self) -> bool:
+        """
+        Flag indicating if the stream has been closed
+        """
+        return self._closed
+
+    @property
+    def mode(self) -> str:
+        """
+        Mode of the stream
+        """
+        return self._MODE
+
+    @property
+    def name(self) -> str:
+        """
+        A descriptive name for the stream
+        """
+        return f"<{type(self).__name__}>"
+
+    def close(self) -> None:
+        """
+        Closes the stream. Can be called multiple times.
+        """
+        self._closed = True
+
+    def fileno(self) -> int:
+        raise io.UnsupportedOperation("fileno")
+
+    def flush(self) -> None:
+        self._check_open()
+
+    def isatty(self) -> bool:
+        self._check_open()
+        return False
+
+    def readable(self) -> bool:
+        return self._READABLE
+
+    def writable(self) -> bool:
+        return self._WRITABLE
+
+    def seekable(self) -> bool:
+        return False
+
+    def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
+        raise io.UnsupportedOperation("seek")
+
+    def tell(self) -> int:
+        raise io.UnsupportedOperation("tell")
+
+    def truncate(self, size: int | None = None) -> int:
+        raise io.UnsupportedOperation("truncate")
+
+    def read(self, size: int = -1) -> AnyStr:
+        raise io.UnsupportedOperation("read")
+
+    def readline(self, limit: int = -1) -> AnyStr:
+        raise io.UnsupportedOperation("readline")
+
+    def readlines(self, hint: int = -1) -> list[AnyStr]:
+        """
+        Reads lines until the end of the stream, or until the total size of
+        the lines read exceeds ``hint``
+
+        :param hint: Size limit (no limit if negative or zero)
+        :return: The lines read
+        """
+        lines: list[AnyStr] = []
+        total = 0
+        for line in self:
+            lines.append(line)
+            total += len(line)
+            if 0 < hint <= total:
+                break
+        return lines
+
+    def write(self, data: AnyStr) -> int:
+        raise io.UnsupportedOperation("write")
+
+    def writelines(self, lines: Iterable[AnyStr]) -> None:
+        for line in lines:
+            self.write(line)
 
 
 # ------------------------------------------------------------------------------

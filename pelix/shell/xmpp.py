@@ -32,7 +32,7 @@ import collections
 import logging
 import sys
 from io import StringIO
-from typing import IO, Any, cast
+from typing import Any, cast
 
 from slixmpp.jid import JID
 
@@ -44,7 +44,7 @@ from pelix.ipopo.decorators import ComponentFactory, HiddenProperty, Invalidate,
 from pelix.shell import beans
 from pelix.shell.console import handle_common_arguments, make_common_parser
 from pelix.threadpool import ThreadPool
-from pelix.utilities import EventData, remove_duplicates
+from pelix.utilities import EventData, StreamBase, remove_duplicates
 
 # ------------------------------------------------------------------------------
 
@@ -65,10 +65,13 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
-class _XmppOutStream(IO[str]):
+class _XmppOutStream(StreamBase[str]):
     """
     File-like XMPP output. For shell IOHandler use only
     """
+
+    _MODE = "w"
+    _WRITABLE = True
 
     def __init__(self, client: pelix.misc.xmpp.BasicBot, target: JID) -> None:
         """
@@ -77,6 +80,7 @@ class _XmppOutStream(IO[str]):
         :param client: XMPP client
         :param target: Output target JID
         """
+        super().__init__()
         self._client: pelix.misc.xmpp.BasicBot = client
         self._target: JID = target
         self._buffer: StringIO = StringIO()
@@ -84,17 +88,21 @@ class _XmppOutStream(IO[str]):
         # Indicate to the I/O handler that we want strings, not bytes
         self.encoding: str = "utf-8"
 
-    @property
-    def mode(self) -> str:
+    def close(self) -> None:
         """
-        Indicate we're not in binary mode
+        Sends pending data then closes the stream
         """
-        return "w"
+        if not self._closed:
+            try:
+                self.flush()
+            finally:
+                super().close()
 
     def write(self, data: str) -> int:
         """
         Writes data to a buffer
         """
+        self._check_open()
         self._buffer.write(data)
         return len(data)
 
@@ -102,6 +110,8 @@ class _XmppOutStream(IO[str]):
         """
         Sends buffered data to the target
         """
+        self._check_open()
+
         # Flush buffer
         content = self._buffer.getvalue()
         self._buffer = StringIO()
@@ -115,10 +125,13 @@ class _XmppOutStream(IO[str]):
                 raise
 
 
-class _XmppInStream(IO[str]):
+class _XmppInStream(StreamBase[str]):
     """
     File-like XMPP input. For shell IOHandler use only
     """
+
+    _MODE = "r"
+    _READABLE = True
 
     def __init__(self, xmpp_ui: "IPopoXMPPShell", source_jid: JID) -> None:
         """
@@ -127,22 +140,34 @@ class _XmppInStream(IO[str]):
         :param xmpp_ui: The IPopoXMPPShell object
         :param source_jid: Client JID
         """
+        super().__init__()
         self._ui = xmpp_ui
         self._jid = source_jid
 
-    @property
-    def mode(self) -> str:
+    def read(self, size: int = -1) -> str:
         """
-        Indicate we're not in binary mode
+        Waits for the next message from the XMPP client
+
+        :param size: Maximum number of characters to return (no limit if negative)
+        :return: The message, or an empty string at the end of the stream
         """
-        return "r"
+        return self.readline(size)
 
     def readline(self, limit: int = -1) -> str:
         """
         Waits for a line from the XMPP client
+
+        :param limit: Maximum number of characters to return (no limit if negative)
+        :return: The line, or an empty string at the end of the stream
         """
+        self._check_open()
+
         # Wait for content from the user
-        return (self._ui.read_from(self._jid) or "")[:limit]
+        content = self._ui.read_from(self._jid) or ""
+        if limit < 0:
+            # A negative slice bound would cut the end of the message
+            return content
+        return content[:limit]
 
 
 # ------------------------------------------------------------------------------
