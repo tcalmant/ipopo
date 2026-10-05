@@ -740,8 +740,13 @@ class ConfigurationDirectoryTest(unittest.TestCase):
         )
 
         # Make the configuration valid. Nothing holds the directory lock here,
-        # so this first notification always goes through
+        # so this first notification always goes through. The pool can be the
+        # one giving it, while notifying the registration of the service: wait
+        # for it, so that the tests start with a quiet service
         configuration.update({"answer": 0})
+        pool = cast(ConfigurationAdmin, self.config)._pool
+        assert pool is not None
+        pool.enqueue(lambda: None).result(5)
         self.assertTrue(self.service.reset(), "Notification of the first update didn't return")
 
     def tearDown(self) -> None:
@@ -1921,6 +1926,70 @@ class _RecordingFactory(services.IManagedServiceFactory):
         self.configurations.pop(pid, None)
 
 
+class _LockingService(_RecordingService):
+    """
+    Managed service needing a lock to handle the first notification given by
+    the pool, once allowed to go on
+    """
+
+    def __init__(self, lock: Any, go: threading.Event) -> None:
+        """
+        :param lock: Lock needed to handle the first pool notification
+        :param go: Event to wait for before taking the lock
+        """
+        super().__init__()
+        self.__lock = lock
+        self.__go = go
+        self.__first = True
+        self.lock_timeout = False
+
+    def updated(self, properties: dict[str, Any] | None) -> None:
+        """
+        Called by the ConfigurationAdmin service
+        """
+        if self.__first and _in_pool():
+            self.__first = False
+            self.entered.set()
+            self.__go.wait(5)
+
+            # Short timeout: a deadlock is the failure being tested
+            if not self.__lock.acquire(timeout=2):
+                self.lock_timeout = True
+            else:
+                self.__lock.release()
+
+        super().updated(properties)
+
+
+class _SelfUpdatingService(services.IManagedService):
+    """
+    Managed service updating its own configuration when given the first one
+    """
+
+    def __init__(self, configuration: services.Configuration) -> None:
+        """
+        :param configuration: The configuration of this service
+        """
+        self.__configuration = configuration
+        self.__depth = 0
+        self.max_depth = 0
+        self.received: list[Any] = []
+
+    def updated(self, properties: dict[str, Any] | None) -> None:
+        """
+        Called by the ConfigurationAdmin service
+        """
+        self.__depth += 1
+        self.max_depth = max(self.max_depth, self.__depth)
+        try:
+            index = None if properties is None else properties.get("index")
+            self.received.append(index)
+            if index == 0:
+                self.__configuration.update({"index": 1})
+        finally:
+            self.__depth -= 1
+
+
 class PoolDeliveryRaceTest(unittest.TestCase):
     """
     The configuration given by the pool when a managed service is bound must not
@@ -2095,47 +2164,54 @@ class PoolDeliveryRaceTest(unittest.TestCase):
         self.assertEqual(svc.max_concurrent, 1, "Concurrent notifications")
         self.assertEqual(svc.received[-1], 1, f"Stale configuration given last: {svc.received}")
 
-    def test_update_returns_once_notified(self) -> None:
+    def test_reentrant_update(self) -> None:
         """
-        Configuration.update() must return once the managed service has been
-        given the new properties, even if the pool is the one giving them
+        A managed service updating its own configuration from updated() must
+        be given the new properties once that call is over, not in a nested
+        one
         """
         configuration = self.config.get_configuration(self.PID)
-        svc = _RecordingService(hold_pool=True)
-        self.addCleanup(svc.release.set)
-
-        # Keep the pool busy: it must look for the configuration only once it
-        # has its properties
-        pool = cast(ConfigurationAdmin, self.config)._pool
-        assert pool is not None
-        pool_gate = threading.Event()
-        self.addCleanup(pool_gate.set)
-        pool.enqueue(pool_gate.wait, 5)
+        svc = _SelfUpdatingService(configuration)
         self.context.register_service(services.IManagedService, svc, {constants.SERVICE_PID: self.PID})
 
-        # Let the pool notify the service before the updating thread does
-        # (patch the class of the running bundle, see hold_pool_read())
-        admin_class = type(cast(ConfigurationAdmin, self.config))
-        original = admin_class._update
+        configuration.update({"index": 0})
+        self.wait_pool()
 
-        def late_update(admin: ConfigurationAdmin, conf: services.Configuration) -> None:
-            pool_gate.set()
-            svc.entered.wait(5)
-            original(admin, conf)
+        self.assertEqual(svc.received, [0, 1])
+        self.assertEqual(svc.max_depth, 1, "Nested notification")
 
-        with mock.patch.object(admin_class, "_update", late_update):
-            # Release the pool notification after a while, from another thread
-            timer = threading.Timer(0.5, svc.release.set)
-            timer.start()
-            self.addCleanup(timer.cancel)
+    def test_no_deadlock_with_caller_lock(self) -> None:
+        """
+        Updating a configuration while holding a lock that the service needs
+        to handle the notification given by the pool must not deadlock, e.g. a
+        component updating a configuration in its validation callback, called
+        while iPOPO holds its instances lock
+        """
+        configuration = self.config.get_configuration(self.PID)
+        configuration.update({"index": 0})
 
-            configuration.update({"index": 0})
-            busy = svc.busy
-            received = list(svc.received)
+        shared_lock = threading.Lock()
+        go = threading.Event()
+        self.addCleanup(go.set)
+        svc = _LockingService(shared_lock, go)
+        self.context.register_service(services.IManagedService, svc, {constants.SERVICE_PID: self.PID})
+        self.assertTrue(svc.entered.wait(5), "Pool didn't notify the service")
 
-        self.assertTrue(svc.entered.is_set(), "Pool didn't notify the service")
-        self.assertFalse(busy, "update() returned while the service was being notified")
-        self.assertEqual(received, [0])
+        def update_holding_lock() -> None:
+            with shared_lock:
+                # The pool now waits for the lock this thread holds
+                go.set()
+                configuration.update({"index": 1})
+
+        updater = threading.Thread(target=update_holding_lock, daemon=True)
+        updater.start()
+        updater.join(5)
+        self.assertFalse(updater.is_alive(), "update() blocked")
+        self.wait_pool()
+
+        self.assertFalse(svc.lock_timeout, "Service couldn't get the lock: deadlock")
+        self.assertEqual(svc.max_concurrent, 1, "Concurrent notifications")
+        self.assertEqual(svc.received[-1], 1, f"Stale configuration given last: {svc.received}")
 
 
 # ------------------------------------------------------------------------------

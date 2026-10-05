@@ -234,24 +234,29 @@ Notifications and threads
 
 A managed service (or managed service factory) is notified:
 
-* from the thread calling ``update()`` or ``delete()`` on a configuration:
-  those methods return once the matching services have been notified;
+* from the thread calling ``update()`` or ``delete()`` on a configuration;
 * from the Configuration Admin thread when the service is registered, if a
   configuration already exists for its PID, and when the Configuration Admin
   service starts.
 
 The notifications of a given service are serialized: its ``updated()`` (or
 ``deleted()``) method is never called by two threads at the same time.
-A thread notifying a service waits for the end of the notification in
-progress, then gives the latest state of the configuration: intermediate
-states can be skipped, but the service always ends up with the current one.
+If a thread is already notifying a service, the new state of the
+configuration is given to the service by that thread, once the notification
+in progress is over: intermediate states can be skipped, but the service
+always ends up with the latest one.
 The same properties are never given twice in a row to a service.
 
-.. warning:: An ``updated()`` method must not wait for another thread which
-   updates or deletes a configuration targeting the same service: that thread
-   waits for the end of the current notification, causing a deadlock.
-   Updating the configuration of the service from ``updated()`` itself, in the
-   same thread, is allowed.
+``update()`` and ``delete()`` return once the matching services have been
+notified. If another thread is notifying one of them, they wait for it at most
+one second (``NOTIFICATION_WAIT`` in ``pelix.services.configadmin``): waiting
+longer could deadlock, as the caller can hold a lock the service needs, e.g.
+the iPOPO lock held while a component is validated. The service is then
+notified after ``update()`` or ``delete()`` returned.
+
+.. note:: If ``updated()`` updates the configuration of its own service, the
+   service is given the new properties once ``updated()`` returns, instead of
+   by a nested call.
 
 .. versionchanged:: 3.2.4
    Notifications given from the Configuration Admin thread could previously
