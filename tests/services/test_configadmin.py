@@ -15,7 +15,7 @@ import tempfile
 import threading
 import time
 import unittest
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any, cast
 from unittest import mock
 
@@ -1256,6 +1256,18 @@ class FileInstallTest(unittest.TestCase):
         self.assertEqual(test_svc.call_count, expected_count)
         test_svc.call_count = 0
 
+    def wait_until(self, condition: Callable[[], bool], timeout: float = 5) -> None:
+        """
+        Waits for a condition to become true: FileInstall polls the folder, so
+        a change is seen after a delay which depends on the load of the host
+
+        :param condition: Condition to wait for
+        :param timeout: Maximum time to wait, in seconds
+        """
+        deadline = time.monotonic() + timeout
+        while not condition() and time.monotonic() < deadline:
+            time.sleep(0.05)
+
     def touch(self, filepath: str) -> None:
         """
         Updates the modification time of the given file
@@ -1313,12 +1325,10 @@ class FileInstallTest(unittest.TestCase):
         value = "Ni !"
         self.write(filepath, value)
 
-        # Wait a little
-        time.sleep(0.4)
-
         # Check if the service has been updated
         with use_service(context, ref) as svc:
             svc = cast("Configurable", svc)
+            self.wait_until(lambda: svc.value == value)
             self.assertEqual(svc.value, value, "Incorrect initial value")
             self.check_call_count(svc, 1)
 
@@ -1326,12 +1336,10 @@ class FileInstallTest(unittest.TestCase):
         value = "Ecky-ecky-ecky-ecky-pikang-zoom-boing"
         self.write(filepath, value)
 
-        # Wait a little
-        time.sleep(0.4)
-
         # Check if the service has been updated
         with use_service(context, ref) as svc:
             svc = cast("Configurable", svc)
+            self.wait_until(lambda: svc.value == value)
             self.assertEqual(svc.value, value, "Value not updated")
             self.check_call_count(svc, 1)
 
@@ -1354,11 +1362,9 @@ class FileInstallTest(unittest.TestCase):
         # Delete the file
         os.remove(filepath)
 
-        # Wait a little
-        time.sleep(0.4)
-
         with use_service(context, ref) as svc:
             svc = cast("Configurable", svc)
+            self.wait_until(lambda: svc.deleted)
             self.check_call_count(svc, 1)
             self.assertTrue(svc.deleted, "Configuration not deleted")
 
@@ -1398,15 +1404,9 @@ class FileInstallTest(unittest.TestCase):
                 filep,
             )
 
-        # Wait for the folder to be polled
-        for _ in range(30):
-            time.sleep(0.2)
-            with use_service(context, factory_ref) as svc:
-                if cast("ConfigurableFactory", svc).configurations:
-                    break
-
         with use_service(context, factory_ref) as svc:
             svc = cast("ConfigurableFactory", svc)
+            self.wait_until(lambda: pid in svc.configurations)
             self.assertIn(pid, svc.configurations, "Managed service factory not notified")
             self.assertEqual(svc.configurations[pid]["config.value"], 42)
 
