@@ -227,3 +227,33 @@ factory:
                config.delete()
 
            self.configs.clear()
+
+
+Notifications and threads
+=========================
+
+A managed service (or managed service factory) is notified:
+
+* from the thread calling ``update()`` or ``delete()`` on a configuration:
+  those methods return once the matching services have been notified;
+* from the Configuration Admin thread when the service is registered, if a
+  configuration already exists for its PID, and when the Configuration Admin
+  service starts.
+
+The notifications of a given service are serialized: its ``updated()`` (or
+``deleted()``) method is never called by two threads at the same time.
+A thread notifying a service waits for the end of the notification in
+progress, then gives the latest state of the configuration: intermediate
+states can be skipped, but the service always ends up with the current one.
+The same properties are never given twice in a row to a service.
+
+.. warning:: An ``updated()`` method must not wait for another thread which
+   updates or deletes a configuration targeting the same service: that thread
+   waits for the end of the current notification, causing a deadlock.
+   Updating the configuration of the service from ``updated()`` itself, in the
+   same thread, is allowed.
+
+.. versionchanged:: 3.2.4
+   Notifications given from the Configuration Admin thread could previously
+   run at the same time as the one of an update, and give outdated or deleted
+   properties to the service.
