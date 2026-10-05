@@ -369,9 +369,10 @@ class Configuration(services.Configuration):
         registered, its updated method is called synchronously, from the
         calling thread (unlike the spec's asynchronous delivery: this avoids
         deadlocks when the caller already holds a lock the handler needs).
-        If another thread is notifying that service, this method doesn't wait
-        for it: that thread gives the new properties to the service once its
-        current notification is over.
+        If another thread is notifying that service, that thread gives it the
+        new properties once its current notification is over: this method
+        waits for it at most NOTIFICATION_WAIT seconds, then returns anyway, as
+        waiting longer could deadlock.
         Else, this callback is delayed until aforementioned registration
         occurs.
 
@@ -1152,7 +1153,14 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
                         NOTIFICATION_WAIT,
                     )
                 ):
-                    _logger.debug("Service %s will be notified of %s by another thread", svc, pid)
+                    # Likely a lock cycle with the notifying thread: each call
+                    # stalls, which must be visible
+                    _logger.warning(
+                        "Stopped waiting for another thread to notify %s of %s after %.1fs",
+                        svc,
+                        pid,
+                        NOTIFICATION_WAIT,
+                    )
                 return
 
             deliveries.busy = True

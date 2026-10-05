@@ -1874,14 +1874,6 @@ class _RecordingService(services.IManagedService):
         self.entered = threading.Event()
         self.release = threading.Event()
 
-    @property
-    def busy(self) -> bool:
-        """
-        True while a notification is being handled
-        """
-        with self.__lock:
-            return self.__concurrent > 0
-
     def updated(self, properties: dict[str, Any] | None) -> None:
         """
         Called by the ConfigurationAdmin service
