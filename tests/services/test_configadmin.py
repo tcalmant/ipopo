@@ -15,7 +15,7 @@ import tempfile
 import threading
 import time
 import unittest
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import TYPE_CHECKING, Any, cast
 from unittest import mock
 
@@ -23,6 +23,8 @@ import pelix.framework
 from pelix import constants, services
 from pelix.internals.registry import ServiceReference
 from pelix.services.configadmin import (
+    Configuration,
+    ConfigurationAdmin,
     ConfigurationDirectory,
     IConfigurationAdminDirectory,
     JsonPersistence,
@@ -678,10 +680,12 @@ class _ReentrantService(services.IManagedService):
         # Call back into ConfigurationAdmin from another thread: a direct call
         # would deadlock if the directory is locked, whereas this one is only
         # delayed until this notification returns
-        self.__thread = threading.Thread(target=self.__create_configuration, daemon=True)
-        self.__thread.start()
-        self.__thread.join(5)
-        self.directory_free = not self.__thread.is_alive()
+        # Work on a local reference: reset() can clear the member
+        thread = threading.Thread(target=self.__create_configuration, daemon=True)
+        self.__thread = thread
+        thread.start()
+        thread.join(5)
+        self.directory_free = not thread.is_alive()
 
     def reset(self) -> bool:
         """
@@ -736,8 +740,13 @@ class ConfigurationDirectoryTest(unittest.TestCase):
         )
 
         # Make the configuration valid. Nothing holds the directory lock here,
-        # so this first notification always goes through
+        # so this first notification always goes through. The pool can be the
+        # one giving it, while notifying the registration of the service: wait
+        # for it, so that the tests start with a quiet service
         configuration.update({"answer": 0})
+        pool = cast(ConfigurationAdmin, self.config)._pool
+        assert pool is not None
+        pool.enqueue(lambda: None).result(5)
         self.assertTrue(self.service.reset(), "Notification of the first update didn't return")
 
     def tearDown(self) -> None:
@@ -1247,6 +1256,18 @@ class FileInstallTest(unittest.TestCase):
         self.assertEqual(test_svc.call_count, expected_count)
         test_svc.call_count = 0
 
+    def wait_until(self, condition: Callable[[], bool], timeout: float = 5) -> None:
+        """
+        Waits for a condition to become true: FileInstall polls the folder, so
+        a change is seen after a delay which depends on the load of the host
+
+        :param condition: Condition to wait for
+        :param timeout: Maximum time to wait, in seconds
+        """
+        deadline = time.monotonic() + timeout
+        while not condition() and time.monotonic() < deadline:
+            time.sleep(0.05)
+
     def touch(self, filepath: str) -> None:
         """
         Updates the modification time of the given file
@@ -1304,12 +1325,10 @@ class FileInstallTest(unittest.TestCase):
         value = "Ni !"
         self.write(filepath, value)
 
-        # Wait a little
-        time.sleep(0.4)
-
         # Check if the service has been updated
         with use_service(context, ref) as svc:
             svc = cast("Configurable", svc)
+            self.wait_until(lambda: svc.value == value)
             self.assertEqual(svc.value, value, "Incorrect initial value")
             self.check_call_count(svc, 1)
 
@@ -1317,12 +1336,10 @@ class FileInstallTest(unittest.TestCase):
         value = "Ecky-ecky-ecky-ecky-pikang-zoom-boing"
         self.write(filepath, value)
 
-        # Wait a little
-        time.sleep(0.4)
-
         # Check if the service has been updated
         with use_service(context, ref) as svc:
             svc = cast("Configurable", svc)
+            self.wait_until(lambda: svc.value == value)
             self.assertEqual(svc.value, value, "Value not updated")
             self.check_call_count(svc, 1)
 
@@ -1345,11 +1362,9 @@ class FileInstallTest(unittest.TestCase):
         # Delete the file
         os.remove(filepath)
 
-        # Wait a little
-        time.sleep(0.4)
-
         with use_service(context, ref) as svc:
             svc = cast("Configurable", svc)
+            self.wait_until(lambda: svc.deleted)
             self.check_call_count(svc, 1)
             self.assertTrue(svc.deleted, "Configuration not deleted")
 
@@ -1389,15 +1404,9 @@ class FileInstallTest(unittest.TestCase):
                 filep,
             )
 
-        # Wait for the folder to be polled
-        for _ in range(30):
-            time.sleep(0.2)
-            with use_service(context, factory_ref) as svc:
-                if cast("ConfigurableFactory", svc).configurations:
-                    break
-
         with use_service(context, factory_ref) as svc:
             svc = cast("ConfigurableFactory", svc)
+            self.wait_until(lambda: pid in svc.configurations)
             self.assertIn(pid, svc.configurations, "Managed service factory not notified")
             self.assertEqual(svc.configurations[pid]["config.value"], 42)
 
@@ -1833,6 +1842,368 @@ class DeliveryOrderTest(unittest.TestCase):
         self.assertTrue(svc.done.wait(5), "Configurations not delivered")
         self.assertEqual(svc.max_concurrent, 1, "Concurrent notifications")
         self.assertEqual(svc.received, list(range(nb_pids)))
+
+
+# ------------------------------------------------------------------------------
+
+
+def _in_pool() -> bool:
+    """
+    Checks if the current thread is the one of the ConfigurationAdmin pool
+    """
+    name = threading.current_thread().name
+    return name.startswith("ConfigAdmin") and name != "ConfigAdmin-stop"
+
+
+class _RecordingService(services.IManagedService):
+    """
+    Managed service recording its notifications and how many ran at the same
+    time. Its first notification from the pool can be held until released.
+    """
+
+    def __init__(self, hold_pool: bool = False) -> None:
+        """
+        :param hold_pool: If True, hold the first notification from the pool
+        """
+        self.received: list[Any] = []
+        self.max_concurrent = 0
+        self.__concurrent = 0
+        self.__lock = threading.Lock()
+
+        self.__hold_pool = hold_pool
+        self.entered = threading.Event()
+        self.release = threading.Event()
+
+    def updated(self, properties: dict[str, Any] | None) -> None:
+        """
+        Called by the ConfigurationAdmin service
+        """
+        with self.__lock:
+            self.__concurrent += 1
+            self.max_concurrent = max(self.max_concurrent, self.__concurrent)
+            hold = self.__hold_pool and _in_pool()
+            if hold:
+                self.__hold_pool = False
+
+        if hold:
+            self.entered.set()
+            self.release.wait(5)
+
+        with self.__lock:
+            self.__concurrent -= 1
+            self.received.append(None if properties is None else properties.get("index"))
+
+
+class _RecordingFactory(services.IManagedServiceFactory):
+    """
+    Managed service factory recording the last properties given for each PID
+    """
+
+    def __init__(self) -> None:
+        """
+        Sets up members
+        """
+        self.configurations: dict[str, Any] = {}
+
+    def updated(self, pid: str, properties: dict[str, Any] | None) -> None:
+        """
+        Called by the ConfigurationAdmin service
+        """
+        self.configurations[pid] = None if properties is None else properties.get("index")
+
+    def deleted(self, pid: str) -> None:
+        """
+        Called by the ConfigurationAdmin service
+        """
+        self.configurations.pop(pid, None)
+
+
+class _LockingService(_RecordingService):
+    """
+    Managed service needing a lock to handle the first notification given by
+    the pool, once allowed to go on
+    """
+
+    def __init__(self, lock: Any, go: threading.Event) -> None:
+        """
+        :param lock: Lock needed to handle the first pool notification
+        :param go: Event to wait for before taking the lock
+        """
+        super().__init__()
+        self.__lock = lock
+        self.__go = go
+        self.__first = True
+        self.lock_timeout = False
+
+    def updated(self, properties: dict[str, Any] | None) -> None:
+        """
+        Called by the ConfigurationAdmin service
+        """
+        if self.__first and _in_pool():
+            self.__first = False
+            self.entered.set()
+            self.__go.wait(5)
+
+            # Short timeout: a deadlock is the failure being tested
+            if not self.__lock.acquire(timeout=2):
+                self.lock_timeout = True
+            else:
+                self.__lock.release()
+
+        super().updated(properties)
+
+
+class _SelfUpdatingService(services.IManagedService):
+    """
+    Managed service updating its own configuration when given the first one
+    """
+
+    def __init__(self, configuration: services.Configuration) -> None:
+        """
+        :param configuration: The configuration of this service
+        """
+        self.__configuration = configuration
+        self.__depth = 0
+        self.max_depth = 0
+        self.received: list[Any] = []
+
+    def updated(self, properties: dict[str, Any] | None) -> None:
+        """
+        Called by the ConfigurationAdmin service
+        """
+        self.__depth += 1
+        self.max_depth = max(self.max_depth, self.__depth)
+        try:
+            index = None if properties is None else properties.get("index")
+            self.received.append(index)
+            if index == 0:
+                self.__configuration.update({"index": 1})
+        finally:
+            self.__depth -= 1
+
+
+class PoolDeliveryRaceTest(unittest.TestCase):
+    """
+    The configuration given by the pool when a managed service is bound must not
+    race with the one given by the thread updating or deleting it
+    """
+
+    PID = "test.ca.race"
+    FACTORY_PID = "test.ca.race.factory"
+
+    def setUp(self) -> None:
+        """
+        Starts a framework with ConfigurationAdmin
+        """
+        self.conf_folder = tempfile.mkdtemp(prefix="ipopo-configadmin-race-")
+        self.framework = pelix.framework.create_framework(
+            ("pelix.ipopo.core", "pelix.services.configadmin"), {"configuration.folder": self.conf_folder}
+        )
+        self.framework.start()
+        self.context = self.framework.get_bundle_context()
+
+        ref = self.context.get_service_reference(services.IConfigurationAdmin)
+        assert ref is not None
+        self.config = self.context.get_service(ref)
+
+        # Let the pool go through the start up notifications
+        self.wait_pool()
+
+    def tearDown(self) -> None:
+        """
+        Stops the framework
+        """
+        pelix.framework.FrameworkFactory.delete_framework()
+        shutil.rmtree(self.conf_folder, ignore_errors=True)
+
+    def wait_pool(self) -> None:
+        """
+        Waits for the pool to execute the tasks given so far
+        """
+        pool = cast(ConfigurationAdmin, self.config)._pool
+        assert pool is not None
+        # The pool has a single thread: the previous tasks are done once this
+        # one is
+        pool.enqueue(lambda: None).result(5)
+
+    def hold_pool_read(
+        self, configuration: services.Configuration
+    ) -> tuple[threading.Event, threading.Event]:
+        """
+        Makes the pool wait, once, between reading the properties of a
+        configuration and giving them to a service
+
+        :param configuration: A configuration of the current framework
+        :return: The "read" and "release" events
+        """
+        read = threading.Event()
+        release = threading.Event()
+
+        # Patch the class of the running bundle: the module is imported again
+        # each time a framework installs it
+        conf_class = type(configuration)
+        original = conf_class.get_properties
+
+        def get_properties(conf: Configuration) -> dict[str, Any] | None:
+            properties = original(conf)
+            if _in_pool() and not read.is_set():
+                read.set()
+                release.wait(5)
+            return properties
+
+        patcher = mock.patch.object(conf_class, "get_properties", get_properties)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+        self.addCleanup(release.set)
+        return read, release
+
+    def run_while_held(self, release: threading.Event, method: Any, *args: Any) -> None:
+        """
+        Calls a method from another thread while the pool is held, then
+        releases the pool and waits for both to finish
+
+        :param release: Event releasing the pool
+        :param method: Method to call
+        :param args: Method arguments
+        """
+        caller = threading.Thread(target=method, args=args, daemon=True)
+        caller.start()
+
+        # Let the caller notify the service, or wait for the pool to do it
+        caller.join(0.2)
+        release.set()
+        caller.join(5)
+        self.assertFalse(caller.is_alive(), "Caller blocked")
+        self.wait_pool()
+
+    def test_no_stale_delivery_after_update(self) -> None:
+        """
+        A managed service must end up with the latest properties when its
+        configuration is updated while the pool notifies it of its binding
+        """
+        configuration = self.config.get_configuration(self.PID)
+        configuration.update({"index": 0})
+
+        read, release = self.hold_pool_read(configuration)
+        svc = _RecordingService()
+        self.context.register_service(services.IManagedService, svc, {constants.SERVICE_PID: self.PID})
+        self.assertTrue(read.wait(5), "Pool didn't look for the configuration")
+
+        self.run_while_held(release, configuration.update, {"index": 1})
+
+        self.assertEqual(svc.received[-1], 1, f"Stale configuration given last: {svc.received}")
+
+    def test_no_stale_delivery_after_delete(self) -> None:
+        """
+        A managed service must end up without configuration when it is deleted
+        while the pool notifies it of its binding
+        """
+        configuration = self.config.get_configuration(self.PID)
+        configuration.update({"index": 0})
+
+        read, release = self.hold_pool_read(configuration)
+        svc = _RecordingService()
+        self.context.register_service(services.IManagedService, svc, {constants.SERVICE_PID: self.PID})
+        self.assertTrue(read.wait(5), "Pool didn't look for the configuration")
+
+        self.run_while_held(release, configuration.delete)
+
+        self.assertIsNone(svc.received[-1], f"Deleted configuration given last: {svc.received}")
+
+    def test_factory_no_stale_delivery_after_update(self) -> None:
+        """
+        A managed service factory must end up with the latest properties when a
+        configuration is updated while the pool notifies it of its binding
+        """
+        configuration = self.config.create_factory_configuration(self.FACTORY_PID)
+        configuration.update({"index": 0})
+        pid = configuration.get_pid()
+
+        read, release = self.hold_pool_read(configuration)
+        factory = _RecordingFactory()
+        self.context.register_service(
+            services.IManagedServiceFactory, factory, {constants.SERVICE_PID: self.FACTORY_PID}
+        )
+        self.assertTrue(read.wait(5), "Pool didn't look for the configurations")
+
+        self.run_while_held(release, configuration.update, {"index": 1})
+
+        self.assertEqual(factory.configurations.get(pid), 1, "Stale configuration given last")
+
+    def test_no_concurrent_notifications(self) -> None:
+        """
+        A managed service must not be notified by the updating thread while the
+        pool is notifying it
+        """
+        configuration = self.config.get_configuration(self.PID)
+        configuration.update({"index": 0})
+
+        svc = _RecordingService(hold_pool=True)
+        self.addCleanup(svc.release.set)
+        self.context.register_service(services.IManagedService, svc, {constants.SERVICE_PID: self.PID})
+        self.assertTrue(svc.entered.wait(5), "Pool didn't notify the service")
+
+        # Update from another thread: it could wait for the pool notification
+        updater = threading.Thread(target=configuration.update, args=({"index": 1},), daemon=True)
+        updater.start()
+        updater.join(0.5)
+
+        svc.release.set()
+        updater.join(5)
+        self.assertFalse(updater.is_alive(), "Update blocked")
+        self.wait_pool()
+
+        self.assertEqual(svc.max_concurrent, 1, "Concurrent notifications")
+        self.assertEqual(svc.received[-1], 1, f"Stale configuration given last: {svc.received}")
+
+    def test_reentrant_update(self) -> None:
+        """
+        A managed service updating its own configuration from updated() must
+        be given the new properties once that call is over, not in a nested
+        one
+        """
+        configuration = self.config.get_configuration(self.PID)
+        svc = _SelfUpdatingService(configuration)
+        self.context.register_service(services.IManagedService, svc, {constants.SERVICE_PID: self.PID})
+
+        configuration.update({"index": 0})
+        self.wait_pool()
+
+        self.assertEqual(svc.received, [0, 1])
+        self.assertEqual(svc.max_depth, 1, "Nested notification")
+
+    def test_no_deadlock_with_caller_lock(self) -> None:
+        """
+        Updating a configuration while holding a lock that the service needs
+        to handle the notification given by the pool must not deadlock, e.g. a
+        component updating a configuration in its validation callback, called
+        while iPOPO holds its instances lock
+        """
+        configuration = self.config.get_configuration(self.PID)
+        configuration.update({"index": 0})
+
+        shared_lock = threading.Lock()
+        go = threading.Event()
+        self.addCleanup(go.set)
+        svc = _LockingService(shared_lock, go)
+        self.context.register_service(services.IManagedService, svc, {constants.SERVICE_PID: self.PID})
+        self.assertTrue(svc.entered.wait(5), "Pool didn't notify the service")
+
+        def update_holding_lock() -> None:
+            with shared_lock:
+                # The pool now waits for the lock this thread holds
+                go.set()
+                configuration.update({"index": 1})
+
+        updater = threading.Thread(target=update_holding_lock, daemon=True)
+        updater.start()
+        updater.join(5)
+        self.assertFalse(updater.is_alive(), "update() blocked")
+        self.wait_pool()
+
+        self.assertFalse(svc.lock_timeout, "Service couldn't get the lock: deadlock")
+        self.assertEqual(svc.max_concurrent, 1, "Concurrent notifications")
+        self.assertEqual(svc.received[-1], 1, f"Stale configuration given last: {svc.received}")
 
 
 # ------------------------------------------------------------------------------

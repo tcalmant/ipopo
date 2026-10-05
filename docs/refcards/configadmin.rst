@@ -227,3 +227,38 @@ factory:
                config.delete()
 
            self.configs.clear()
+
+
+Notifications and threads
+=========================
+
+A managed service (or managed service factory) is notified:
+
+* from the thread calling ``update()`` or ``delete()`` on a configuration;
+* from the Configuration Admin thread when the service is registered, if a
+  configuration already exists for its PID, and when the Configuration Admin
+  service starts.
+
+The notifications of a given service are serialized: its ``updated()`` (or
+``deleted()``) method is never called by two threads at the same time.
+If a thread is already notifying a service, the new state of the
+configuration is given to the service by that thread, once the notification
+in progress is over: intermediate states can be skipped, but the service
+always ends up with the latest one.
+The same properties are never given twice in a row to a service.
+
+``update()`` and ``delete()`` return once the matching services have been
+notified. If another thread is notifying one of them, they wait for it at most
+one second (``NOTIFICATION_WAIT`` in ``pelix.services.configadmin``): waiting
+longer could deadlock, as the caller can hold a lock the service needs, e.g.
+the iPOPO lock held while a component is validated. The service is then
+notified after ``update()`` or ``delete()`` returned.
+
+.. note:: If ``updated()`` updates the configuration of its own service, the
+   service is given the new properties once ``updated()`` returns, instead of
+   by a nested call.
+
+.. versionchanged:: 3.2.4
+   Notifications given from the Configuration Admin thread could previously
+   run at the same time as the one of an update, and give outdated or deleted
+   properties to the service.
