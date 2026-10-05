@@ -15,6 +15,7 @@ __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
 
+import io
 import logging
 import random
 import threading
@@ -694,6 +695,134 @@ class XmlDoctypeTest(unittest.TestCase):
         for document in ("", "   \n ", "<!-- unterminated", "<?unterminated", "not xml at all"):
             with self.subTest(document=document):
                 self.assertAccepted(document)
+
+
+# ------------------------------------------------------------------------------
+
+
+class _LinesReader(utilities.StreamBase[str]):
+    """
+    Read-only stream returning predefined lines
+    """
+
+    _MODE = "r"
+    _READABLE = True
+
+    def __init__(self, lines: list[str]) -> None:
+        super().__init__()
+        self._lines = list(lines)
+
+    def readline(self, limit: int = -1) -> str:
+        self._check_open()
+        return self._lines.pop(0) if self._lines else ""
+
+
+class _ListWriter(utilities.StreamBase[str]):
+    """
+    Write-only stream storing what it receives
+    """
+
+    _MODE = "w"
+    _WRITABLE = True
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.written: list[str] = []
+
+    def write(self, data: str) -> int:
+        self._check_open()
+        self.written.append(data)
+        return len(data)
+
+
+class StreamBaseTest(unittest.TestCase):
+    """
+    Tests the StreamBase class
+    """
+
+    def test_flags(self) -> None:
+        """
+        Tests the mode and capability flags
+        """
+        reader = _LinesReader([])
+        self.assertEqual(reader.mode, "r")
+        self.assertTrue(reader.readable())
+        self.assertFalse(reader.writable())
+        self.assertFalse(reader.seekable())
+        self.assertFalse(reader.isatty())
+        self.assertIn("_LinesReader", reader.name)
+
+        writer = _ListWriter()
+        self.assertEqual(writer.mode, "w")
+        self.assertFalse(writer.readable())
+        self.assertTrue(writer.writable())
+
+    def test_unsupported(self) -> None:
+        """
+        Tests operations that can't be done on those streams
+        """
+        reader = _LinesReader(["a"])
+        writer = _ListWriter()
+
+        for method, args in (
+            (reader.fileno, ()),
+            (reader.seek, (0,)),
+            (reader.tell, ()),
+            (reader.truncate, ()),
+            (reader.write, ("a",)),
+            (writer.read, ()),
+            (writer.readline, ()),
+        ):
+            self.assertRaises(io.UnsupportedOperation, method, *args)
+
+        # The standard exception is an OSError
+        self.assertRaises(OSError, writer.fileno)
+
+    def test_close(self) -> None:
+        """
+        Tests the close() method and the context manager behaviour
+        """
+        writer = _ListWriter()
+        with writer as stream:
+            self.assertIs(stream, writer)
+            self.assertFalse(writer.closed)
+            stream.write("a")
+
+        self.assertTrue(writer.closed)
+        self.assertEqual(writer.written, ["a"])
+
+        # Closing twice is allowed
+        writer.close()
+
+        # Using a closed stream isn't
+        self.assertRaises(ValueError, writer.write, "b")
+        self.assertRaises(ValueError, writer.flush)
+        self.assertRaises(ValueError, writer.isatty)
+
+        reader = _LinesReader(["a"])
+        reader.close()
+        self.assertRaises(ValueError, reader.readline)
+
+    def test_read_lines(self) -> None:
+        """
+        Tests iteration and readlines(), which stop at the first empty line
+        """
+        lines = ["a\n", "bc\n", "def\n"]
+        self.assertEqual(list(_LinesReader(lines)), lines)
+        self.assertEqual(_LinesReader(lines).readlines(), lines)
+        self.assertEqual(_LinesReader([]).readlines(), [])
+
+        # Stop as soon as the hint is reached
+        self.assertEqual(_LinesReader(lines).readlines(3), lines[:2])
+        self.assertEqual(_LinesReader(lines).readlines(0), lines)
+
+    def test_writelines(self) -> None:
+        """
+        Tests writelines()
+        """
+        writer = _ListWriter()
+        writer.writelines(line for line in ("a", "b"))
+        self.assertEqual(writer.written, ["a", "b"])
 
 
 # ------------------------------------------------------------------------------

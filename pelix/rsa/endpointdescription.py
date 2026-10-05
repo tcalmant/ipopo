@@ -87,7 +87,7 @@ __all__ = [
 # ------------------------------------------------------------------------------
 
 
-def encode_list(key: str, list_: Iterable[Any]) -> dict[str, str]:
+def encode_list(key: str, list_: Iterable[Any] | None) -> dict[str, str]:
     """
     Converts a list into a space-separated string and puts it in a dictionary
 
@@ -95,9 +95,14 @@ def encode_list(key: str, list_: Iterable[Any]) -> dict[str, str]:
     :param list_: A list of objects
     :return: A dictionary key->string or an empty dictionary
     """
-    if not list_:
+    if list_ is None:
         return {}
-    return {key: " ".join(str(i) for i in list_)}
+
+    # Materialize the iterable, as a generator is truthy even when empty
+    items = [str(i) for i in list_]
+    if not items:
+        return {}
+    return {key: " ".join(items)}
 
 
 def package_name(package: str) -> str:

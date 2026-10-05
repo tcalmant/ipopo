@@ -7,9 +7,10 @@ Pelix async HTTP service test module.
 """
 
 import importlib.util
+import io
 import logging
 import unittest
-from typing import cast
+from typing import Any, cast
 
 import tests.http.test_basic as basic_tests
 from pelix import http
@@ -80,6 +81,50 @@ FullAsyncHTTPServiceServletsTest = make_test_class(
     "AsyncSimpleServlet",
     http.ServletType.ASYNC,
 )
+
+
+class WriteWrapperTest(unittest.TestCase):
+    """
+    Tests the stream buffering the body of synchronous servlet responses
+    """
+
+    def test_write(self) -> None:
+        """
+        Tests writing then closing the stream
+        """
+        from pelix.http.basic_async import _WriteWrapper
+
+        stream = _WriteWrapper()
+        self.assertEqual(stream.mode, "wb")
+        self.assertTrue(stream.writable())
+        self.assertFalse(stream.readable())
+        self.assertRaises(io.UnsupportedOperation, stream.read)
+
+        self.assertEqual(stream.write(b"Hello, "), 7)
+        stream.writelines([b"World", b"!"])
+        stream.flush()
+        stream.close()
+
+        # Data is still available after close
+        self.assertEqual(stream.get(), b"Hello, World!")
+        self.assertRaises(ValueError, stream.write, b"more")
+
+    def test_response_multiple_writes(self) -> None:
+        """
+        Tests that a synchronous servlet can write its response in several calls
+        """
+        from pelix.http.basic_async import _SyncHTTPServletResponse
+
+        # The request and loop aren't used to buffer the body
+        response = _SyncHTTPServletResponse(cast(Any, None), cast(Any, None))
+        response.set_response(200)
+        response.write(b"Hello, ")
+        response.write(b"World")
+        response.get_wfile().write(b"!")
+        response.get_wfile().flush()
+
+        self.assertEqual(cast(Any, response.to_aiohttp_response()).body, b"Hello, World!")
+
 
 # ------------------------------------------------------------------------------
 

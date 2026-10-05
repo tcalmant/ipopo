@@ -183,10 +183,17 @@ class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
         return io.BytesIO(self._content)
 
 
-class _WriteWrapper(IO[bytes]):
-    def __init__(self):
+class _WriteWrapper(utilities.StreamBase[bytes]):
+    """
+    Write-only stream buffering the body of a synchronous servlet response
+    """
+
+    _MODE = "wb"
+    _WRITABLE = True
+
+    def __init__(self) -> None:
+        super().__init__()
         self._buffer = io.BytesIO()
-        self._closed = False
 
     def get(self) -> bytes:
         """
@@ -197,36 +204,9 @@ class _WriteWrapper(IO[bytes]):
         """
         return self._buffer.getvalue()
 
-    def read(self, size: int = -1) -> bytes:
-        raise OSError("This stream is not readable")
-
-    def write(self, b: bytes) -> int:  # type: ignore
-        return self._buffer.write(b)
-
-    def seek(self, offset: int, whence: int = io.SEEK_SET) -> int:
-        raise OSError("This stream is not seekable")
-
-    def tell(self) -> int:
-        raise OSError("This stream is not seekable")
-
-    def close(self) -> None:
-        self._closed = True
-
-    def flush(self) -> None:
-        pass
-
-    def readable(self) -> bool:
-        return False
-
-    def writable(self) -> bool:
-        return True
-
-    def seekable(self) -> bool:
-        return False
-
-    @property
-    def closed(self) -> bool:
-        return self._closed
+    def write(self, data: bytes) -> int:
+        self._check_open()
+        return self._buffer.write(data)
 
 
 class _SyncHTTPServletResponse(http.AbstractHTTPServletResponse):
@@ -326,9 +306,8 @@ class _SyncHTTPServletResponse(http.AbstractHTTPServletResponse):
 
         :param data: Data to be written
         """
-        writer = self.get_wfile()
-        writer.write(data)
-        writer.close()
+        # Don't close the stream: the servlet can write its body in several calls
+        self.get_wfile().write(data)
 
 
 # ------------------------------------------------------------------------------

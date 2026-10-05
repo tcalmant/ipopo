@@ -160,10 +160,8 @@ class StoredInstance:
         self._handlers: dict[str, list[handlers_const.Handler]] = {}
         self.__all_handlers: set[handlers_const.Handler] = set(handlers)
         for handler in handlers:
-            kinds = handler.get_kinds()
-            if kinds:
-                for kind in kinds:
-                    self._handlers.setdefault(kind, []).append(handler)
+            for kind in handler.get_kinds():
+                self._handlers.setdefault(kind, []).append(handler)
 
     def __repr__(self) -> str:
         """
