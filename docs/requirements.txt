@@ -32,7 +32,7 @@ mdit-py-plugins==0.6.1
 mdurl==0.1.2
     # via markdown-it-py
 myst-parser==5.1.0
-    # via -r requirements.in
+    # via -r docs/requirements.in
 packaging==26.3
     # via sphinx
 pygments==2.20.0
@@ -47,12 +47,12 @@ snowballstemmer==3.1.1
     # via sphinx
 sphinx==9.1.0
     # via
-    #   -r requirements.in
+    #   -r docs/requirements.in
     #   myst-parser
     #   sphinx-rtd-theme
     #   sphinxcontrib-jquery
 sphinx-rtd-theme==3.1.0
-    # via -r requirements.in
+    # via -r docs/requirements.in
 sphinxcontrib-applehelp==2.0.0
     # via sphinx
 sphinxcontrib-devhelp==2.0.0
