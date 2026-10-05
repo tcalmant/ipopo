@@ -972,7 +972,7 @@ def get_ldap_filter(
     raise TypeError(f"Unhandled filter type {type(ldap_filter).__name__}")
 
 
-def combine_filters(filters: Iterable[Any], operator: int = AND) -> None | LDAPFilter | LDAPCriteria:
+def combine_filters(filters: Iterable[Any] | None, operator: int = AND) -> None | LDAPFilter | LDAPCriteria:
     """
     Combines two LDAP filters, which can be strings or LDAPFilter objects
 
@@ -982,7 +982,7 @@ def combine_filters(filters: Iterable[Any], operator: int = AND) -> None | LDAPF
     :raise ValueError: Invalid filter string found
     :raise TypeError: Unknown filter type
     """
-    if not filters:
+    if filters is None:
         return None
 
     if not hasattr(filters, "__iter__") or is_string(filters):
