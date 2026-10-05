@@ -30,7 +30,11 @@ if importlib.util.find_spec("osgiservicebridge") is None:
 
 # ------------------------------------------------------------------------------
 
-KARAF_URL = "https://archive.apache.org/dist/karaf/4.4.11/apache-karaf-4.4.11.tar.gz"
+# Maven Central rather than archive.apache.org, which is heavily throttled
+KARAF_URL = "https://repo1.maven.org/maven2/org/apache/karaf/apache-karaf/4.4.11/apache-karaf-4.4.11.tar.gz"
+
+# Socket timeout (in seconds): a stalled download must not eat the CI job time
+DOWNLOAD_TIMEOUT = 30
 
 __version_info__ = (3, 2, 3)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -59,7 +63,7 @@ def install_karaf(folder_str: str | None = None) -> pathlib.Path:
     except OSError:
         print("Karaf not found, installing it.")
         with tempfile.TemporaryFile() as fd:
-            with urlopen(KARAF_URL) as req:
+            with urlopen(KARAF_URL, timeout=DOWNLOAD_TIMEOUT) as req:
                 fd.write(req.read())
 
             fd.seek(0)
