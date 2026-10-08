@@ -33,7 +33,7 @@ import shlex
 import string
 import sys
 from collections.abc import Callable
-from typing import TYPE_CHECKING, Any, cast
+from typing import TYPE_CHECKING, Any
 
 from pelix.shell import ShellCommandMethod, beans
 from pelix.shell.completion import ATTR_COMPLETERS, CompletionInfo
@@ -233,7 +233,7 @@ class Shell:
             return False
 
         if namespace not in self._commands:
-            space = self._commands[namespace] = cast(dict[str, Callable[..., Any]], {})
+            space = self._commands[namespace] = {}
         else:
             space = self._commands[namespace]
 
