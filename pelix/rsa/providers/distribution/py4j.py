@@ -7,7 +7,7 @@ Py4j-based Distribution and Discovery Provider
 :author: Scott Lewis
 :copyright: Copyright 2020, Scott Lewis
 :license: Apache License 2.0
-:version: 3.2.3
+:version: 3.2.4
 
 ..
 
@@ -72,7 +72,7 @@ from pelix.rsa.providers.distribution import (
 # ------------------------------------------------------------------------------
 # Module version
 
-__version_info__ = (3, 2, 3)
+__version_info__ = (3, 2, 4)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

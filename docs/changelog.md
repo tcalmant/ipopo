@@ -1,5 +1,32 @@
 # Release Notes
 
+## iPOPO 3.2.4
+
+:::{admonition} Release Date
+:class: info
+
+2026-10-08
+:::
+
+### Project
+
+* Updated dependencies
+
+### Services
+
+* Fixed a race in ConfigurationAdmin notifications: a managed service no longer
+  gets outdated (or deleted) properties when `update()` (or `delete()`) runs at
+  the same time as the notification of a binding
+* Fixed a deadlock between ConfigurationAdmin and the iPOPO instances lock, when
+  a component updates its configuration from `@Validate`: notifications now
+  queue when a service is busy instead of holding its lock across `updated()`
+* Fixed flaky FileInstall tests on slow runners
+
+### Shell
+
+* Added `pelix.utilities.StreamBase`, a base class for the file-like objects
+* The XMPP shell front-end now uses `pelix.utilities.StreamBase` for its input and output streams
+
 ## iPOPO 3.2.3
 
 :::{admonition} Release Date

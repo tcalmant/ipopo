@@ -40,7 +40,7 @@ from tests.shell.test_remote_tls import make_certs
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 3)
+__version_info__ = (3, 2, 4)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # "good", hashed with SHA-crypt over SHA-512
