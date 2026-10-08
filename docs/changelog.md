@@ -12,6 +12,10 @@
 
 * Updated dependencies
 
+### Tests
+
+* Python 3.15 is now fully tested in CI, including for RSA tests
+
 ### Services
 
 * Fixed a race in ConfigurationAdmin notifications: a managed service no longer

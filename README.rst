@@ -527,10 +527,6 @@ Pelix and iPOPO are tested using
 `GitHub actions <https://github.com/tcalmant/ipopo/actions>`_
 targeting Python 3.10 to 3.15.
 
-``grpcio``, required by the ``RSA`` extra, doesn't provide pre-built wheels
-for Python 3.15 yet. Its compilation from source stalls in CI, so the CI
-skips that extra on Python 3.15.
-
 iPOPO v3 doesn't support Python 2 nor versions earlier than 3.10.
 If you need to work with those versions of Python, please use iPOPO v1.
 You can then use Remote Services to allow interactions between iPOPO v1 and v3.
