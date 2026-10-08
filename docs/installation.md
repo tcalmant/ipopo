@@ -17,16 +17,6 @@ If you need support for Python 2.7 or an earlier version of Python 3, please
 use [iPOPO v1](https://github.com/tcalmant/ipopo/tree/v1).
 :::
 
-:::{note}
-`grpcio`, required by the `RSA` extra, doesn't provide pre-built wheels for
-Python 3.15 yet. Its compilation from source stalls, which is why the
-project doesn't test that extra on Python 3.15: wait for an upstream wheel,
-or skip `RSA` when installing on Python 3.15.
-
-`pycares`, required by the `XMPP` extra, has the same wheel gap, but its
-from-source build is quick, so `XMPP` isn't affected.
-:::
-
 There are many ways to install iPOPO, let's have a look to some of them.
 
 ## System-Wide Installation
