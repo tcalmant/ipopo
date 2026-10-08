@@ -10,7 +10,7 @@ with properties.
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.3
+:version: 3.2.4
 
 ..
 
@@ -39,7 +39,7 @@ from pelix.ipopo.decorators import ComponentFactory, Property, Provides
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 3)
+__version_info__ = (3, 2, 4)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

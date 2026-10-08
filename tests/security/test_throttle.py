@@ -28,7 +28,7 @@ from pelix.security.core import Throttle, throttle_keys
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 3)
+__version_info__ = (3, 2, 4)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 LOGGER = "pelix.security.core"
