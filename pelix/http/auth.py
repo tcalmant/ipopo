@@ -40,6 +40,7 @@ from pelix import http
 from pelix.ipopo.decorators import ComponentFactory, Provides
 from pelix.security import (
     ANONYMOUS,
+    ATTRIBUTE_SESSION_ID,
     AuthenticationFailed,
     Credentials,
     Subject,
@@ -58,12 +59,15 @@ __docformat__ = "restructuredtext en"
 __all__ = [
     "DEFAULT_REALM",
     "SERVLET_AUTH_PARAMETERS",
+    "SESSION_METHOD",
     "TRANSPORT",
     "AuthDecision",
     "BasicHttpAuthenticator",
     "BasicHttpAuthenticatorComponent",
     "authenticate_request",
+    "login",
     "make_challenges",
+    "restore",
 ]
 
 _logger = logging.getLogger(__name__)
@@ -154,6 +158,9 @@ class AuthDecision:
     """ If True, the request must be answered with a 401 error """
 
 
+SESSION_METHOD = "form"
+""" Mechanism name of the users who logged in with ``request.login()`` (the Servlet ``FORM``) """
+
 TRANSPORT = "http"
 """ Transport name given to the security layer, telling HTTP logins from others in audits """
 
@@ -172,6 +179,35 @@ def _authenticate(credentials: Credentials, source: str | None, method: str) -> 
     # and a reference kept since the import would see the stopped one forever
     core = importlib.import_module("pelix.security.core")
     return core.authenticate(credentials, source, method=method, transport=TRANSPORT)
+
+
+def login(username: str, password: str, source: str | None) -> Subject:
+    """
+    Authenticates a user from a login form, for the HTTP sessions
+
+    :param username: The user name
+    :param password: The password
+    :param source: The address of the client, for the brute-force throttle
+    :return: The authenticated subject
+    :raise AuthenticationFailed: Wrong credentials, or locked out
+    """
+    return _authenticate(UsernamePassword(username, password), source, SESSION_METHOD)
+
+
+def restore(username: str, session_id: str) -> Subject:
+    """
+    Rebuilds the subject of a user logged in an HTTP session: its groups and
+    roles are those of now, without checking a password again
+
+    :param username: The user name kept in the session
+    :param session_id: The identifier of the session
+    :return: The authenticated subject
+    """
+    # Not imported once: as in _authenticate(), the security bundle may have been reloaded
+    core = importlib.import_module("pelix.security.core")
+    return core.restore_subject(
+        username, {ATTRIBUTE_SESSION_ID: session_id}, method=SESSION_METHOD, transport=TRANSPORT
+    )
 
 
 def make_challenges(authenticators: Iterable[http.HttpAuthenticator], realm: str) -> str | None:

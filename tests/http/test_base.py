@@ -7,15 +7,21 @@ Tests the code shared by the HTTP service implementations.
 """
 
 import importlib.util
+import time
 import types
 import unittest
 from email.message import Message
 from typing import Any, cast
+from unittest import mock
 
 from pelix import http
 from pelix.framework import Framework, FrameworkFactory
+from pelix.http import _base
 from pelix.http._base import (
+    SESSION_USER,
     AbstractHttpService,
+    SessionContext,
+    SessionManager,
     compute_sub_path,
     normalize_allowed_hosts,
     normalize_request_path,
@@ -23,6 +29,7 @@ from pelix.http._base import (
     split_host_port,
 )
 from pelix.http.basic import HttpServiceImpl, _HTTPServletResponse
+from pelix.security import ATTRIBUTE_SESSION_ID, Subject
 from tests.http.utils import DEFAULT_HOST, get_http_code, get_http_page, install_ipopo, instantiate_server
 
 # ------------------------------------------------------------------------------
@@ -362,6 +369,134 @@ class CookieTest(unittest.TestCase):
             with self.subTest(cls=cls):
                 self.assertNotIn("get_peer_address", cls.__abstractmethods__)
                 self.assertNotIn("get_client_address", cls.__abstractmethods__)
+
+
+class SessionTest(unittest.TestCase):
+    """
+    Tests the sessions kept by the services, without any server
+    """
+
+    def setUp(self) -> None:
+        self.manager = SessionManager(10)
+
+    def context(self, cookie: str | None = None) -> SessionContext:
+        return SessionContext(self.manager, "SID", cookie, False)
+
+    def test_find_and_rename(self) -> None:
+        self.assertIsNone(self.manager.find("never given"))
+        session = self.manager.create()
+        old_id = session.get_id()
+        self.assertTrue(session.is_new())
+        self.assertIs(self.manager.find(old_id), session)
+        self.assertFalse(session.is_new())
+
+        new_id = self.manager.rename(session)
+        self.assertNotEqual(new_id, old_id)
+        self.assertIsNone(self.manager.find(old_id))
+        self.assertIs(self.manager.find(new_id), session)
+
+    def test_expiration(self) -> None:
+        session = self.manager.create()
+        now = time.monotonic()
+        for delay, alive in ((5, True), (14, True), (30, False)):
+            # Using the session keeps it alive
+            with (
+                self.subTest(delay=delay),
+                mock.patch.object(_base.time, "monotonic", return_value=now + delay),
+            ):
+                self.assertEqual(self.manager.find(session.get_id()) is session, alive)
+
+        # Expired sessions nobody asks for are dropped when another one starts
+        self.manager.create()
+        with mock.patch.object(_base.time, "monotonic", return_value=now + 30):
+            self.manager.create()
+        self.assertEqual(len(self.manager._sessions), 1)
+
+    def test_capacity(self) -> None:
+        """
+        The oldest anonymous session gives way first: anonymous requests can't log users out
+        """
+        with mock.patch.object(_base, "MAX_SESSIONS", 2):
+            anonymous = self.manager.create()
+            user = self.manager.create()
+            user.set_attribute(SESSION_USER, "alice")
+            other = self.manager.create()
+            # find() keeps a session alive: only look for the evicted one
+            self.assertEqual(len(self.manager._sessions), 2)
+            self.assertIsNone(self.manager.find(anonymous.get_id()))
+
+            # All logged in: the oldest overall gives way
+            other.set_attribute(SESSION_USER, "bob")
+            self.manager.create()
+        self.assertIsNone(self.manager.find(user.get_id()))
+        self.assertIs(self.manager.find(other.get_id()), other)
+
+    def test_context(self) -> None:
+        # An unknown cookie is left alone: a parallel request may carry the one of before a login
+        context = self.context("unknown")
+        self.assertIsNone(context.get(False))
+        self.assertIsNone(context.cookie)
+        with self.assertRaises(RuntimeError):
+            context.change_id()
+
+        session = cast(http.HttpSession, context.get(True))
+        session.set_attribute(SESSION_USER, "alice")
+        with (
+            mock.patch.object(_base.auth, "restore", side_effect=OSError("LDAP is down")),
+            self.assertLogs("pelix.http._base", "ERROR"),
+        ):
+            # A failing membership provider makes an anonymous request
+            self.assertIsNone(context.restore())
+
+        # Dropped by another request: can't be renamed
+        session.invalidate()
+        session.invalidate()
+        with self.assertRaises(RuntimeError):
+            context.change_id()
+
+        # Once the headers are out, the cookie can't change
+        context = self.context()
+        context.sent = True
+        for method in (context.change_id, lambda: context.get(True)):
+            with self.assertRaises(RuntimeError):
+                method()
+        self.assertEqual(self.manager._sessions, {})
+
+    def test_login(self) -> None:
+        """
+        The session gets a new identifier and keeps its attributes, unless another user logs in
+        """
+        context = self.context()
+        cast(http.HttpSession, context.get(True)).set_attribute("cart", 3)
+        old_cookie = context.cookie
+        alice = Subject("alice", attributes={"mail": "a@b.c"}, authenticated=True)
+        with mock.patch.object(_base.auth, "login", return_value=alice):
+            result = context.login("alice", "abc", None)
+        self.assertEqual(result.attributes["mail"], "a@b.c")
+        self.assertIn(ATTRIBUTE_SESSION_ID, result.attributes)
+        self.assertNotEqual(context.cookie, old_cookie)
+        self.assertEqual(cast(http.HttpSession, context.get(False)).get_attribute("cart"), 3)
+
+        with mock.patch.object(_base.auth, "login", return_value=Subject("bob", authenticated=True)):
+            context.login("bob", "abc", None)
+        session = cast(http.HttpSession, context.get(False))
+        self.assertEqual(session.get_attribute(SESSION_USER), "bob")
+        self.assertIsNone(session.get_attribute("cart"))
+
+        context.sent = True
+        with self.assertRaises(RuntimeError):
+            context.logout()
+
+    def test_cookie_name(self) -> None:
+        """
+        A cookie name which isn't a token is replaced by the default one
+        """
+        for name, service in get_services():
+            with self.subTest(service=name):
+                service._session_cookie = "a b"
+                with self.assertLogs(level="WARNING"):
+                    service._normalize_configuration()
+                self.assertEqual(service._session_cookie, "PELIXSESSIONID")
 
 
 class ResolveRequestTest(unittest.TestCase):

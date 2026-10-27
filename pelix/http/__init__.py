@@ -30,13 +30,14 @@ Defines the interfaces that must respect HTTP service implementations.
 import asyncio
 import concurrent.futures
 import re
+import threading
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from enum import Enum
 from typing import IO, Any, Protocol, runtime_checkable
 
 from pelix.constants import Specification
-from pelix.security import Credentials
+from pelix.security import Credentials, Subject
 from pelix.utilities import to_bytes
 
 # ------------------------------------------------------------------------------
@@ -80,6 +81,9 @@ __all__ = [
     "HTTP_SERVLET_ASYNC",
     "HTTP_SERVLET_ASYNC_PATH",
     "HTTP_SERVLET_PATH",
+    "HTTP_SESSION_COOKIE_NAME",
+    "HTTP_SESSION_ENABLED",
+    "HTTP_SESSION_MAX_INACTIVE_INTERVAL",
     "HTTP_SOCKET_TIMEOUT",
     "HTTP_USES_SSL",
     "HTTP_WEBSOCKET_HANDLER",
@@ -103,6 +107,7 @@ __all__ = [
     "HTTPService",
     "HeadersView",
     "HttpAuthenticator",
+    "HttpSession",
     "Servlet",
     "ServletType",
     "WebSocketHandler",
@@ -287,6 +292,28 @@ When the peer of a request is one of them, the right-most address of the
 of the client, and ``X-Forwarded-Proto`` tells if it used HTTPS. They are
 ignored for any other peer. The proxy must keep the ``Host`` header of the
 client. Empty by default: those headers are never read.
+"""
+
+HTTP_SESSION_ENABLED = "pelix.http.session.enabled"
+"""
+HTTP service property: if set, servlets can use ``get_session()``, ``login()``
+and ``logout()`` of their request, and the user logged in a session is the
+subject of the later requests (boolean, False by default). There is one set of
+sessions per HTTP service, kept in memory: a restart logs everyone out.
+
+The session cookie is ``HttpOnly`` and ``SameSite=Lax``, and ``Secure`` when the
+client used HTTPS (see ``pelix.http.proxy.trusted``). Its content is a random
+identifier, replaced on each login. The ``Lax`` attribute and
+``pelix.http.cors.enforce`` are the protection against cross-site requests.
+"""
+
+HTTP_SESSION_MAX_INACTIVE_INTERVAL = "pelix.http.session.max_inactive_interval"
+""" Seconds without request after which a session is dropped (1800 by default) """
+
+HTTP_SESSION_COOKIE_NAME = "pelix.http.session.cookie.name"
+"""
+Name of the session cookie (``PELIXSESSIONID`` by default). Cookies don't
+isolate ports: services of one host must use different names
 """
 
 HTTP_CORS_ENFORCE = "pelix.http.cors.enforce"
@@ -489,6 +516,97 @@ def format_cookie(
     return "; ".join(parts)
 
 
+class HttpSession:
+    """
+    What the server remembers of a browser between its requests (the Servlet
+    ``HttpSession``). Attributes are kept in memory, and the access is thread-safe.
+    """
+
+    def __init__(
+        self, session_id: str, max_inactive_interval: int, expire: Callable[["HttpSession"], None]
+    ) -> None:
+        """
+        :param session_id: The secret identifier, sent to the browser
+        :param max_inactive_interval: Seconds without request before the session is dropped
+        :param expire: Called with the session to drop it from the server
+        """
+        self._id = session_id
+        self._max_inactive_interval = max_inactive_interval
+        self._expire = expire
+        self._attributes: dict[str, Any] = {}
+        self._lock = threading.Lock()
+        self._new = True
+        self._valid = True
+
+    def _check(self) -> None:
+        if not self._valid:
+            raise RuntimeError("The session has been invalidated")
+
+    def get_id(self) -> str:
+        """
+        Returns the identifier of the session: it is a secret, never log it
+        """
+        self._check()
+        return self._id
+
+    def is_new(self) -> bool:
+        """
+        Checks if the browser doesn't know this session yet
+        """
+        self._check()
+        return self._new
+
+    def get_max_inactive_interval(self) -> int:
+        """
+        Returns the seconds without request after which the session is dropped
+        """
+        return self._max_inactive_interval
+
+    def get_attribute(self, name: str, default: Any = None) -> Any:
+        """
+        Returns an attribute
+
+        :param name: Attribute name
+        :param default: Value if the attribute isn't set
+        """
+        self._check()
+        with self._lock:
+            return self._attributes.get(name, default)
+
+    def set_attribute(self, name: str, value: Any) -> None:
+        """
+        Sets an attribute
+
+        :param name: Attribute name
+        :param value: Attribute value
+        """
+        self._check()
+        with self._lock:
+            self._attributes[name] = value
+
+    def remove_attribute(self, name: str) -> None:
+        """
+        Removes an attribute, if it is set
+
+        :param name: Attribute name
+        """
+        self._check()
+        with self._lock:
+            self._attributes.pop(name, None)
+
+    def invalidate(self) -> None:
+        """
+        Drops the session: the browser's cookie is of no use any more.
+        Prefer ``logout()`` of the request, which also removes the cookie.
+        Does nothing if the session is already invalidated.
+        """
+        with self._lock:
+            if not self._valid:
+                return
+            self._valid = False
+        self._expire(self)
+
+
 async def read_body(reader: "asyncio.StreamReader", size: int | None, max_size: int | None) -> bytes:
     """
     Reads the body of a request from an asynchronous stream, without loading
@@ -535,13 +653,19 @@ async def read_body(reader: "asyncio.StreamReader", size: int | None, max_size: 
 class _RequestMixin(ABC):
     """
     What the synchronous and asynchronous servlet requests share, once the
-    HTTP service gave them the result of the trusted proxies
+    HTTP service gave them the result of the trusted proxies and the sessions
     """
 
     remote: tuple[tuple[str, int], bool] | None = None
     """
     The client address and the security of its connection, once the trusted
     proxies are taken into account. It is set by the HTTP service.
+    """
+
+    sessions: Any = None
+    """
+    The sessions of the request, if ``pelix.http.session.enabled`` is set.
+    It is set by the HTTP service.
     """
 
     def get_peer_address(self) -> tuple[str, int]:
@@ -571,6 +695,37 @@ class _RequestMixin(ABC):
         :return: True if the request was sent over TLS
         """
         return bool(self.remote and self.remote[1])
+
+    def _get_sessions(self) -> Any:
+        if self.sessions is None:
+            raise RuntimeError("HTTP sessions are not enabled: see pelix.http.session.enabled")
+        return self.sessions
+
+    def get_session(self, create: bool) -> HttpSession | None:
+        """
+        Returns the session of the browser
+
+        :param create: If True, a session is started when there is none
+        :return: The session, or None if there is none (or they are not enabled, unless ``create``)
+        """
+        return self._get_sessions().get(create) if create or self.sessions else None
+
+    def change_session_id(self) -> str:
+        """
+        Replaces the identifier of the session, to call when the privileges of
+        the browser change (``login()`` does it)
+
+        :return: The new identifier
+        :raise RuntimeError: There is no session
+        """
+        return self._get_sessions().change_id()
+
+    def logout(self) -> None:
+        """
+        Forgets the user of the browser: its session is dropped, and so is its cookie
+        """
+        if self.sessions is not None:
+            self.sessions.logout()
 
 
 class _ResponseMixin(ABC):
@@ -630,6 +785,18 @@ class AbstractHTTPServletRequest(_RequestMixin):
         :return: The cookie values by name
         """
         return parse_cookies(self.get_header("Cookie"))
+
+    def login(self, username: str, password: str) -> Subject:
+        """
+        Authenticates a user with a password, and makes it the subject of the
+        later requests of the browser, in a new session. Failures count for the
+        throttle of ``pelix.security``, by user and by client address.
+
+        :return: The subject, to use for the rest of the request
+        :raise AuthenticationFailed: Wrong credentials, or locked out
+        """
+        addr = self.get_client_address()[0]
+        return self._get_sessions().login(username, password, addr)
 
     @abstractmethod
     def get_header(self, name: str, default: Any = None) -> Any:
@@ -873,6 +1040,13 @@ class AbstractAsyncHTTPServletRequest(_RequestMixin):
         See :meth:`AbstractHTTPServletRequest.get_cookies`
         """
         return parse_cookies(await self.get_header("Cookie"))
+
+    async def login(self, username: str, password: str) -> Subject:
+        """
+        See :meth:`AbstractHTTPServletRequest.login`
+        """
+        addr = self.get_client_address()[0]
+        return await asyncio.to_thread(self._get_sessions().login, username, password, addr)
 
     @abstractmethod
     async def get_header(self, name: str, default: Any = None) -> Any:

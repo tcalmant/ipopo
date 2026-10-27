@@ -585,3 +585,32 @@ To test this snippet, install and start this bundle and the HTTP service bundle
 in a framework, then open a browser to the servlet URL.
 If you used the HTTP service instantiation sample, this URL should be
 http://localhost:9000/servlet.
+
+
+.. _http_sessions:
+
+Sessions and login
+------------------
+
+Properties of the HTTP service:
+
+* ``pelix.http.session.enabled`` (``False``): requests have sessions and ``login()``
+* ``pelix.http.session.max_inactive_interval`` (``1800``): seconds without request before a session is dropped
+* ``pelix.http.session.cookie.name`` (``PELIXSESSIONID``): name of the cookie. Services of one host need
+  different names
+
+With ``pelix.http.session.enabled``, a servlet can call ``request.get_session(create)``,
+``request.login(user, password)`` and ``request.logout()`` (``await`` ``login()`` in an
+asynchronous servlet). ``login()`` checks the password with ``pelix.security``, then puts the user name in a session
+whose identifier is new. The next requests of the browser are handled as that user: its groups and roles
+are asked to the membership providers each time, so a change applies at once.
+
+The login servlet must be reachable without a session: set ``pelix.http.auth.required`` to ``False`` on it.
+
+* Sessions are in memory and per HTTP service: a restart logs everyone out.
+* An account removed from the identity store keeps its sessions until they expire.
+* The cookie is ``HttpOnly`` and ``SameSite=Lax``, and ``Secure`` when the client used HTTPS. Behind a TLS
+  reverse proxy, set ``pelix.http.proxy.trusted``.
+* There is no CSRF token. ``SameSite=Lax`` with ``pelix.http.cors.enforce`` refuse cross-site requests
+  which change data; changing data with ``GET`` defeats them.
+* An open WebSocket keeps the user it had when it was accepted.

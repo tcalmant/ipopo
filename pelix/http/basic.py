@@ -46,6 +46,7 @@ from pelix.http._base import (
     SERVLET_PARAMETERS,
     AbstractHttpService,
     RequestRouting,
+    SessionContext,
     compute_sub_path,
 )
 from pelix.internals.registry import ServiceReference
@@ -94,6 +95,7 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         prefix: str,
         max_body_size: int | None = None,
         remote: tuple[tuple[str, int], bool] | None = None,
+        sessions: SessionContext | None = None,
     ) -> None:
         """
         Sets up the request helper
@@ -103,8 +105,10 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         :param prefix: The path to the servlet root
         :param max_body_size: Maximum accepted size of the body, in bytes
         :param remote: The client and the security of its connection
+        :param sessions: The sessions of the request
         """
         self.remote = remote
+        self.sessions = sessions
         self._handler = request_handler
         self._full_path = full_path
         self._prefix = prefix
@@ -248,6 +252,13 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
             for name, value in cors_headers.items():
                 self._headers.setdefault(name.lower(), [value])
 
+        # The session cookie is set when the headers are sent, whatever the servlet did, once
+        sessions: SessionContext | None = getattr(self._handler, "sessions", None)
+        if sessions is not None and not sessions.sent:
+            sessions.sent = True
+            if sessions.cookie:
+                self.add_header("Set-Cookie", sessions.cookie)
+
         # Send them all at once
         self._sent = True
         for name, values in self._headers.items():
@@ -299,6 +310,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
         # CORS headers to add to the response of the current request, if any
         self.cors_headers: dict[str, str] | None = None
         self.remote: tuple[tuple[str, int], bool] = (("", 0), False)
+        self.sessions: SessionContext | None = None
 
         # This calls setup() then the do_* methods
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
@@ -331,7 +343,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
         # Keep-alive connections reuse the handler: forget the previous request
         self.cors_headers = None
         checks = self._service.check_request(self.command, self.path, self.headers, self.client_address)
-        self.remote = checks.remote
+        self.remote, self.sessions = checks.remote, checks.sessions
         if checks.refused:
             # A rebound host name or a page of another site: no servlet runs
             return self.send_forbidden_response
@@ -357,6 +369,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
                 routing.prefix,
                 self._service.resolve_max_body_size(routing.parameters),
                 self.remote,
+                self.sessions,
             )
             response = _HTTPServletResponse(self)
 
@@ -410,7 +423,9 @@ class _RequestHandler(BaseHTTPRequestHandler):
         :param routing: The result of the routing of the request
         :return: The subject to handle the request as, or None if it has been refused
         """
-        decision = self._service.resolve_authentication(routing, self.headers, self.remote[0][0])
+        decision = self._service.resolve_authentication(
+            routing, self.headers, self.remote[0][0], self.sessions
+        )
         if decision.refused:
             self.send_auth_error(_HTTPServletResponse(self), 401, routing)
             return None
