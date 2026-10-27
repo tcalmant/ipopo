@@ -54,11 +54,13 @@ __all__ = [
     "HTTPS_CERT_FILE",
     "HTTPS_KEY_FILE",
     "HTTPS_KEY_PASSWORD",
+    "HTTP_ALLOWED_HOSTS",
     "HTTP_AUTHENTICATOR",
     "HTTP_AUTH_REALM",
     "HTTP_AUTH_REQUIRED",
     "HTTP_CASE_SENSITIVE_PATHS",
     "HTTP_CORS_CREDENTIALS",
+    "HTTP_CORS_ENFORCE",
     "HTTP_CORS_EXPOSE_HEADERS",
     "HTTP_CORS_HANDLER",
     "HTTP_CORS_HEADERS",
@@ -167,6 +169,26 @@ Avoids a slow client to keep a request handling thread busy forever. A value
 lesser than or equal to 0 removes the timeout.
 """
 
+# ... Host header whitelist
+HTTP_ALLOWED_HOSTS = "pelix.http.allowed_hosts"
+"""
+Host names the server accepts in the ``Host`` header of the requests (string,
+comma-separated string or list of strings, not set by default).
+
+A request whose ``Host`` header is missing or not listed is answered with a 403
+error code, before any servlet is looked for. This protects the server against
+DNS rebinding: a page loaded from a hostile name resolving to the server
+address can otherwise read its responses, as the browser sees them as
+same-origin.
+
+An entry without port matches any port (``localhost``), an entry with a port
+only matches this port (``localhost:8080``). IPv6 literals are given in
+brackets (``[::1]``). The comparison is case-insensitive. If not set or
+empty, the ``Host`` header is not checked.
+
+.. versionadded:: 3.3.0
+"""
+
 # ... case sensitivity of the servlet paths
 HTTP_CASE_SENSITIVE_PATHS = "pelix.http.case_sensitive_paths"
 """
@@ -248,6 +270,22 @@ HTTP_CORS_CREDENTIALS = "pelix.http.cors.credentials"
 If True, cross-origin requests can carry credentials (cookies, authorization
 header, ...). The allowed origin is then always sent explicitly, never as
 ``*`` (boolean, False by default).
+"""
+
+HTTP_CORS_ENFORCE = "pelix.http.cors.enforce"
+"""
+HTTP service property: if set, a request carrying an ``Origin`` header which is
+neither the origin of the server nor allowed by the CORS policy is answered
+with a 403 error code, and no servlet is called (boolean, False by default).
+
+Without it, the CORS policy only decides which ``Access-Control-*`` headers are
+sent: a "simple" cross-site request, like a form posted by a page of another
+site, is still handled by the servlet, and only its response is hidden from
+the page. A request without ``Origin`` header (not sent by a browser) is never
+refused. Preflight requests are not concerned: they are always answered by the
+server.
+
+.. versionadded:: 3.3.0
 """
 
 HTTP_CORS_MAX_AGE = "pelix.http.cors.max_age"

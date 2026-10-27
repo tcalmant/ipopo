@@ -50,6 +50,18 @@ pelix.http.case_sensitive_paths True    If set, servlet paths are matched
                                         case-sensitively, as URI paths are
                                         defined to be. Unset it to restore the
                                         folding of earlier releases
+pelix.http.allowed_hosts        (none)  Host names accepted in the ``Host``
+                                        header, as a list or a comma-separated
+                                        string. Other requests, or requests
+                                        without ``Host``, get a 403 error code.
+                                        An entry without port matches any port.
+                                        If not set or empty, the header is not
+                                        checked
+pelix.http.cors.enforce         False   If set, a request with an ``Origin``
+                                        header which is neither the server's
+                                        own origin nor allowed by the CORS
+                                        policy gets a 403 error code, and no
+                                        servlet is called (see :ref:`http_cors`)
 pelix.http.auth.required        False   If set, requests must carry valid
                                         credentials (see :ref:`http_auth`)
 pelix.http.auth.realm           Pelix   Protection space given in the
@@ -65,6 +77,15 @@ pelix.http.auth.realm           Pelix   Protection space given in the
 
 .. versionadded:: 3.2.3
    ``pelix.http.case_sensitive_paths``.
+
+.. versionadded:: 3.3.0
+   ``pelix.http.allowed_hosts`` and ``pelix.http.cors.enforce``.
+
+   A page of another site can post a form to a server it can reach (for
+   example one listening on ``127.0.0.1``), and a hostile name can be rebound
+   to the address of the server: without those two properties, the servlets
+   handle such requests, the browser only hiding the response from the page.
+   Set both on a server which can be reached by a browser.
 
 .. note:: ``pelix.http.socket_timeout`` is only applied by the synchronous HTTP
    service.

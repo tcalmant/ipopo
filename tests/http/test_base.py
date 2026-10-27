@@ -12,7 +12,13 @@ from typing import Any
 
 from pelix import http
 from pelix.framework import Framework, FrameworkFactory
-from pelix.http._base import AbstractHttpService, compute_sub_path, normalize_request_path
+from pelix.http._base import (
+    AbstractHttpService,
+    compute_sub_path,
+    normalize_allowed_hosts,
+    normalize_request_path,
+    split_host_port,
+)
 from pelix.http.basic import HttpServiceImpl
 from tests.http.utils import DEFAULT_HOST, get_http_code, get_http_page, install_ipopo, instantiate_server
 
@@ -211,6 +217,34 @@ class ComputeSubPathTest(unittest.TestCase):
 
 
 # ------------------------------------------------------------------------------
+
+
+class HostTest(unittest.TestCase):
+    """
+    Tests the parsing of the Host header and of its whitelist
+    """
+
+    def test_split_host_port(self) -> None:
+        for value, expected in (
+            ("LocalHost", ("localhost", None)),
+            ("localhost:8080", ("localhost", "8080")),
+            ("example.com.:80", ("example.com", "80")),
+            ("[::1]", ("[::1]", None)),
+            ("[::1]:8080", ("[::1]", "8080")),
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(split_host_port(value), expected)
+
+    def test_normalize_allowed_hosts(self) -> None:
+        for value, expected in (
+            (None, None),
+            ("", None),
+            ([], None),
+            ("a, B:1,", [("a", None), ("b", "1")]),
+            (["a"], [("a", None)]),
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(normalize_allowed_hosts(value), expected)
 
 
 class ResolveRequestTest(unittest.TestCase):

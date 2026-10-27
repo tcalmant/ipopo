@@ -307,16 +307,26 @@ class _CorsServerTests:
         self.ipopo = install_ipopo(self.framework)
         self.framework.install_bundle(self.http_bundle).start()
         self.framework.install_bundle("pelix.http.cors").start()
+        self.start_server()
+
+    def tearDown(self) -> None:
+        FrameworkFactory.delete_framework()
+
+    def start_server(self, **properties: Any) -> None:
+        """
+        (Re)starts the HTTP service
+
+        :param properties: Extra properties of the HTTP service
+        """
+        if self.ipopo.is_registered_instance(SERVER_NAME):
+            self.ipopo.kill(SERVER_NAME)
 
         svc = self.ipopo.instantiate(
             self.http_factory,
             SERVER_NAME,
-            {http.HTTP_SERVICE_ADDRESS: DEFAULT_HOST, http.HTTP_SERVICE_PORT: 0},
+            {http.HTTP_SERVICE_ADDRESS: DEFAULT_HOST, http.HTTP_SERVICE_PORT: 0, **properties},
         )
         self.port = svc.get_access()[1]
-
-    def tearDown(self) -> None:
-        FrameworkFactory.delete_framework()
 
     def register_servlet(self, properties: dict[str, Any] | None = None) -> None:
         """
@@ -359,6 +369,12 @@ class _CorsServerTests:
             return response.status, response.msg, response.read()
         finally:
             conn.close()
+
+    def check_statuses(self, cases: list[tuple[str, dict[str, str]]], expected: list[int]) -> None:
+        """
+        Sends (method, headers) requests on /test and compares their status codes
+        """
+        self.assertEqual([self.request(method, headers=headers)[0] for method, headers in cases], expected)
 
     def preflight(
         self, uri: str = "/test", origin: str = ORIGIN, method: str = "PUT", headers: str | None = None
@@ -558,6 +574,73 @@ class _CorsServerTests:
 
         _, headers, _ = self.request(headers={"Origin": OTHER_ORIGIN})
         self.assertEqual(headers["Access-Control-Allow-Origin"], OTHER_ORIGIN)
+
+    def test_origin_enforced(self) -> None:
+        """
+        With pelix.http.cors.enforce, the servlet doesn't run for a foreign origin
+        """
+        self.start_server(**{http.HTTP_CORS_ENFORCE: "true"})
+        self.register_servlet()
+        self.add_handler(**{http.HTTP_CORS_ORIGINS: [ORIGIN]})
+        own = f"http://{DEFAULT_HOST}:{self.port}"
+        preflight = {"Access-Control-Request-Method": "PUT"}
+        self.check_statuses(
+            [
+                ("GET", {"Origin": OTHER_ORIGIN}),
+                ("POST", {"Origin": OTHER_ORIGIN}),
+                # Sandboxed pages and redirects
+                ("POST", {"Origin": "null"}),
+                ("GET", {"Origin": ORIGIN}),
+                # Not a browser
+                ("GET", {}),
+                # Browsers send Origin on same-origin POST too
+                ("GET", {"Origin": own}),
+                ("GET", {"Origin": f"http://{DEFAULT_HOST}:{self.port + 1}"}),
+                ("OPTIONS", {"Origin": ORIGIN, **preflight}),
+                ("OPTIONS", {"Origin": OTHER_ORIGIN, **preflight}),
+            ],
+            [403, 403, 403, 200, 200, 200, 403, 204, 403],
+        )
+
+    def test_allowed_hosts(self) -> None:
+        """
+        pelix.http.allowed_hosts refuses the other Host headers, on any path
+        """
+        self.register_servlet()
+        rebound = [("GET", {"Host": "rebound.example"})]
+        # Not checked by default, nor when empty
+        self.check_statuses(rebound, [200])
+        self.start_server(**{http.HTTP_ALLOWED_HOSTS: ""})
+        self.check_statuses(rebound, [200])
+
+        self.start_server(**{http.HTTP_ALLOWED_HOSTS: f"Example.com, {DEFAULT_HOST}, other.example:8080"})
+        self.check_statuses(
+            [
+                *rebound,
+                ("GET", {"Host": f"rebound.example:{self.port}"}),
+                ("GET", {"Host": f"{DEFAULT_HOST}:{self.port}"}),
+                ("GET", {"Host": "example.COM"}),
+                ("GET", {"Host": "example.com:1234"}),
+                # An entry with a port only matches this port
+                ("GET", {"Host": "other.example:8080"}),
+                ("GET", {"Host": "other.example:9090"}),
+                ("GET", {"Host": "other.example"}),
+            ],
+            [403, 403, 200, 200, 200, 200, 403, 403],
+        )
+        self.assertEqual(self.request(uri="/unknown", headers={"Host": "rebound.example"})[0], 403)
+
+        # An HTTP/1.0 request without Host can't be checked
+        conn = httplib.HTTPConnection(DEFAULT_HOST, self.port, timeout=5)
+        try:
+            conn.putrequest("GET", "/test", skip_host=True)
+            conn.endheaders()
+            response = conn.getresponse()
+            response.read()
+            # aiohttp refuses it by itself, with a 400
+            self.assertIn(response.status, (400, 403))
+        finally:
+            conn.close()
 
 
 class BasicCorsTest(_CorsServerTests, unittest.TestCase):

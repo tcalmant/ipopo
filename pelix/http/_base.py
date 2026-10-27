@@ -66,10 +66,13 @@ __all__ = [
     "LOCALHOST_ADDRESS",
     "SERVLET_PARAMETERS",
     "AbstractHttpService",
+    "RequestChecks",
     "RequestRouting",
     "compute_sub_path",
+    "normalize_allowed_hosts",
     "normalize_max_body_size",
     "normalize_request_path",
+    "split_host_port",
 ]
 
 # ------------------------------------------------------------------------------
@@ -204,6 +207,46 @@ def compute_sub_path(full_path: str, prefix: str) -> str:
 # ------------------------------------------------------------------------------
 
 
+def split_host_port(value: str) -> tuple[str, str | None]:
+    """
+    Splits the value of a ``Host`` header into a lower-case host name and a
+    port
+
+    :param value: A ``host``, ``host:port``, ``[ipv6]`` or ``[ipv6]:port`` string
+    :return: A (host, port) tuple, the port being None if there is none
+    """
+    value = value.strip().lower()
+    if value.startswith("["):
+        # IPv6 literal: the host is kept with its brackets
+        end = value.find("]")
+        if end < 0:
+            return value, None
+
+        host, rest = value[: end + 1], value[end + 1 :]
+        return host, rest[1:] if rest.startswith(":") else None
+
+    host, sep, port = value.partition(":")
+    # A trailing dot makes an absolute name, the same host
+    return host.rstrip("."), (port if sep else None)
+
+
+def normalize_allowed_hosts(value: Any) -> list[tuple[str, str | None]] | None:
+    """
+    Normalizes the value of a ``pelix.http.allowed_hosts`` configuration
+
+    :param value: None, a (comma-separated) string or an iterable of strings
+    :return: A list of (host, port) tuples, or None if the Host header must
+             not be checked (nothing configured, or an empty value)
+    """
+    if value is None:
+        return None
+
+    if isinstance(value, str):
+        value = value.split(",")
+
+    return [split_host_port(item) for item in (str(raw).strip() for raw in value) if item] or None
+
+
 @dataclass(frozen=True)
 class RequestRouting:
     """
@@ -230,6 +273,23 @@ class RequestRouting:
     """ Error code to answer with, when the path itself has been refused """
 
 
+@dataclass(frozen=True)
+class RequestChecks:
+    """
+    What the HTTP services decide about a request before looking for its servlet
+    (see :meth:`AbstractHttpService.check_request`)
+    """
+
+    routing: RequestRouting
+    """ The result of the routing of the request """
+
+    cors_decision: cors.CorsDecision | None
+    """ The CORS decision for the request, if it is a cross-origin one """
+
+    refused: bool
+    """ True if the Host or the Origin of the request is refused: answer a 403 """
+
+
 # ------------------------------------------------------------------------------
 
 
@@ -239,6 +299,8 @@ class RequestRouting:
 @Property("_max_body_size", http.HTTP_MAX_BODY_SIZE, 1024 * 1024)
 @Property("_socket_timeout", http.HTTP_SOCKET_TIMEOUT, 60.0)
 @Property("_case_sensitive_paths", http.HTTP_CASE_SENSITIVE_PATHS, True)
+@Property("_cors_enforce", http.HTTP_CORS_ENFORCE, False)
+@Property("_allowed_hosts", http.HTTP_ALLOWED_HOSTS, None)
 @Property("_auth_required", http.HTTP_AUTH_REQUIRED, False)
 @Property("_auth_realm", http.HTTP_AUTH_REALM, auth.DEFAULT_REALM)
 @Property("_uses_ssl", http.HTTP_USES_SSL, False)
@@ -262,6 +324,8 @@ class AbstractHttpService(http.HTTPService):
         self._max_body_size: int | None = 1024 * 1024
         self._socket_timeout: float | None = 60.0
         self._case_sensitive_paths = True
+        self._cors_enforce: bool = False
+        self._allowed_hosts: Any = None
         self._auth_required: bool = False
         self._auth_realm: str = auth.DEFAULT_REALM
         self._uses_ssl = False
@@ -370,6 +434,10 @@ class AbstractHttpService(http.HTTPService):
         if not isinstance(self._extra, dict):
             self._extra = {}
 
+        # Normalize the origin and host checks
+        self._cors_enforce = _to_bool(self._cors_enforce)
+        self._allowed_hosts = normalize_allowed_hosts(self._allowed_hosts)
+
         # Normalize the authentication configuration
         self._auth_required = _to_bool(self._auth_required)
         self._auth_realm = str(self._auth_realm or auth.DEFAULT_REALM)
@@ -433,6 +501,70 @@ class AbstractHttpService(http.HTTPService):
             # Refuse the request rather than letting a faulty policy allow it
             self.log_exception("Error computing the CORS policy of %s: %s", routing.path, ex)
             return cors.CorsDecision(bool(request_method) and method.upper() == "OPTIONS", None)
+
+    def check_request(self, method: str, raw_path: str, headers: Any) -> RequestChecks:
+        """
+        Routes a request and checks its ``Host`` and ``Origin`` headers, before
+        any servlet is looked for
+
+        :param method: The HTTP method of the request
+        :param raw_path: The path of the request, as received
+        :param headers: The headers of the request
+        :return: The routing, the CORS decision and the refusal of the request
+        """
+        host, origin = headers.get("Host"), headers.get("Origin")
+        routing = self.resolve_request(raw_path)
+        decision = self.resolve_cors(
+            routing,
+            method,
+            origin,
+            headers.get("Access-Control-Request-Method"),
+            headers.get("Access-Control-Request-Headers"),
+        )
+        refused = self.is_host_refused(host) or self.is_origin_refused(origin, host, decision)
+        return RequestChecks(routing, decision, refused)
+
+    def is_host_refused(self, host: str | None) -> bool:
+        """
+        Checks the ``Host`` header of a request against the
+        ``pelix.http.allowed_hosts`` configuration
+
+        :param host: The value of the ``Host`` header, if any
+        :return: True if the request must be refused
+        """
+        allowed = self._allowed_hosts
+        if allowed is None:
+            # Not configured: nothing is checked
+            return False
+
+        if not host:
+            # A browser always sends it: it can only come from a script
+            return True
+
+        name, port = split_host_port(host)
+        return not any(name == a_name and (a_port is None or a_port == port) for a_name, a_port in allowed)
+
+    def is_origin_refused(
+        self, origin: str | None, host: str | None, decision: cors.CorsDecision | None
+    ) -> bool:
+        """
+        Checks the ``Origin`` header of a request when ``pelix.http.cors.enforce``
+        is set. Preflight requests are not concerned.
+
+        :param origin: The value of the ``Origin`` header, if any
+        :param host: The value of the ``Host`` header, if any
+        :param decision: The result of :meth:`resolve_cors` for this request
+        :return: True if the request must be refused
+        """
+        if not self._cors_enforce or not origin:
+            return False
+
+        if decision is not None and (decision.preflight or decision.allowed):
+            return False
+
+        scheme = "https" if self._uses_ssl else "http"
+        # A page served by this server is accepted: browsers send Origin on same-origin POST too
+        return not host or origin.strip().lower() != f"{scheme}://{host.strip().lower()}"
 
     def is_auth_required(self, routing: "RequestRouting") -> bool:
         """

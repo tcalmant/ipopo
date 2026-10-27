@@ -883,15 +883,14 @@ class AsyncHttpServiceImpl(AbstractHttpService):
             return aiohttp.web.Response(status=503, text="Service unavailable")
 
         # Use the raw path: aiohttp already decoded request.path, normalizing it again would double-decode
-        routing = self.resolve_request(request.raw_path)
+        checks = self.check_request(request.method, request.raw_path, request.headers)
+        if checks.refused:
+            # A rebound host name or a page of another site: no servlet runs
+            return aiohttp.web.Response(
+                status=403, text=self.make_auth_error_page(403), content_type="text/html"
+            )
 
-        cors_decision = self.resolve_cors(
-            routing,
-            request.method,
-            request.headers.get("Origin"),
-            request.headers.get("Access-Control-Request-Method"),
-            request.headers.get("Access-Control-Request-Headers"),
-        )
+        routing, cors_decision = checks.routing, checks.cors_decision
         if cors_decision is not None:
             if cors_decision.preflight:
                 # Preflight requests are answered by the server, not by the servlets

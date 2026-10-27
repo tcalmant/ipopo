@@ -295,18 +295,15 @@ class _RequestHandler(BaseHTTPRequestHandler):
             # Not a request handling
             return object.__getattribute__(self, name)
 
-        # Get the corresponding servlet
-        routing = self._service.resolve_request(self.path)
-
         # Keep-alive connections reuse the handler: forget the previous request
         self.cors_headers = None
-        cors_decision = self._service.resolve_cors(
-            routing,
-            self.command,
-            self.headers.get("Origin"),
-            self.headers.get("Access-Control-Request-Method"),
-            self.headers.get("Access-Control-Request-Headers"),
-        )
+
+        checks = self._service.check_request(self.command, self.path, self.headers)
+        if checks.refused:
+            # A rebound host name or a page of another site: no servlet runs
+            return self.send_forbidden_response
+
+        routing, cors_decision = checks.routing, checks.cors_decision
         if cors_decision is not None:
             if cors_decision.preflight:
                 # Preflight requests are answered by the server, not by the servlets
@@ -437,6 +434,13 @@ class _RequestHandler(BaseHTTPRequestHandler):
             for name, value in headers.items():
                 response.set_header(name, value)
             response.end_headers()
+
+    def send_forbidden_response(self) -> None:
+        """
+        Response sent when the Host or the Origin of the request is refused,
+        before any servlet has been looked for
+        """
+        _HTTPServletResponse(self).send_content(403, self._service.make_auth_error_page(403))
 
     def send_bad_path_response(self) -> None:
         """
