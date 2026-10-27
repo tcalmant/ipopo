@@ -29,7 +29,7 @@ import copy
 import fnmatch
 import logging
 import time
-from collections.abc import Iterable
+from collections.abc import Iterable, Mapping
 from typing import Any, cast
 
 import pelix.constants
@@ -39,6 +39,7 @@ import pelix.services
 import pelix.threadpool
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Validate
+from pelix.services.eventdelivery import EventDeliveryError, EventProperties, OrderedDelivery
 from pelix.utilities import to_iterable
 
 # ------------------------------------------------------------------------------
@@ -50,7 +51,7 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-__all__ = ["EventAdmin"]
+__all__ = ["EventAdmin", "EventDeliveryError", "EventProperties"]
 
 # ------------------------------------------------------------------------------
 
@@ -80,15 +81,20 @@ class EventAdmin(pelix.services.EventAdmin):
         # Thread pool
         self._pool: pelix.threadpool.ThreadPool | None = None
 
-    def _get_handlers_ids(self, topic: str, properties: dict[str, Any]) -> list[str] | None:
+        # Ordered delivery of the posted events, on top of the pool
+        self._delivery: OrderedDelivery | None = None
+
+    def _get_handlers_ids(self, topic: str, properties: Mapping[str, Any]) -> list[tuple[str, bool]] | None:
         """
         Retrieves the IDs of the listeners that requested to handle this event
 
         :param topic: Topic of the event
         :param properties: Associated properties
-        :return: The IDs of the services to call back for this event. None if none found
+        :return: The (service ID, ordered) tuples of the services to call back for this event.
+                 None if none found. ``ordered`` is False if the handler asked
+                 for ``async.unordered`` delivery
         """
-        handlers: list[str] = []
+        handlers: list[tuple[str, bool]] = []
 
         # Get the handler service references
         assert self._context is not None
@@ -98,30 +104,48 @@ class EventAdmin(pelix.services.EventAdmin):
             # No service found
             return None
 
+        # The topic is a property of the event, which a filter can test (OSGi 113.3.2)
+        filter_props = {**properties, pelix.services.PROP_EVENT_TOPICS: topic}
+
         for svc_ref in handlers_refs:
             # Check the LDAP filter
             ldap_filter = svc_ref.get_property(pelix.services.PROP_EVENT_FILTER)
-            if self.__match_filter(properties, ldap_filter):
+            try:
+                matches = self.__match_filter(filter_props, ldap_filter)
+            except (ValueError, TypeError):
+                # OSGi 113.4: an invalid filter is logged and the handler ignored
+                _logger.warning(
+                    "Ignoring event handler %s: invalid filter %r",
+                    svc_ref.get_property(pelix.constants.SERVICE_ID),
+                    ldap_filter,
+                )
+                continue
+
+            if matches:
                 # Get the service ID
                 svc_id = svc_ref.get_property(pelix.constants.SERVICE_ID)
+                ordered = (
+                    svc_ref.get_property(pelix.services.PROP_EVENT_DELIVERY)
+                    != pelix.services.DELIVERY_ASYNC_UNORDERED
+                )
 
                 # Filter matches the event, test the topic
                 topics = to_iterable(svc_ref.get_property(pelix.services.PROP_EVENT_TOPICS), True)
                 if not topics:
                     # Filter matches, and no topic filter given: notify it
-                    handlers.append(svc_id)
+                    handlers.append((svc_id, ordered))
                 else:
                     for handled_topic in cast(Iterable[str], to_iterable(topics, False)):
                         if fnmatch.fnmatch(topic, handled_topic):
                             # Full match, keep the service ID
-                            handlers.append(svc_id)
+                            handlers.append((svc_id, ordered))
                             break
 
         return handlers
 
     @staticmethod
     def __match_filter(
-        properties: dict[str, Any], ldap_filter: None | str | pelix.ldapfilter.LdapFilterOrCriteria
+        properties: Mapping[str, Any], ldap_filter: None | str | pelix.ldapfilter.LdapFilterOrCriteria
     ) -> bool:
         """
         Tests if the given properties match the given filter
@@ -136,7 +160,7 @@ class EventAdmin(pelix.services.EventAdmin):
 
         # Normalize the filter
         ldap_filter = pelix.ldapfilter.get_ldap_filter(ldap_filter)
-        return ldap_filter is None or ldap_filter.matches(properties)
+        return ldap_filter is None or ldap_filter.matches(cast(dict[str, Any], properties))
 
     def __get_service(
         self, service_id: str
@@ -171,17 +195,30 @@ class EventAdmin(pelix.services.EventAdmin):
             # Service disappeared
             return None, None
 
-    def __notify_handlers(self, topic: str, properties: dict[str, Any], handlers_ids: Iterable[str]) -> None:
+    def __notify_handlers(
+        self,
+        topic: str,
+        properties: dict[str, Any],
+        handlers_ids: Iterable[str],
+        copy_props: bool = True,
+        errors: list[tuple[Any, BaseException]] | None = None,
+    ) -> None:
         """
         Notifies the handlers of an event
 
         :param topic: Topic of the event
         :param properties: Associated properties
         :param handlers_ids: IDs of the services to notify
+        :param copy_props: If True, each handler gets a deep copy of the properties,
+                           else all share an immutable EventProperties
+        :param errors: If not None, the (handler ID, exception) of the failed notifications
+                       are appended to it
         """
         if self._context is None:
             # No more context
             return
+
+        shared = None if copy_props else EventProperties(properties)
 
         for handler_id in handlers_ids:
             # Define the "ref" variable name (and reset it on each loop)
@@ -190,10 +227,16 @@ class EventAdmin(pelix.services.EventAdmin):
                 # Get the service
                 ref, handler = self.__get_service(handler_id)
                 if handler is not None:
-                    # Use a copy of the properties each time
-                    handler.handle_event(topic, copy.deepcopy(properties))
-            except Exception:
-                _logger.exception("Error notifying event handler %d", handler_id)
+                    # Use a copy of the properties each time (or the shared immutable view)
+                    handler.handle_event(
+                        topic,
+                        cast(dict[str, Any], shared if shared is not None else copy.deepcopy(properties)),
+                    )
+            except Exception as ex:
+                # OSGi 113.8.1: log, then go on with the other handlers
+                _logger.exception("Error notifying event handler %s", handler_id)
+                if errors is not None:
+                    errors.append((handler_id, ex))
             finally:
                 if ref is not None:
                     self._context.unget_service(ref)
@@ -224,38 +267,71 @@ class EventAdmin(pelix.services.EventAdmin):
 
         return props
 
-    def send(self, topic: str, properties: dict[str, Any] | None = None) -> None:
+    def send(
+        self,
+        topic: str,
+        properties: dict[str, Any] | None = None,
+        *,
+        copy: bool = True,
+        raise_errors: bool = False,
+    ) -> None:
         """
-        Sends synchronously the given event
+        Sends synchronously the given event: the handlers are called in the
+        calling thread, before this method returns.
 
         :param topic: Topic of event
         :param properties: Associated properties
+        :param copy: If False, the handlers get one shared immutable
+                     :class:`~pelix.services.eventdelivery.EventProperties` instead
+                     of a deep copy of the properties each
+        :param raise_errors: If True, raise an :class:`EventDeliveryError` after all
+                             the handlers have been notified, if some of them failed.
+                             By default, errors are only logged (OSGi 113.8.1)
+        :raise EventDeliveryError: A handler failed and ``raise_errors`` is True
         """
         # Compute properties
         properties = self.__setup_properties(properties)
 
         # Get the currently available handlers
-        handlers_ids = self._get_handlers_ids(topic, properties)
-        if handlers_ids:
+        handlers = self._get_handlers_ids(topic, properties)
+        if handlers:
             # Notify them
-            self.__notify_handlers(topic, properties, handlers_ids)
+            errors: list[tuple[Any, BaseException]] | None = [] if raise_errors else None
+            self.__notify_handlers(topic, properties, [h[0] for h in handlers], copy, errors)
+            if errors:
+                raise EventDeliveryError(topic, errors)
 
-    def post(self, topic: str, properties: dict[str, Any] | None = None) -> None:
+    def post(self, topic: str, properties: dict[str, Any] | None = None, *, copy: bool = True) -> None:
         """
-        Sends asynchronously the given event
+        Sends asynchronously the given event.
+
+        The events posted by a thread reach a given handler in the order they
+        were posted, except for the handlers registered with the
+        ``event.delivery`` property set to ``async.unordered``.
 
         :param topic: Topic of event
         :param properties: Associated properties
+        :param copy: If False, the handlers get one shared immutable
+                     :class:`~pelix.services.eventdelivery.EventProperties` instead
+                     of a deep copy of the properties each
         """
         # Compute properties
         properties = self.__setup_properties(properties)
 
         # Get the currently available handlers
-        handlers_ids = self._get_handlers_ids(topic, properties)
-        if handlers_ids:
-            # Enqueue the task in the thread pool
-            assert self._pool is not None
-            self._pool.enqueue(self.__notify_handlers, topic, properties, handlers_ids)
+        handlers = self._get_handlers_ids(topic, properties)
+        # Read once: the component can be invalidated by another thread meanwhile
+        delivery = self._delivery
+        if handlers and delivery is not None:
+            for handler_id, ordered in handlers:
+                # One task per handler: a slow handler does not delay the others
+                def task(handler_id: str = handler_id) -> None:
+                    self.__notify_handlers(topic, properties, [handler_id], copy)
+
+                if ordered:
+                    delivery.submit(handler_id, task)
+                else:
+                    delivery.submit_unordered(task)
 
     @Validate
     def validate(self, context: pelix.framework.BundleContext) -> None:
@@ -279,6 +355,7 @@ class EventAdmin(pelix.services.EventAdmin):
         # Create the thread pool
         self._pool = pelix.threadpool.ThreadPool(self._nb_threads, logname="eventadmin-pool")
         self._pool.start()
+        self._delivery = OrderedDelivery(self._pool)
 
     @Invalidate
     def invalidate(self, context: pelix.framework.BundleContext) -> None:
@@ -286,6 +363,10 @@ class EventAdmin(pelix.services.EventAdmin):
         Component invalidated
         """
         # Stop the thread pool (empties its queue)
+        if self._delivery is not None:
+            self._delivery.clear()
+            self._delivery = None
+
         if self._pool is not None:
             self._pool.stop()
             self._pool = None

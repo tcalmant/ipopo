@@ -25,7 +25,8 @@ Pelix OSGi-like services packages
     limitations under the License.
 """
 
-from collections.abc import Iterable
+import dataclasses
+from collections.abc import Iterable, Mapping
 from typing import TYPE_CHECKING, Any, Protocol
 
 from pelix.constants import Specification
@@ -45,18 +46,24 @@ __all__ = [
     "CONFIG_PROP_BUNDLE_LOCATION",
     "CONFIG_PROP_FACTORY_PID",
     "CONFIG_PROP_PID",
+    "DELIVERY_ASYNC_ORDERED",
+    "DELIVERY_ASYNC_UNORDERED",
     "EVENT_PROP_FRAMEWORK_UID",
     "EVENT_PROP_PROPAGATE",
     "EVENT_PROP_TIMESTAMP",
     "FACTORY_CONFIGADMIN_JSON",
     "FACTORY_EVENT_ADMIN",
     "FACTORY_EVENT_ADMIN_MQTT",
+    "FACTORY_TYPED_EVENT_BUS",
     "FRAMEWORK_PROP_CONFIGADMIN_DISABLE_DEFAULT_PERSISTENCE",
     "MQTT_CONNECTOR_FACTORY_PID",
+    "PROP_EVENT_DELIVERY",
     "PROP_EVENT_FILTER",
     "PROP_EVENT_TOPICS",
+    "PROP_EVENT_TYPE",
     "PROP_FILEINSTALL_FOLDER",
     "PROP_MQTT_TOPICS",
+    "PROP_TYPED_EVENT_HISTORY_SIZE",
     "SERVICE_CONFIGADMIN_MANAGED",
     "SERVICE_CONFIGADMIN_MANAGED_FACTORY",
     "SERVICE_CONFIGADMIN_PERSISTENCE",
@@ -69,6 +76,11 @@ __all__ = [
     "SERVICE_MQTT_CONNECTION",
     "SERVICE_MQTT_CONNECTOR_FACTORY",
     "SERVICE_MQTT_LISTENER",
+    "SERVICE_TYPED_EVENT_BUS",
+    "SERVICE_TYPED_EVENT_HANDLER",
+    "SERVICE_TYPED_EVENT_MONITOR",
+    "SERVICE_UNHANDLED_EVENT_HANDLER",
+    "SERVICE_UNTYPED_EVENT_HANDLER",
     "Configuration",
     "EventAdmin",
     "FileInstall",
@@ -77,13 +89,22 @@ __all__ = [
     "IConfigurationAdminPersistence",
     "IManagedService",
     "IManagedServiceFactory",
+    "MonitorEvent",
     "MqttConnectorFactory",
     "MqttListener",
     "ServiceEventHandler",
+    "TypedEventBus",
+    "TypedEventHandler",
+    "TypedEventMonitor",
+    "UnhandledEventHandler",
+    "UntypedEventHandler",
 ]
 
 
 SERVICE_EVENT_LISTENER_HOOK = "pelix.internal.hooks.EventListenerHook"
+
+FACTORY_TYPED_EVENT_BUS = "pelix-services-typedevent-factory"
+""" Name of the Typed Event bus component factory """
 
 # ------------------------------------------------------------------------------
 
@@ -108,21 +129,32 @@ class EventAdmin(Protocol):
     Definition of the event admin service
     """
 
-    def send(self, topic: str, properties: dict[str, Any] | None = None) -> None:
+    def send(
+        self,
+        topic: str,
+        properties: dict[str, Any] | None = None,
+        *,
+        copy: bool = True,
+        raise_errors: bool = False,
+    ) -> None:
         """
         Sends synchronously the given event
 
         :param topic: Topic of event
         :param properties: Associated properties
+        :param copy: If False, handlers share one immutable view of the properties
+        :param raise_errors: If True, raise an EventDeliveryError once all handlers were
+                             notified, if some failed
         """
         ...
 
-    def post(self, topic: str, properties: dict[str, Any] | None = None) -> None:
+    def post(self, topic: str, properties: dict[str, Any] | None = None, *, copy: bool = True) -> None:
         """
-        Sends asynchronously the given event
+        Sends asynchronously the given event, in posting order for each handler
 
         :param topic: Topic of event
         :param properties: Associated properties
+        :param copy: If False, handlers share one immutable view of the properties
         """
         ...
 
@@ -146,6 +178,18 @@ PROP_EVENT_TOPICS = "event.topics"
 PROP_EVENT_FILTER = "event.filter"
 """ Filter on events properties for an event handler """
 
+PROP_EVENT_DELIVERY = "event.delivery"
+"""
+Delivery quality of the posted events for an event handler:
+``async.ordered`` (default) or ``async.unordered``
+"""
+
+DELIVERY_ASYNC_ORDERED = "async.ordered"
+""" Posted events reach the handler in posting order """
+
+DELIVERY_ASYNC_UNORDERED = "async.unordered"
+""" Posted events can reach the handler in any order, concurrently """
+
 EVENT_PROP_FRAMEWORK_UID = "event.sender.framework.uid"
 """ UID of the framework that emitted the event """
 
@@ -156,6 +200,158 @@ EVENT_PROP_PROPAGATE = "event.propagate"
 """
 If present in event properties, the event can be propagated through MQTT
 """
+
+# ------------------------------------------------------------------------------
+# Typed events (OSGi Typed Event specification, chapter 157)
+
+SERVICE_TYPED_EVENT_BUS = "pelix.services.typedevent"
+""" Specification of the Typed Event bus service """
+
+SERVICE_TYPED_EVENT_MONITOR = "pelix.services.typedevent.monitor"
+""" Specification of the Typed Event monitor service """
+
+SERVICE_TYPED_EVENT_HANDLER = "pelix.services.typedevent.handler"
+""" Specification of a handler of typed events """
+
+SERVICE_UNTYPED_EVENT_HANDLER = "pelix.services.typedevent.untyped_handler"
+""" Specification of a handler of events as mappings """
+
+SERVICE_UNHANDLED_EVENT_HANDLER = "pelix.services.typedevent.unhandled_handler"
+""" Specification of a handler of the events no other handler received """
+
+PROP_EVENT_TYPE = "event.type"
+"""
+Type of the events a typed handler expects: a class or its fully qualified name.
+If missing, the annotation of the ``event`` parameter of ``notify()`` is used.
+"""
+
+PROP_TYPED_EVENT_HISTORY_SIZE = "history.size"
+""" Property of the Typed Event bus component: number of events kept for the monitor (0: none) """
+
+
+@dataclasses.dataclass(frozen=True)
+class MonitorEvent:
+    """
+    An event kept by the Typed Event bus, as seen by the monitor
+    """
+
+    topic: str
+    """ Topic of the event """
+
+    data: Mapping[str, Any]
+    """ Immutable event data """
+
+    time: float
+    """ Publication time, in seconds since the epoch """
+
+
+@Specification(SERVICE_TYPED_EVENT_BUS)
+class TypedEventBus(Protocol):
+    """
+    Definition of the Typed Event bus service
+    """
+
+    def deliver(
+        self, event: object, topic: str | None = None, *, sync: bool = False, raise_errors: bool = False
+    ) -> None:
+        """
+        Delivers a typed event (a dataclass instance).
+
+        :param event: The event, a dataclass instance
+        :param topic: Topic of the event. By default, the fully qualified name of its
+                      class with ``.`` replaced by ``/``
+        :param sync: If True, handlers are called in the calling thread before this
+                     method returns. Else, delivery is asynchronous, in publication
+                     order for each handler
+        :param raise_errors: With ``sync``, raise an EventDeliveryError after all the
+                             handlers were notified, if some failed
+        :raise ValueError: Invalid topic
+        :raise TypeError: The event is not a dataclass instance
+        """
+        ...
+
+    def deliver_untyped(
+        self,
+        topic: str,
+        data: Mapping[str, Any],
+        *,
+        sync: bool = False,
+        raise_errors: bool = False,
+    ) -> None:
+        """
+        Delivers an event given as a mapping
+
+        :param topic: Topic of the event
+        :param data: Event data
+        :param sync: See ``deliver()``
+        :param raise_errors: See ``deliver()``
+        :raise ValueError: Invalid topic
+        """
+        ...
+
+
+@Specification(SERVICE_TYPED_EVENT_MONITOR)
+class TypedEventMonitor(Protocol):
+    """
+    Definition of the Typed Event monitor service
+    """
+
+    def history(self, count: int | None = None) -> list[MonitorEvent]:
+        """
+        Returns the last events, oldest first, among the ``history.size`` kept ones
+
+        :param count: Maximum number of events to return (all kept ones by default)
+        """
+        ...
+
+
+@Specification(SERVICE_TYPED_EVENT_HANDLER)
+class TypedEventHandler(Protocol):
+    """
+    Definition of a handler of typed events
+    """
+
+    def notify(self, topic: str, event: Any) -> None:
+        """
+        A typed event has been received
+
+        :param topic: Topic of the event
+        :param event: The event, converted to the type of the handler
+        """
+        ...
+
+
+@Specification(SERVICE_UNTYPED_EVENT_HANDLER)
+class UntypedEventHandler(Protocol):
+    """
+    Definition of a handler of untyped events. Requires the ``event.topics`` property.
+    """
+
+    def notify_untyped(self, topic: str, data: Mapping[str, Any]) -> None:
+        """
+        An event has been received
+
+        :param topic: Topic of the event
+        :param data: Immutable event data
+        """
+        ...
+
+
+@Specification(SERVICE_UNHANDLED_EVENT_HANDLER)
+class UnhandledEventHandler(Protocol):
+    """
+    Definition of a handler of events that no typed or untyped handler received
+    """
+
+    def notify_unhandled(self, topic: str, data: Mapping[str, Any]) -> None:
+        """
+        An event no handler received
+
+        :param topic: Topic of the event
+        :param data: Immutable event data
+        """
+        ...
+
 
 # ------------------------------------------------------------------------------
 
