@@ -12,6 +12,7 @@ import sys
 import tempfile
 import unittest
 from typing import Any
+from unittest import mock
 
 from pelix.framework import FrameworkFactory
 from pelix.ipopo.constants import use_ipopo
@@ -101,6 +102,18 @@ class ConfigurationTest(unittest.TestCase):
             self.config.add_paths([tmp_dir, os.path.join(tmp_dir, "missing"), tmp_dir])
             self.config.normalize()
             self.assertListEqual(self.config.paths, [real_dir])
+
+    def test_paths_expansion(self) -> None:
+        """
+        Tests that "~" and variables are expanded before looking for the folder
+        """
+        with tempfile.TemporaryDirectory() as tmp_dir:
+            os.makedirs(os.path.join(tmp_dir, "lib"))
+            real_lib = os.path.realpath(os.path.join(tmp_dir, "lib"))
+            with mock.patch.dict(os.environ, {"HOME": tmp_dir}):
+                self.config.add_paths(["~/lib", "$HOME/lib", "~/missing"])
+                self.config.normalize()
+                self.assertListEqual(self.config.paths, [real_lib])
 
     def test_bundles(self) -> None:
         """
@@ -293,6 +306,87 @@ class InitFileHandlerTest(unittest.TestCase):
             self.assertIn(os.path.realpath(self.tmp_dir.name), sys.path)
         finally:
             sys.path = old_sys_path
+
+    def test_normalize_sys_path_without_cwd(self) -> None:
+        """
+        Tests that normalize(cwd_first=False) doesn't force "." in sys.path
+        """
+        old_sys_path = sys.path[:]
+        try:
+            sys.path = [p for p in sys.path if p not in ("", ".")]
+            filename = self._write_conf("paths.conf", {"paths": [self.tmp_dir.name]})
+            self.handler.load(filename)
+            self.handler.normalize(cwd_first=False)
+
+            self.assertNotIn(".", sys.path)
+            self.assertEqual(sys.path[0], os.path.realpath(self.tmp_dir.name))
+        finally:
+            sys.path = old_sys_path
+
+    def test_search_path(self) -> None:
+        """
+        Tests that the default file is only looked for in the given folders
+        """
+        cwd = os.getcwd()
+        conf_dir = os.path.join(self.tmp_dir.name, "conf")
+        os.makedirs(conf_dir)
+        for folder in (self.tmp_dir.name, conf_dir):
+            with open(os.path.join(folder, ".pelix.conf"), "w") as out_file:
+                json.dump({"bundles": [os.path.basename(folder)]}, out_file)
+
+        os.chdir(self.tmp_dir.name)
+        try:
+            # The working directory is not searched
+            handler = InitFileHandler(search_path=[conf_dir])
+            self.assertListEqual(
+                list(handler.find_default(".pelix.conf")),
+                [os.path.realpath(os.path.join(conf_dir, ".pelix.conf"))],
+            )
+            self.assertTrue(handler.load())
+            self.assertListEqual(handler.bundles, ["conf"])
+
+            # Nothing is searched with an empty list
+            handler = InitFileHandler(search_path=[])
+            self.assertFalse(handler.load())
+        finally:
+            os.chdir(cwd)
+
+    def test_instantiate_components_errors(self) -> None:
+        """
+        Tests that all the components are tried when asked to, and that the
+        errors are reported
+        """
+        filename = self._write_conf(
+            "components.conf",
+            {
+                "components": [
+                    {"name": "init-test-missing", "factory": "init.test.no.such.factory"},
+                    {"name": "init-test-component", "factory": TEST_FACTORY},
+                ]
+            },
+        )
+        self.handler.load(filename)
+
+        framework = FrameworkFactory.get_framework()
+        self.addCleanup(FrameworkFactory.delete_framework)
+        framework.start()
+        context = framework.get_bundle_context()
+        context.install_bundle("pelix.ipopo.core").start()
+        with use_ipopo(context) as ipopo:
+            ipopo.register_factory(context, InitHandlerTestComponent)
+
+        # Default: the first error is raised, the following components are not created
+        with self.assertRaises(TypeError):
+            self.handler.instantiate_components(context)
+        with use_ipopo(context) as ipopo:
+            self.assertFalse(ipopo.is_registered_instance("init-test-component"))
+
+        # Asked to go on: the valid component is created, the error is returned
+        errors = self.handler.instantiate_components(context, stop_on_error=False)
+        self.assertListEqual([name for name, _ in errors], ["init-test-missing"])
+        self.assertIsInstance(errors[0][1], TypeError)
+        with use_ipopo(context) as ipopo:
+            self.assertTrue(ipopo.is_registered_instance("init-test-component"))
 
     def test_instantiate_components(self) -> None:
         """

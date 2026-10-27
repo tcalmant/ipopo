@@ -141,11 +141,23 @@ order:
 * ``~`` (user directory)
 * ``.`` (current working directory)
 
+.. versionadded:: 3.3.0
+   The folders can be given to the :class:`~InitFileHandler` constructor
+   (``search_path``). An application which must not load anything from the
+   folder it has been started in gives a list without ``.``, or an empty one
+   to load nothing by default.
+
 When giving a file name to :meth:`~InitFileHandler.load`, the handler will
 merge the newly loaded configuration with the current state of the handler.
 
 Finally, after having updated a configuration, the :class:`~InitFileHandler`
 will remove the duplicated elements of the Python path and bundles entries.
+
+.. versionadded:: 3.3.0
+   ``normalize(cwd_first=False)`` doesn't force the current working directory
+   first in ``sys.path``, where a local module hides an installed one.
+   ``instantiate_components(context, stop_on_error=False)`` tries all the
+   components and returns the ``(name, error)`` tuples of the failed ones.
 
 
 Support in Pelix shell
