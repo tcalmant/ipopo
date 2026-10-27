@@ -7,8 +7,10 @@ Pelix async HTTP service websockets test module.
 """
 
 import asyncio
+import threading
+import time
 import unittest
-from typing import cast
+from typing import Any, cast
 
 try:
     import aiohttp
@@ -36,6 +38,31 @@ def wait_for_service(framework, svc_name, timeout=5.0):
             return svc_ref
         time.sleep(0.1)
     raise RuntimeError(f"Service '{svc_name}' not available after {timeout} seconds")
+
+
+class RecordingHandler(http.AbstractWebSocketHandler):
+    """
+    Records the sessions and the calls of the server
+    """
+
+    def __init__(self) -> None:
+        self.accept_calls = 0
+        self.sessions: list[Any] = []
+        self.opened = threading.Event()
+        self.closed = threading.Event()
+
+    async def ws_accept(self, request: http.AbstractAsyncHTTPServletRequest) -> bool:
+        self.accept_calls += 1
+        return True
+
+    async def ws_open(
+        self, session: http.WebSocketSession, request: http.AbstractAsyncHTTPServletRequest
+    ) -> None:
+        self.sessions.append(session)
+        self.opened.set()
+
+    async def ws_close(self, session: http.WebSocketSession, code: int, reason: str) -> None:
+        self.closed.set()
 
 
 class WebSocketTestCase(unittest.TestCase):
@@ -83,6 +110,33 @@ class WebSocketTestCase(unittest.TestCase):
         if self.handler is not None:
             self.http_server.unregister(None, servlet=self.handler)
             self.handler = None
+
+    def start_server(self, **properties: Any) -> tuple[str, Any, RecordingHandler]:
+        """
+        Starts another HTTP service, with a recording handler on /ws
+
+        :param properties: Properties of the HTTP service
+        :return: The name of the component, the service and the handler
+        """
+        name = f"async.ws.server.{self._testMethodName}"
+        with use_ipopo(self.framework.get_bundle_context()) as ipopo:
+            server = ipopo.instantiate(
+                http.FACTORY_HTTP_ASYNC,
+                name,
+                {http.HTTP_SERVICE_ADDRESS: "localhost", http.HTTP_SERVICE_PORT: 0, **properties},
+            )
+        self.addCleanup(self.kill, name)
+        handler = RecordingHandler()
+        server.register_servlet("/ws", handler, servlet_type=http.ServletType.WEBSOCKET)
+        return name, server, handler
+
+    def kill(self, name: str) -> None:
+        """
+        Kills a server started by start_server(), if it is still there
+        """
+        with use_ipopo(self.framework.get_bundle_context()) as ipopo:
+            if ipopo.is_registered_instance(name):
+                ipopo.kill(name)
 
     def register_handler(self, handler: http.WebSocketHandler):
         """
@@ -254,3 +308,83 @@ class WebSocketTestCase(unittest.TestCase):
         self.assertEqual(len(messages), 100)
         for i in range(100):
             self.assertIn(f"message {i}", messages)
+
+    @async_test
+    async def test_upgrade_checks(self):
+        """
+        The upgrade goes through the Origin check before the handler: aiohttp doesn't check it
+        """
+        _, server, handler = self.start_server(**{http.HTTP_CORS_ENFORCE: True})
+        port = server.get_access()[1]
+        url = f"ws://localhost:{port}/ws"
+
+        async with ClientSession() as session:
+            async with session.ws_connect(url, headers={"Origin": f"http://localhost:{port}"}):
+                pass
+
+            with self.assertRaises(aiohttp.WSServerHandshakeError) as ctx:
+                await session.ws_connect(url, headers={"Origin": "http://evil.example"})
+            self.assertEqual(ctx.exception.status, 403)
+
+        self.assertEqual(handler.accept_calls, 1)
+
+    @async_test
+    async def test_submit_from_another_thread(self):
+        """
+        A thread outside the loop sends a text, a binary and a close through the session
+        """
+        handler = RecordingHandler()
+        self.register_handler(handler)
+
+        def pusher() -> None:
+            handler.opened.wait(5)
+            session = handler.sessions[0]
+            session.submit_text("hello").result(5)
+            session.submit_binary(b"\x01\x02").result(5)
+            session.submit_close(1000, "bye").result(5)
+
+        thread = threading.Thread(target=pusher)
+        thread.start()
+        async with ClientSession() as session, session.ws_connect(self.ws_url) as ws:
+            received = [await ws.receive(timeout=5) for _ in range(3)]
+        thread.join(5)
+
+        self.assertEqual(
+            [(m.type, m.data) for m in received[:2]],
+            [(WSMsgType.TEXT, "hello"), (WSMsgType.BINARY, b"\x01\x02")],
+        )
+        self.assertEqual(received[2].type, WSMsgType.CLOSE)
+
+        # A closed session makes the future raise, it doesn't hang
+        self.assertTrue(handler.closed.wait(5))
+        with self.assertRaises(OSError):
+            handler.sessions[0].submit_text("late").result(5)
+
+    @async_test
+    async def test_stop_with_open_websocket(self):
+        """
+        An open page doesn't delay the stop: the session is closed with "going away"
+        """
+        name, server, handler = self.start_server()
+        loop = server._loop
+        results: dict[str, float] = {}
+
+        def stop() -> None:
+            time.sleep(0.2)
+            start = time.monotonic()
+            self.kill(name)
+            results["duration"] = time.monotonic() - start
+
+        url = f"ws://localhost:{server.get_access()[1]}/ws"
+        async with ClientSession() as session, session.ws_connect(url) as ws:
+            stopper = threading.Thread(target=stop)
+            stopper.start()
+            msg = await ws.receive(timeout=10)
+            # Answer the close handshake, as a browser does
+            await ws.close()
+            await asyncio.get_running_loop().run_in_executor(None, stopper.join)
+
+        self.assertLess(results["duration"], 3.0, "The stop waited for the open session")
+        self.assertEqual((msg.type, msg.data), (WSMsgType.CLOSE, aiohttp.WSCloseCode.GOING_AWAY))
+        self.assertTrue(handler.closed.wait(1))
+        self.assertTrue(loop.is_closed())

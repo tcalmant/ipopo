@@ -37,6 +37,7 @@ import ssl
 import sys
 import threading
 import traceback
+from collections.abc import Coroutine
 from typing import IO, TYPE_CHECKING, Any, cast
 
 import aiohttp.client_exceptions
@@ -97,6 +98,10 @@ _CORS_HEADERS_KEY: Any = (
     else "pelix.http.cors.headers"
 )
 """ Key of the CORS headers to send in the storage of an aiohttp request """
+
+
+_WS_CLOSE_TIMEOUT = 2.0
+""" Seconds a peer has to answer the close of a WebSocket (aiohttp's is 10): the stop waits for it """
 
 
 class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
@@ -582,6 +587,7 @@ class WSSession(http.WebSocketSession):
         ws_handler: http.WebSocketHandler,
         servlet_request: _AsyncHTTPServletRequest,
         ws_response: aiohttp.web.WebSocketResponse,
+        loop: asyncio.AbstractEventLoop | None = None,
     ) -> None:
         """
         Initializes the WebSocket session
@@ -589,10 +595,13 @@ class WSSession(http.WebSocketSession):
         :param ws_handler: The WebSocket handler
         :param servlet_request: The servlet request
         :param ws_response: The WebSocket response
+        :param loop: The event loop of the server (default: the running one)
         """
         self._handler = ws_handler
         self._request = servlet_request
         self._response = ws_response
+        # Kept for the submit_* methods, called from other threads
+        self._loop = loop or asyncio.get_running_loop()
 
     def get_client_address(self) -> tuple[str, int]:
         """
@@ -634,6 +643,40 @@ class WSSession(http.WebSocketSession):
         if not self._response.closed:
             await self._response.close(code=code, message=(reason or "").encode("utf-8"))
 
+    def _submit(self, coroutine: Coroutine[Any, Any, None]) -> concurrent.futures.Future[None]:
+        """
+        Hands a coroutine to the event loop of the server, from any thread
+
+        :param coroutine: The coroutine to run in the loop
+        :return: A future set when the coroutine is done (it holds its error)
+        :raise OSError: The server is stopped
+        """
+        try:
+            return asyncio.run_coroutine_threadsafe(coroutine, self._loop)
+        except RuntimeError as ex:
+            # The loop is closed: the coroutine was never scheduled, close it
+            # to avoid a "never awaited" warning
+            coroutine.close()
+            raise OSError("The HTTP server is stopped") from ex
+
+    def submit_text(self, message: str) -> concurrent.futures.Future[None]:
+        """
+        See :meth:`pelix.http.WebSocketSession.submit_text`
+        """
+        return self._submit(self.send_text(message))
+
+    def submit_binary(self, message: bytes) -> concurrent.futures.Future[None]:
+        """
+        See :meth:`pelix.http.WebSocketSession.submit_binary`
+        """
+        return self._submit(self.send_binary(message))
+
+    def submit_close(self, code: int = 1000, reason: str | None = None) -> concurrent.futures.Future[None]:
+        """
+        See :meth:`pelix.http.WebSocketSession.submit_close`
+        """
+        return self._submit(self.close(code, reason))
+
 
 # ------------------------------------------------------------------------------
 
@@ -667,6 +710,9 @@ class AsyncHttpServiceImpl(AbstractHttpService):
         self._app: aiohttp.web.Application | None = None
         self._thread: threading.Thread | None = None
         self._executor: concurrent.futures.ThreadPoolExecutor | None = None
+        # Open WebSockets, closed at stop: aiohttp waits for the end of a handler
+        # which never ends by itself
+        self._ws_responses: set[aiohttp.web.WebSocketResponse] = set()
         self._loop: asyncio.AbstractEventLoop | None = None
         self._start_done_event: utilities.EventData[tuple[str, int]] = utilities.EventData()
         self._stop_event: asyncio.Event = asyncio.Event()
@@ -858,8 +904,9 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                 # Keep the thread alive until the server is stopped
                 await self._stop_event.wait()
 
-                # Clean up the server
+                # Clean up the server: no new connection, then end the sessions
                 await site.stop()
+                await self._close_websockets()
                 await runner.shutdown()
                 await runner.cleanup()
                 await self._app.shutdown()
@@ -868,6 +915,20 @@ class AsyncHttpServiceImpl(AbstractHttpService):
             # Anything went wrong, log the error
             self._logger.error("Error running the HTTP server: %s", ex)
             self._start_done_event.raise_exception(ex)
+
+    async def _close_websockets(self) -> None:
+        """
+        Closes the open WebSockets with "going away", as the server stops
+        """
+        sessions = list(self._ws_responses)
+        if sessions:
+            await asyncio.gather(
+                *(
+                    ws.close(code=aiohttp.WSCloseCode.GOING_AWAY, message=b"Server stopping")
+                    for ws in sessions
+                ),
+                return_exceptions=True,
+            )
 
     async def __global_handler(self, request: aiohttp.web.Request) -> aiohttp.web.StreamResponse:
         """
@@ -985,10 +1046,10 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                             servlet_request = _AsyncHTTPServletRequest(request, path, prefix)
 
                             # Prepare the WebSocket response
-                            ws_response = aiohttp.web.WebSocketResponse()
+                            ws_response = aiohttp.web.WebSocketResponse(timeout=_WS_CLOSE_TIMEOUT)
 
                             # Prepare a session
-                            ws_session = WSSession(ws_handler, servlet_request, ws_response)
+                            ws_session = WSSession(ws_handler, servlet_request, ws_response, self._loop)
 
                             # Early check
                             if not await ws_handler.ws_accept(servlet_request):
@@ -997,6 +1058,7 @@ class AsyncHttpServiceImpl(AbstractHttpService):
 
                             # Prepare the WebSocket response
                             await ws_response.prepare(request)
+                            self._ws_responses.add(ws_response)
 
                             try:
                                 # Notify the WebSocket handler of the new connection
@@ -1029,6 +1091,7 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                                 self._logger.exception("Error handling WebSocket connection")
                                 await ws_handler.ws_error(ws_session, str(ex))
                             finally:
+                                self._ws_responses.discard(ws_response)
                                 if not ws_response.closed:
                                     await ws_response.close()
 

@@ -337,7 +337,7 @@ To create a WebSocket handler, inherit from the :py:class:`~pelix.http.AbstractW
    :members: ws_accept, ws_open, ws_binary, ws_message, ws_close, ws_error
 
 .. autoclass:: pelix.http.WebSocketSession
-   :members: send_text, send_binary, close, get_client_address
+   :members: send_text, send_binary, close, get_client_address, submit_text, submit_binary, submit_close
 
 Here is an example:
 
@@ -360,3 +360,26 @@ Here is an example:
 
         async def ws_close(self, session: WebSocketSession, code: int, reason: str):
             print("WebSocket connection closed")
+
+Checks on the upgrade request
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+The upgrade request goes through the same checks as any request, before the handler is looked up:
+``pelix.http.allowed_hosts`` (a refused ``Host`` gets a 403) and ``pelix.http.cors.enforce`` (a foreign ``Origin``
+gets a 403). Browsers send ``Origin`` on a WebSocket upgrade, and aiohttp does not check it: without
+``pelix.http.cors.enforce`` a page of any site can open the socket.
+
+A session cookie, or any other proof of identity, is checked in ``ws_accept()``, which reads the headers of the
+request (``await request.get_header("Cookie")``). Returning ``False`` refuses the upgrade with a 400.
+
+Sending from another thread
+^^^^^^^^^^^^^^^^^^^^^^^^^^^
+
+``send_text()``, ``send_binary()`` and ``close()`` are coroutines of the event loop of the server. A component
+running in another thread uses ``submit_text()``, ``submit_binary()`` or ``submit_close()`` instead: they hand
+the coroutine to the loop with :py:func:`asyncio.run_coroutine_threadsafe` and return a
+:py:class:`concurrent.futures.Future`. Keep the ``WebSocketSession`` given to ``ws_open()`` and forget it in
+``ws_close()``. A closed session makes the future raise ``OSError``.
+
+When the HTTP service stops, it closes the open sessions with the code 1001 (going away) and waits up to two
+seconds for the answer of each peer.

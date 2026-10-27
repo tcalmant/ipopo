@@ -28,6 +28,7 @@ Defines the interfaces that must respect HTTP service implementations.
 """
 
 import asyncio
+import concurrent.futures
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from enum import Enum
@@ -1186,6 +1187,36 @@ class WebSocketSession(Protocol):
     async def close(self, code: int = 1000, reason: str | None = None) -> None:
         """
         Closes the WebSocket session
+
+        :param code: Close code (default is 1000, normal closure)
+        :param reason: Optional reason for the closure
+        """
+        ...
+
+    def submit_text(self, message: str) -> concurrent.futures.Future[None]:
+        """
+        Thread-safe :meth:`send_text`: can be called from any thread, e.g. a
+        component pushing events from its own thread. Don't wait for the result
+        from the event loop thread (deadlock).
+
+        :param message: Message to send
+        :return: A future set when the message is sent, or holding the
+                 ``OSError`` of a closed session
+        :raise OSError: The server is stopped
+        """
+        ...
+
+    def submit_binary(self, message: bytes) -> concurrent.futures.Future[None]:
+        """
+        Thread-safe :meth:`send_binary`, see :meth:`submit_text`
+
+        :param message: Binary message to send
+        """
+        ...
+
+    def submit_close(self, code: int = 1000, reason: str | None = None) -> concurrent.futures.Future[None]:
+        """
+        Thread-safe :meth:`close`, see :meth:`submit_text`
 
         :param code: Close code (default is 1000, normal closure)
         :param reason: Optional reason for the closure
