@@ -29,10 +29,13 @@ Defines the interfaces that must respect HTTP service implementations.
 
 import asyncio
 import concurrent.futures
+import email.message
+import email.parser
 import re
 import threading
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from enum import Enum
 from typing import IO, Any, Protocol, runtime_checkable
 
@@ -108,6 +111,8 @@ __all__ = [
     "HeadersView",
     "HttpAuthenticator",
     "HttpSession",
+    "MultipartError",
+    "Part",
     "Servlet",
     "ServletType",
     "WebSocketHandler",
@@ -115,6 +120,7 @@ __all__ = [
     "format_cookie",
     "make_html_list",
     "parse_cookies",
+    "parse_multipart",
     "read_body",
 ]
 
@@ -458,6 +464,7 @@ class BodyTooLargeError(Exception):
 
 _COOKIE_NAME = re.compile(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+")
 _COOKIE_VALUE = re.compile(r"[\x21\x23-\x2b\x2d-\x3a\x3c-\x5b\x5d-\x7e]*")
+_BOUNDARY = re.compile(r"[0-9A-Za-z'()+_,./:=? -]{0,69}[0-9A-Za-z'()+_,./:=?-]")
 _COOKIE_PATH = re.compile(r"[\x20-\x3a\x3c-\x7e]*")
 
 
@@ -605,6 +612,95 @@ class HttpSession:
                 return
             self._valid = False
         self._expire(self)
+
+
+class MultipartError(ValueError):
+    """
+    The body of a request is not the ``multipart/form-data`` it claims to be, or
+    is over the limits of :func:`parse_multipart`. The services answer a 400.
+    """
+
+
+@dataclass(frozen=True)
+class Part:
+    """
+    A field of a ``multipart/form-data`` body (the Servlet ``Part``). The data is
+    in memory: the size of the body is bound by ``pelix.http.max_body_size``,
+    which a servlet receiving files can raise for itself.
+    """
+
+    name: str
+    """ Name of the form field """
+
+    filename: str | None
+    """ Name of the file as the browser sent it. It is not checked: never use it as a path """
+
+    content_type: str | None
+    """ Media type of the part, without parameters, if the client gave one: check the content, not this """
+
+    data: bytes
+    """ Content of the part """
+
+
+def parse_multipart(content_type: str | None, body: bytes, max_parts: int = 100) -> list[Part]:
+    """
+    Splits a ``multipart/form-data`` body (RFC 7578)
+
+    :param content_type: Value of the ``Content-Type`` header of the request
+    :param body: The body of the request
+    :param max_parts: Maximum number of parts accepted
+    :return: The parts, in the order of the body
+    :raise MultipartError: The body is malformed, or has too many parts
+    """
+    header = email.message.Message()
+    header["Content-Type"] = content_type or ""
+    boundary = header.get_param("boundary")
+    if header.get_content_type() != "multipart/form-data" or not isinstance(boundary, str):
+        raise MultipartError("Not a multipart/form-data request")
+    if not _BOUNDARY.fullmatch(boundary):
+        raise MultipartError("Invalid boundary")
+
+    # Walked with find(), so that each part is copied once and a body of delimiters costs nothing
+    delimiter = b"--" + boundary.encode("ascii")
+    marker = b"\r\n" + delimiter
+    pos = 0 if body.startswith(delimiter) else body.find(marker) + 2
+    if pos < 2 and not body.startswith(delimiter):
+        raise MultipartError("No delimiter")
+
+    parts: list[Part] = []
+    while True:
+        pos += len(delimiter)
+        if body[pos : pos + 2] == b"--":
+            # Closing delimiter: the epilogue is ignored
+            return parts
+
+        if len(parts) >= max_parts:
+            raise MultipartError(f"More than {max_parts} parts")
+
+        # Spaces and tabs can pad the line of the delimiter
+        eol = body.find(b"\r\n", pos)
+        head_end = body.find(b"\r\n\r\n", eol)
+        if eol < 0 or head_end < 0 or head_end - eol > 8192 or body[pos:eol].strip(b" \t"):
+            raise MultipartError("Malformed part")
+
+        fields = email.parser.HeaderParser().parsestr(body[eol + 2 : head_end].decode("utf-8", "replace"))
+        name = fields.get_param("name", header="Content-Disposition")
+        if fields.get_content_disposition() != "form-data" or not isinstance(name, str):
+            raise MultipartError("A part isn't a form field")
+
+        end = body.find(marker, head_end + 4)
+        if end < 0:
+            raise MultipartError("The closing delimiter is missing")
+
+        parts.append(
+            Part(
+                name,
+                fields.get_filename(),
+                fields.get_content_type() if "Content-Type" in fields else None,
+                body[head_end + 4 : end],
+            )
+        )
+        pos = end + 2
 
 
 async def read_body(reader: "asyncio.StreamReader", size: int | None, max_size: int | None) -> bytes:
@@ -785,6 +881,15 @@ class AbstractHTTPServletRequest(_RequestMixin):
         :return: The cookie values by name
         """
         return parse_cookies(self.get_header("Cookie"))
+
+    def get_parts(self, max_parts: int = 100) -> list[Part]:
+        """
+        Reads the fields of a ``multipart/form-data`` body (see :func:`parse_multipart`)
+
+        :raise BodyTooLargeError: The body is bigger than the accepted maximum size
+        :raise MultipartError: The body isn't a valid form
+        """
+        return parse_multipart(self.get_header("Content-Type"), self.read_data(), max_parts)
 
     def login(self, username: str, password: str) -> Subject:
         """
@@ -1040,6 +1145,14 @@ class AbstractAsyncHTTPServletRequest(_RequestMixin):
         See :meth:`AbstractHTTPServletRequest.get_cookies`
         """
         return parse_cookies(await self.get_header("Cookie"))
+
+    async def get_parts(self, max_parts: int = 100) -> list[Part]:
+        """
+        See :meth:`AbstractHTTPServletRequest.get_parts`
+        """
+        content_type, body = await self.get_header("Content-Type"), await self.read_data()
+        # A big upload must not block the event loop while it is parsed
+        return await asyncio.to_thread(parse_multipart, content_type, body, max_parts)
 
     async def login(self, username: str, password: str) -> Subject:
         """

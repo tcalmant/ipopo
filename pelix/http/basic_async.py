@@ -1165,6 +1165,12 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                 return self.__auth_error_response(401, routing)
             except AccessDenied:
                 return self.__auth_error_response(403, routing)
+            except http.MultipartError:
+                return aiohttp.web.Response(
+                    status=400,
+                    text="<html><body><h1>Bad Request</h1></body></html>",
+                    content_type="text/html",
+                )
             except http.BodyTooLargeError as ex:
                 # An asynchronous servlet refused to read the body of the
                 # request: aiohttp only checks the size of the bodies it reads

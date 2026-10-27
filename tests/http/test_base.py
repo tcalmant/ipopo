@@ -499,6 +499,120 @@ class SessionTest(unittest.TestCase):
                 self.assertEqual(service._session_cookie, "PELIXSESSIONID")
 
 
+BOUNDARY = "xX-boundary-Xx"
+MULTIPART = f"multipart/form-data; boundary={BOUNDARY}"
+
+
+def make_form(*fields: tuple[str, str | None, bytes]) -> bytes:
+    """
+    Prepares a multipart body, as a browser does: (name, file name or None, data) fields
+    """
+    body = b""
+    for name, filename, data in fields:
+        disposition = f'form-data; name="{name}"' + (f'; filename="{filename}"' if filename else "")
+        content_type = "Content-Type: image/gif\r\n" if filename else ""
+        body += f"--{BOUNDARY}\r\nContent-Disposition: {disposition}\r\n{content_type}\r\n".encode()
+        body += data + b"\r\n"
+    return body + f"--{BOUNDARY}--\r\n".encode()
+
+
+class MultipartTest(unittest.TestCase):
+    """
+    Tests the multipart/form-data parser
+    """
+
+    def test_parse(self) -> None:
+        # The data holds what looks like a boundary and CRLF
+        data = b"GIF89a\r\n--" + BOUNDARY.encode()[:5] + b"\r\n\x00\xff"
+        fields = make_form(
+            ("title", None, "Élodie".encode()), ("file", "../a b.gif", data), ("empty", None, b"")
+        )
+        awkward = "'()+_,./:=? -x"
+        cases: list[tuple[str, bytes, list[tuple[str, str | None, str | None, bytes]]]] = [
+            # The file name is given as is: the caller must not trust it
+            (
+                MULTIPART,
+                fields,
+                [
+                    ("title", None, None, "Élodie".encode()),
+                    ("file", "../a b.gif", "image/gif", data),
+                    ("empty", None, None, b""),
+                ],
+            ),
+            # Preamble and epilogue are ignored
+            (
+                MULTIPART,
+                b"preamble\r\n" + make_form(("a", None, b"1")) + b"epilogue",
+                [("a", None, None, b"1")],
+            ),
+            (
+                f'multipart/form-data; boundary="{BOUNDARY}"',
+                make_form(("f", "été.gif", b"x")),
+                [("f", "été.gif", "image/gif", b"x")],
+            ),
+            # Special characters, padding, folded headers, RFC 5987 names, repeated names
+            (
+                f'multipart/form-data; boundary="{awkward}"',
+                (
+                    f"--{awkward} \t\r\nContent-Disposition: form-data; name=a;\r\n  filename*=UTF-8''%C3%A9t%C3%A9.gif\r\n\r\n1\r\n"
+                    f"--{awkward}\r\nContent-Disposition: form-data; name=a\r\n\r\n2\r\n--{awkward}--"
+                ).encode(),
+                [("a", "été.gif", None, b"1"), ("a", None, None, b"2")],
+            ),
+        ]
+        for content_type, body, expected in cases:
+            with self.subTest(content_type=content_type, body=body[:40]):
+                parts = http.parse_multipart(content_type, body)
+                self.assertEqual([(p.name, p.filename, p.content_type, p.data) for p in parts], expected)
+
+    def test_refused(self) -> None:
+        good = make_form(("a", None, b"1"))
+        cases: list[tuple[str | None, bytes]] = [
+            (None, good),
+            ("text/plain", good),
+            ("multipart/form-data", good),
+            (f"multipart/form-data; boundary={'b' * 71}", good),
+            (f"{MULTIPART}\u00e9", good),
+            ("multipart/form-data; boundary=b ", good),
+            (MULTIPART, b""),
+            # No closing delimiter
+            (MULTIPART, good[: -len(BOUNDARY) - 6]),
+            (MULTIPART, f"--{BOUNDARY}\r\nContent-Disposition: form-data; name=a\r\n".encode()),
+            (
+                MULTIPART,
+                f"--{BOUNDARY}\r\nContent-Disposition: attachment; name=a\r\n\r\n1\r\n--{BOUNDARY}--".encode(),
+            ),
+            (
+                MULTIPART,
+                f"--{BOUNDARY}\r\nContent-Disposition: form-database; name=a\r\n\r\n1\r\n--{BOUNDARY}--".encode(),
+            ),
+            (
+                MULTIPART,
+                f"--{BOUNDARY}\r\nContent-Disposition: form-data\r\n\r\n1\r\n--{BOUNDARY}--".encode(),
+            ),
+            (
+                MULTIPART,
+                f"--{BOUNDARY}\r\nContent-Disposition: form-data; name*=UTF-8''a\r\n\r\n1\r\n--{BOUNDARY}--".encode(),
+            ),
+            (MULTIPART, f"--{BOUNDARY}\r\n{'X-Pad: ' + 'a' * 9000}\r\n\r\n1\r\n--{BOUNDARY}--".encode()),
+            (MULTIPART, f"--{BOUNDARY}\r\nno header end--{BOUNDARY}--".encode()),
+            # A body of delimiters costs nothing
+            (MULTIPART, (f"\r\n--{BOUNDARY}" * 100_000).encode()),
+        ]
+        for content_type, body in cases:
+            with (
+                self.subTest(content_type=content_type, body=body[:40]),
+                self.assertRaises(http.MultipartError),
+            ):
+                http.parse_multipart(content_type, body)
+
+    def test_max_parts(self) -> None:
+        body = make_form(*[(f"f{i}", None, b"") for i in range(5)])
+        self.assertEqual(len(http.parse_multipart(MULTIPART, body, 5)), 5)
+        with self.assertRaises(http.MultipartError):
+            http.parse_multipart(MULTIPART, body, 4)
+
+
 class ResolveRequestTest(unittest.TestCase):
     """
     Tests the routing seam shared by both implementations

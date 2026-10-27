@@ -614,3 +614,17 @@ The login servlet must be reachable without a session: set ``pelix.http.auth.req
 * There is no CSRF token. ``SameSite=Lax`` with ``pelix.http.cors.enforce`` refuse cross-site requests
   which change data; changing data with ``GET`` defeats them.
 * An open WebSocket keeps the user it had when it was accepted.
+
+
+Uploads
+-------
+
+``request.get_parts()`` (``await`` it in an asynchronous servlet) returns the fields of a
+``multipart/form-data`` body as ``Part`` beans: ``name``, ``filename``, ``content_type`` and ``data``.
+The whole body is in memory, bound by ``pelix.http.max_body_size``: raise it for the servlet which receives
+files, with the ``pelix.http.max_body_size`` property of its registration. A malformed body raises
+``MultipartError``, which the services answer with a 400 error code.
+
+``filename`` and ``content_type`` come from the client: never use the file name as a path, and check the
+content (its signature) before trusting its type.
+

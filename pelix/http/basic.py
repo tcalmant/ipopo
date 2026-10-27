@@ -390,6 +390,9 @@ class _RequestHandler(BaseHTTPRequestHandler):
                 except http.BodyTooLargeError as ex:
                     # The client announced a body we refuse to read
                     self.send_too_large_response(response, ex)
+                except http.MultipartError:
+                    # A malformed upload form: same page as a refused path
+                    self.send_bad_path_response()
                 except TimeoutError:
                     # The client didn't send the body it announced in time
                     self.send_timeout_response(response)
