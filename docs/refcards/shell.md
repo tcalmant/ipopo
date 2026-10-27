@@ -193,43 +193,43 @@ nc -U /run/user/1000/myapp/shell.sock
 socat - UNIX-CONNECT:/run/user/1000/myapp/shell.sock
 ```
 
+With a password login, prefer `socat` with its `READLINE` address: it gives line
+editing and a history, and its `noecho` option hides what is typed after the
+password prompt (`nc` shows the password on the screen, as the terminal echoes
+it):
+
+```bash
+socat "READLINE,history=$HOME/.myapp_shell_history,noecho=Password: " \
+    UNIX-CONNECT:/run/user/1000/myapp/shell.sock
+```
+
+The `exit` (or `quit`) command, or an end of file (`Ctrl-D`), ends the session.
+When the remote shell stops, it waits up to `STOP_TIMEOUT` seconds for the
+sessions to end, so that each client gets the closing message.
+
 The server protects the socket as follows:
 
-* The socket file is created with the mode `0600`: the umask is set around
-  the creation of the socket, so there is no moment where another user could
-  connect, and the mode is then set explicitly.
+* The socket file is created with the mode `0600`, with no moment where another
+  user could connect.
 * The folder of the socket must belong to the user running the server (or to
-  root) and must not be writable by the group or by others, unless it has the
-  sticky bit (like `/tmp`). Otherwise, the component is not validated: another
-  user could replace the socket by its own. Prefer a private folder, like
+  root) and must not be writable by others, unless it has the sticky bit (like
+  `/tmp`): another user could replace the socket. Prefer a private folder, like
   `$XDG_RUNTIME_DIR`.
-* A socket file left by a server which was not stopped properly is removed at
-  start, but only if it is a socket owned by the user running the server which
-  refuses connections. A regular file, a symbolic link or the socket of a
-  running server is never removed: the component is not validated.
-* The socket file is removed when the component is invalidated, unless it was
-  replaced in the meantime.
-* Where the system tells it (`SO_PEERCRED`, so Linux), a client run by another
-  user than the server is disconnected, except root. The check is on by
-  default and can be disabled with `pelix.shell.unix.check_peer`. It is an
-  additional layer: it relies on the file mode, so it only matters if the
-  socket is made accessible to others on purpose, or if the mode is
-  changed by mistake.
-* The TLS properties (`pelix.shell.ssl.*`) can't be used on a Unix socket, as
-  there is no network to protect and no certificate to check: they are
-  refused rather than ignored, so that nobody believes that clients are
-  authenticated by certificate.
-* The password authentication, if enabled, works as on TCP, and the clear text
-  warning is not logged. The throttle of failed logins considers the user ID of the
-  client as its source.
-* The path is limited by the system (104 characters on macOS, 108 on Linux).
+* A socket file left by a server which was not stopped properly is replaced,
+  never a regular file, a symbolic link or the socket of a running server. The
+  file is removed at stop, unless it was replaced in the meantime.
+* Where the system tells it (`SO_PEERCRED`, on Linux), a client run by another
+  user than the server (root excepted) is disconnected, unless
+  `pelix.shell.unix.check_peer` is false.
+* The TLS properties are refused rather than ignored, so that nobody believes
+  that clients are authenticated by certificate.
+* The password authentication works as on TCP, without the clear text warning.
 
-Unix sockets are only supported on Linux and macOS: on other platforms, the
-component is not validated, with an explicit error.
+Unix sockets are only supported on Linux and macOS.
 
 :::{versionadded} 3.3.0
-The `pelix.shell.unix.path` and `pelix.shell.unix.check_peer` properties, the
-`--unix` argument and the `ThreadingUnixServer` class.
+The `pelix.shell.unix.path` and `pelix.shell.unix.check_peer` properties and
+the `--unix` argument.
 :::
 
 #### Remote shell authentication
@@ -689,9 +689,6 @@ server.
 
 To connect a basic remote shell, you can use `netcat`, which is
 available for nearly all operating systems and all architectures.
-
-To connect a remote shell listening on a Unix socket, use `nc -U PATH` or
-`socat - UNIX-CONNECT:PATH`.
 
 To connect a TLS remote shell, you should use the OpenSSL client:
 `s_client`. It is necessary to indicate the client certificate in order

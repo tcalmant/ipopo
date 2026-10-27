@@ -651,7 +651,8 @@ class Shell:
         """
         Stops the current shell session (raises a KeyboardInterrupt exception)
         """
-        session.write_line("Raising KeyboardInterrupt to stop main thread")
+        # Ends the client session in the remote shell, the process in the console
+        session.write_line("Closing the shell session")
         raise KeyboardInterrupt()
 
     def var_set(self, session: beans.ShellSession, **kwargs: Any) -> None:

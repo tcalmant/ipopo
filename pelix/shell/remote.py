@@ -121,6 +121,7 @@ __all__ = [
     "PROP_MAX_LINE_LENGTH",
     "PROP_UNIX_CHECK_PEER",
     "PROP_UNIX_PATH",
+    "STOP_TIMEOUT",
     "TRANSPORT",
     "UNIX_SOCKET_MODE",
     "RemoteConsole",
@@ -191,6 +192,9 @@ DEFAULT_MAX_CLIENTS = 32
 
 POLL_INTERVAL = 0.5
 """ Seconds between two checks of the server state while waiting for a client """
+
+STOP_TIMEOUT = 2.0
+""" Seconds the stop of the shell waits for the sessions to end """
 
 # ------------------------------------------------------------------------------
 
@@ -656,8 +660,9 @@ class RemoteConsole(socketserver.StreamRequestHandler):
                         with run_as(session.subject):
                             self._shell.handle_line(line, session)
                     except KeyboardInterrupt:
-                        # Stop there on interruption
-                        self.send("\nInterruption received.")
+                        # The "exit" and "quit" commands: a signal never reaches the thread of a
+                        # client, so this is the client asking to leave, not an interruption
+                        _logger.debug("Client %s left the session", client_ip)
                         return
                     except OSError:
                         # I/O errors are fatal
@@ -706,6 +711,10 @@ class _ClientLimitMixin(socketserver.ThreadingMixIn):
         self._clients = 0
         self._clients_lock = threading.Lock()
 
+        # Threads of the clients: daemon threads, which socketserver doesn't track,
+        # waited for at stop so that a session ends before the process does
+        self._client_threads: set[threading.Thread] = set()
+
     def _get_server_tag(self) -> str:
         """
         Returns what tells this server from the others in the names of its threads
@@ -722,11 +731,47 @@ class _ClientLimitMixin(socketserver.ThreadingMixIn):
         Overriding that method to name the thread would bypass this
         bookkeeping.
         """
-        threading.current_thread().name = f"RemoteShell-{self._get_server_tag()}-Client-{client_address[:2]}"
+        thread = threading.current_thread()
+        thread.name = f"RemoteShell-{self._get_server_tag()}-Client-{client_address[:2]}"
+        with self._clients_lock:
+            self._client_threads.add(thread)
+
         try:
             super().process_request_thread(request, client_address)
         finally:
+            with self._clients_lock:
+                self._client_threads.discard(thread)
+
             self._release_client()
+
+    def wait_for_clients(self, timeout: float | None = None) -> int:
+        """
+        Waits for the threads of the clients to end.
+
+        Call it after the clients were told to stop: a client which is waiting for
+        input notices it within :data:`POLL_INTERVAL`, but a client running a command
+        only ends when the command does.
+
+        :param timeout: Seconds to wait for all of them, or None to wait forever
+        :return: The number of clients still running when the wait ended
+        """
+        deadline = time.monotonic() + timeout if timeout is not None else None
+        with self._clients_lock:
+            threads = list(self._client_threads)
+
+        for thread in threads:
+            if thread is threading.current_thread():
+                # A command of this client is stopping the shell: it can't wait for itself
+                continue
+
+            thread.join(max(0.0, deadline - time.monotonic()) if deadline is not None else None)
+
+        with self._clients_lock:
+            return sum(
+                1
+                for thread in self._client_threads
+                if thread.is_alive() and thread is not threading.current_thread()
+            )
 
     def verify_request(
         self, request: socket.socket | tuple[bytes, socket.socket], client_address: Any
@@ -1472,6 +1517,12 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
 
             if self._thread is not None:
                 self._thread.join(2)
+
+            # Let the sessions say good bye and log their end, rather than being cut by
+            # the end of the process
+            remaining = cast(_ClientLimitMixin, self._server).wait_for_clients(STOP_TIMEOUT)
+            if remaining:
+                _logger.warning("RemoteShell stopped with %d session(s) still running a command", remaining)
 
             # Close the server socket (ignore errors)
             self._server.server_close()

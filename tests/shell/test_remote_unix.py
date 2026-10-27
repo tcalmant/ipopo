@@ -14,6 +14,7 @@ import stat
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from typing import Any, cast
 from unittest import mock
@@ -21,13 +22,13 @@ from unittest import mock
 from pelix.framework import Framework, FrameworkFactory, create_framework
 from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.instance import StoredInstance
-from pelix.shell import FACTORY_REMOTE_SHELL
+from pelix.shell import FACTORY_REMOTE_SHELL, ShellCommandMethod, ShellCommandsProvider, beans
 from pelix.shell.remote import (
     PROP_UNIX_CHECK_PEER,
     PROP_UNIX_PATH,
+    STOP_TIMEOUT,
     UNIX_SOCKET_MODE,
     IPopoRemoteShell,
-    ThreadingUnixServer,
     main,
 )
 from pelix.utilities import to_bytes, to_str
@@ -98,6 +99,10 @@ class RemoteShellUnixTest(unittest.TestCase):
         read_until(sock, PS1)
         return sock
 
+    def kill_shell(self) -> None:
+        with use_ipopo(self.context) as ipopo:
+            ipopo.kill("remote-shell")
+
     def get_state(self) -> int:
         with use_ipopo(self.context) as ipopo:
             return ipopo.get_instance_details("remote-shell")["state"]
@@ -107,10 +112,18 @@ class RemoteShellUnixTest(unittest.TestCase):
 
     def test_session(self) -> None:
         """
-        A client runs a command over the socket
+        A client runs a command over the socket; the address and port are not used,
+        the client limit applies
         """
         path = self.folder / "shell.sock"
-        shell = self.start_shell({PROP_UNIX_PATH: str(path)})
+        shell = self.start_shell(
+            {
+                PROP_UNIX_PATH: str(path),
+                "pelix.shell.port": 1,
+                "pelix.shell.address": "nowhere.invalid",
+                "pelix.shell.max_clients": 1,
+            }
+        )
         self.assertEqual(shell.get_access(), (str(path), None))
         self.assertTrue(shell.is_unix())
 
@@ -121,95 +134,63 @@ class RemoteShellUnixTest(unittest.TestCase):
         sock.sendall(to_bytes("echo hello\n"))
         self.assertIn("hello", read_until(sock, PS1))
 
-    def test_no_tcp_when_unix(self) -> None:
-        """
-        The address and port are not used when a Unix socket is configured
-        """
-        path = self.folder / "shell.sock"
-        self.start_shell(
-            {PROP_UNIX_PATH: str(path), "pelix.shell.port": 1, "pelix.shell.address": "nowhere.invalid"}
-        )
-        self.assertTrue(self.is_valid())
+        second = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+        self.addCleanup(second.close)
+        second.settimeout(10)
+        second.connect(str(path))
+        self.assertEqual(second.recv(4096), b"")
 
     def test_removed_on_stop(self) -> None:
         """
-        The socket file is removed when the shell stops
+        The socket file is removed when the shell stops, unless it is not ours any more
         """
         path = self.folder / "shell.sock"
-        self.start_shell({PROP_UNIX_PATH: str(path)})
-        self.assertTrue(path.exists())
+        for replaced in (False, True):
+            self.start_shell({PROP_UNIX_PATH: str(path)})
+            self.assertTrue(path.exists())
+            if replaced:
+                path.unlink()
+                path.write_text("someone else")
 
-        with use_ipopo(self.context) as ipopo:
-            ipopo.kill("remote-shell")
+            self.kill_shell()
+            self.assertEqual(path.exists(), replaced)
 
-        self.assertFalse(path.exists())
-
-    def test_stop_keeps_a_replaced_socket(self) -> None:
+    def test_existing_file(self) -> None:
         """
-        A socket file which is not ours any more is not removed
-        """
-        path = self.folder / "shell.sock"
-        self.start_shell({PROP_UNIX_PATH: str(path)})
-        path.unlink()
-        path.write_text("someone else")
-
-        with use_ipopo(self.context) as ipopo:
-            ipopo.kill("remote-shell")
-
-        self.assertEqual(path.read_text(), "someone else")
-
-    def test_stale_socket_removed(self) -> None:
-        """
-        The socket file left by a crashed server is replaced
+        Only the socket file left by a crashed server is replaced: a regular file, a
+        symbolic link or the socket of a running server are kept, the shell fails
         """
         path = self.folder / "shell.sock"
-        stale = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        stale.bind(str(path))
-        # Closed without unlink: nobody listens, the file remains
-        stale.close()
-        self.assertTrue(path.exists())
-
-        self.start_shell({PROP_UNIX_PATH: str(path)})
-        self.connect(path)
-
-    def test_regular_file_not_removed(self) -> None:
-        """
-        A file which is not a socket is never removed: the shell doesn't start
-        """
-        path = self.folder / "shell.sock"
-        path.write_text("precious")
-
-        self.start_shell({PROP_UNIX_PATH: str(path)})
-        self.assertEqual(self.get_state(), StoredInstance.ERRONEOUS)
-        self.assertEqual(path.read_text(), "precious")
-
-    def test_symlink_not_removed(self) -> None:
-        """
-        A symbolic link is never followed nor removed
-        """
         target = self.folder / "target"
         target.write_text("precious")
-        path = self.folder / "shell.sock"
-        path.symlink_to(target)
 
+        path.write_text("precious")
         self.start_shell({PROP_UNIX_PATH: str(path)})
         self.assertEqual(self.get_state(), StoredInstance.ERRONEOUS)
+        self.kill_shell()
+        self.assertEqual(path.read_text(), "precious")
+
+        path.unlink()
+        path.symlink_to(target)
+        self.start_shell({PROP_UNIX_PATH: str(path)})
+        self.assertEqual(self.get_state(), StoredInstance.ERRONEOUS)
+        self.kill_shell()
         self.assertTrue(path.is_symlink())
         self.assertEqual(target.read_text(), "precious")
 
-    def test_live_socket_not_removed(self) -> None:
-        """
-        The socket of a running server is not taken over
-        """
-        path = self.folder / "shell.sock"
+        path.unlink()
         other = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.addCleanup(other.close)
         other.bind(str(path))
         other.listen(1)
-
         self.start_shell({PROP_UNIX_PATH: str(path)})
         self.assertEqual(self.get_state(), StoredInstance.ERRONEOUS)
-        self.assertTrue(path.exists())
+        self.kill_shell()
+
+        # Closed without unlink: nobody listens, the file remains
+        other.close()
+        self.start_shell({PROP_UNIX_PATH: str(path)})
+        self.connect(path)
 
     def test_unsafe_folder(self) -> None:
         """
@@ -275,28 +256,6 @@ class RemoteShellUnixTest(unittest.TestCase):
         with mock.patch("os.geteuid", return_value=real_uid + 1):
             self.connect(path)
 
-    def test_peer_accepted(self) -> None:
-        """
-        A client of the same user is accepted with the check enabled
-        """
-        path = self.folder / "shell.sock"
-        self.start_shell({PROP_UNIX_PATH: str(path), PROP_UNIX_CHECK_PEER: True})
-        self.connect(path)
-
-    def test_max_clients(self) -> None:
-        """
-        The client limit also applies on a Unix socket
-        """
-        path = self.folder / "shell.sock"
-        self.start_shell({PROP_UNIX_PATH: str(path), "pelix.shell.max_clients": 1})
-        self.connect(path)
-
-        second = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.addCleanup(second.close)
-        second.settimeout(10)
-        second.connect(str(path))
-        self.assertEqual(second.recv(4096), b"")
-
     def test_password_login(self) -> None:
         """
         A password prompt works on a Unix socket, without the clear-text warning
@@ -317,32 +276,101 @@ class RemoteShellUnixTest(unittest.TestCase):
         with self.assertRaises(SystemExit):
             main(["--unix", str(self.folder / "s.sock"), "--cert", "x"])
 
-    def test_server_class_direct(self) -> None:
+    def read_to_end(self, sock: socket.socket, timeout: float) -> str:
         """
-        The server class can be used on its own
+        Reads what the shell sent until it closed the connection, without waiting more
+        than the given time
         """
-        path = str(self.folder / "direct.sock")
-        server = ThreadingUnixServer(path, socketserver_handler(), 1)
-        server.server_bind()
-        server.server_activate()
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
+        sock.settimeout(timeout)
+        received = b""
         try:
-            self.assertTrue(os.path.exists(path))
-        finally:
-            server.shutdown()
-            server.server_close()
-        self.assertFalse(os.path.exists(path))
-
-
-def socketserver_handler() -> Any:
-    import socketserver
-
-    class Handler(socketserver.BaseRequestHandler):
-        def handle(self) -> None:
+            while True:
+                data = sock.recv(4096)
+                if not data:
+                    break
+                received += data
+        except TimeoutError:
             pass
 
-    return Handler
+        return to_str(received)
+
+    def test_stop_ends_the_sessions(self) -> None:
+        """
+        The stop of the shell waits for its sessions to end, even one running a command
+        """
+        started = threading.Event()
+
+        class SlowCommand(ShellCommandsProvider):
+            def get_namespace(self) -> str:
+                return "test"
+
+            def get_methods(self) -> list[tuple[str, ShellCommandMethod]]:
+                return [("slow", self.slow)]
+
+            def slow(self, session: beans.ShellSession) -> None:
+                started.set()
+                time.sleep(STOP_TIMEOUT / 2)
+
+        self.context.register_service(ShellCommandsProvider, SlowCommand(), {})
+        path = self.folder / "shell.sock"
+        self.start_shell({PROP_UNIX_PATH: str(path)})
+
+        # "exit" closes the session politely, without an interruption message
+        leaving = self.connect(path)
+        leaving.sendall(to_bytes("exit\n"))
+        output = self.read_to_end(leaving, 5)
+        self.assertIn("Session closed. Good bye.", output)
+        self.assertNotIn("Interruption", output)
+        self.assertNotIn("KeyboardInterrupt", output)
+
+        idle = self.connect(path)
+        busy = self.connect(path)
+        busy.sendall(to_bytes("test.slow\n"))
+        self.assertTrue(started.wait(5))
+
+        with use_ipopo(self.context) as ipopo:
+            ipopo.kill("remote-shell")
+
+        # Already sent when the stop returns: nothing more to wait for
+        for sock in (idle, busy):
+            self.assertIn("Session closed. Good bye.", self.read_to_end(sock, 0.1))
+
+        self.assertFalse(
+            [thread for thread in threading.enumerate() if thread.name.startswith("RemoteShell-shell.sock-")]
+        )
+
+    def test_stop_does_not_wait_forever(self) -> None:
+        """
+        A command which never ends doesn't block the stop of the shell
+        """
+        release = threading.Event()
+        self.addCleanup(release.set)
+        started = threading.Event()
+
+        class StuckCommand(ShellCommandsProvider):
+            def get_namespace(self) -> str:
+                return "test"
+
+            def get_methods(self) -> list[tuple[str, ShellCommandMethod]]:
+                return [("stuck", self.stuck)]
+
+            def stuck(self, session: beans.ShellSession) -> None:
+                started.set()
+                release.wait(30)
+
+        self.context.register_service(ShellCommandsProvider, StuckCommand(), {})
+        path = self.folder / "shell.sock"
+        self.start_shell({PROP_UNIX_PATH: str(path)})
+        sock = self.connect(path)
+        sock.sendall(to_bytes("test.stuck\n"))
+        self.assertTrue(started.wait(5))
+
+        begin = time.monotonic()
+        with self.assertLogs("pelix.shell.remote", "WARNING") as logs, use_ipopo(self.context) as ipopo:
+            ipopo.kill("remote-shell")
+
+        self.assertLess(time.monotonic() - begin, STOP_TIMEOUT + 2)
+        self.assertTrue(any("still running a command" in line for line in logs.output))
 
 
 if __name__ == "__main__":
