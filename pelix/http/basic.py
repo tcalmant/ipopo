@@ -93,6 +93,7 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         full_path: str,
         prefix: str,
         max_body_size: int | None = None,
+        remote: tuple[tuple[str, int], bool] | None = None,
     ) -> None:
         """
         Sets up the request helper
@@ -101,7 +102,9 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         :param full_path: The normalized request path, including the prefix
         :param prefix: The path to the servlet root
         :param max_body_size: Maximum accepted size of the body, in bytes
+        :param remote: The client and the security of its connection
         """
+        self.remote = remote
         self._handler = request_handler
         self._full_path = full_path
         self._prefix = prefix
@@ -116,9 +119,9 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         """
         return self._handler.command
 
-    def get_client_address(self) -> tuple[str, int]:
+    def get_peer_address(self) -> tuple[str, int]:
         """
-        Retrieves the address of the client
+        Retrieves the address of the other end of the connection
 
         :return: A (host, port) tuple
         """
@@ -177,7 +180,8 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         :param request_handler: The basic request handler
         """
         self._handler = request_handler
-        self._headers: dict[str, Any] = {}
+        self._headers: dict[str, list[str]] = {}
+        self._sent = False
 
     def set_response(self, code: int, message: str | None = None) -> None:
         """
@@ -197,7 +201,33 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         :param name: Header name
         :param value: Header value
         """
-        self._headers[name.lower()] = value
+        text = None if value is None else self._check_header(value)
+        if self._sent:
+            # Too late: ignored, as it always was
+            return
+        if text is None:
+            self._headers.pop(name.lower(), None)
+        else:
+            self._headers[name.lower()] = [text]
+
+    def add_header(self, name: str, value: Any) -> None:
+        """
+        See :meth:`pelix.http.AbstractHTTPServletResponse.add_header`
+        """
+        text = self._check_header(value)
+        if not self._sent:
+            self._headers.setdefault(name.lower(), []).append(text)
+
+    @staticmethod
+    def _check_header(value: Any) -> str:
+        """
+        Refuses a value which would split the response: ``send_header()`` doesn't
+
+        :raise ValueError: The value holds a line break
+        """
+        if "\r" in (text := str(value)) or "\n" in text:
+            raise ValueError("A header value can't hold a line break")
+        return text
 
     def is_header_set(self, name: str) -> bool:
         """
@@ -216,11 +246,13 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         cors_headers: dict[str, str] | None = getattr(self._handler, "cors_headers", None)
         if cors_headers:
             for name, value in cors_headers.items():
-                self._headers.setdefault(name.lower(), value)
+                self._headers.setdefault(name.lower(), [value])
 
         # Send them all at once
-        for name, value in self._headers.items():
-            self._handler.send_header(name, value)
+        self._sent = True
+        for name, values in self._headers.items():
+            for value in values:
+                self._handler.send_header(name, value)
 
         self._handler.end_headers()
 
@@ -266,6 +298,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
         # CORS headers to add to the response of the current request, if any
         self.cors_headers: dict[str, str] | None = None
+        self.remote: tuple[tuple[str, int], bool] = (("", 0), False)
 
         # This calls setup() then the do_* methods
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
@@ -297,8 +330,8 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
         # Keep-alive connections reuse the handler: forget the previous request
         self.cors_headers = None
-
-        checks = self._service.check_request(self.command, self.path, self.headers)
+        checks = self._service.check_request(self.command, self.path, self.headers, self.client_address)
+        self.remote = checks.remote
         if checks.refused:
             # A rebound host name or a page of another site: no servlet runs
             return self.send_forbidden_response
@@ -319,7 +352,11 @@ class _RequestHandler(BaseHTTPRequestHandler):
         if servlet is not None and hasattr(servlet, name):
             # Prepare the helpers
             request = _HTTPServletRequest(
-                self, routing.path, routing.prefix, self._service.resolve_max_body_size(routing.parameters)
+                self,
+                routing.path,
+                routing.prefix,
+                self._service.resolve_max_body_size(routing.parameters),
+                self.remote,
             )
             response = _HTTPServletResponse(self)
 
@@ -373,7 +410,7 @@ class _RequestHandler(BaseHTTPRequestHandler):
         :param routing: The result of the routing of the request
         :return: The subject to handle the request as, or None if it has been refused
         """
-        decision = self._service.resolve_authentication(routing, self.headers, self.client_address[0])
+        decision = self._service.resolve_authentication(routing, self.headers, self.remote[0][0])
         if decision.refused:
             self.send_auth_error(_HTTPServletResponse(self), 401, routing)
             return None

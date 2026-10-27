@@ -9,6 +9,7 @@ Tests the Cross-Origin Resource Sharing (CORS) support of the HTTP services
 import base64
 import http.client as httplib
 import importlib.util
+import json
 import os
 import socket
 import unittest
@@ -250,6 +251,37 @@ class AsyncServlet:
         await response.send_content(200, "Options", "text/plain")
 
 
+class EchoServlet:
+    """
+    Tells who the client is, sets cookies and a header twice
+    """
+
+    @staticmethod
+    def describe(request: Any, cookies: dict[str, str]) -> str:
+        return json.dumps([request.get_client_address()[0], request.is_secure(), cookies])
+
+    @staticmethod
+    def prepare(response: Any) -> None:
+        response.add_cookie("a", "1")
+        response.add_cookie("b", "2", secure=True)
+        response.set_header("X-Once", "1")
+        response.set_header("X-Once", "2")
+
+    def do_GET(self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse):
+        self.prepare(response)
+        response.send_content(200, self.describe(request, request.get_cookies()), "application/json")
+
+
+class AsyncEchoServlet(EchoServlet):
+    async def do_async_GET(
+        self, request: http.AbstractAsyncHTTPServletRequest, response: http.AbstractAsyncHTTPServletResponse
+    ):
+        self.prepare(response)
+        await response.send_content(
+            200, self.describe(request, await request.get_cookies()), "application/json"
+        )
+
+
 class WebSocketHandler(http.WebSocketHandler):
     """
     Accepts all WebSocket connections
@@ -297,6 +329,7 @@ class _CorsServerTests:
     assertEqual: Any
     assertIn: Any
     assertIsNone: Any
+    assertNotIn: Any
     assertTrue: Any
     assertFalse: Any
     assertLogs: Any
@@ -601,6 +634,44 @@ class _CorsServerTests:
             ],
             [403, 403, 403, 200, 200, 200, 403, 204, 403],
         )
+
+    def test_cookies_and_proxies(self) -> None:
+        """
+        Cookies, repeated headers, and the client told by the trusted proxies only
+        """
+        self.register_servlet()
+        context = self.framework.get_bundle_context()
+        if self.async_servlet:
+            context.register_service(
+                http.HTTP_SERVLET_ASYNC, AsyncEchoServlet(), {http.HTTP_SERVLET_ASYNC_PATH: "/echo"}
+            )
+        else:
+            context.register_service(http.HTTP_SERVLET, EchoServlet(), {http.HTTP_SERVLET_PATH: "/echo"})
+
+        self.start_server(**{http.HTTP_CORS_ENFORCE: True})
+        status, headers, body = self.request(uri="/echo", headers={"Cookie": "x=1; y=2"})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)[2], {"x": "1", "y": "2"})
+        self.assertEqual(
+            headers.get_all("Set-Cookie"),
+            ["a=1; Path=/; SameSite=Lax; HttpOnly", "b=2; Path=/; SameSite=Lax; Secure; HttpOnly"],
+        )
+        # set_header replaces, whatever the service
+        self.assertEqual(headers.get_all("X-Once"), ["2"])
+
+        proxied = {"X-Forwarded-For": "6.6.6.6, 1.2.3.4", "X-Forwarded-Proto": "https"}
+        behind_tls = {"Host": "meme.example.com", "Origin": "https://meme.example.com", **proxied}
+        # Ignored from an untrusted peer
+        client, secure, _ = json.loads(self.request(uri="/echo", headers=proxied)[2])
+        self.assertNotIn(client, ("6.6.6.6", "1.2.3.4"))
+        self.assertFalse(secure)
+        self.assertEqual(self.request(headers=behind_tls)[0], 403)
+
+        self.start_server(**{http.HTTP_CORS_ENFORCE: True, http.HTTP_PROXY_TRUSTED: "127.0.0.0/8, ::1"})
+        self.assertEqual(json.loads(self.request(uri="/echo", headers=proxied)[2])[:2], ["1.2.3.4", True])
+        # The browser sends an https Origin, while the service only sees clear text
+        self.assertEqual(self.request(headers=behind_tls)[0], 200)
+        self.assertEqual(self.request(headers={**behind_tls, "Origin": "https://evil.example.com"})[0], 403)
 
     def test_allowed_hosts(self) -> None:
         """

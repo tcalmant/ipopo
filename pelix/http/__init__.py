@@ -29,6 +29,7 @@ Defines the interfaces that must respect HTTP service implementations.
 
 import asyncio
 import concurrent.futures
+import re
 from abc import ABC, abstractmethod
 from collections.abc import Iterable
 from enum import Enum
@@ -71,6 +72,7 @@ __all__ = [
     "HTTP_DEBUG_ERRORS",
     "HTTP_ERROR_PAGES",
     "HTTP_MAX_BODY_SIZE",
+    "HTTP_PROXY_TRUSTED",
     "HTTP_SERVICE",
     "HTTP_SERVICE_ADDRESS",
     "HTTP_SERVICE_PORT",
@@ -105,7 +107,9 @@ __all__ = [
     "ServletType",
     "WebSocketHandler",
     "WebSocketSession",
+    "format_cookie",
     "make_html_list",
+    "parse_cookies",
     "read_body",
 ]
 
@@ -273,6 +277,18 @@ header, ...). The allowed origin is then always sent explicitly, never as
 ``*`` (boolean, False by default).
 """
 
+HTTP_PROXY_TRUSTED = "pelix.http.proxy.trusted"
+"""
+HTTP service property: addresses or networks (CIDR) of the reverse proxies
+allowed to tell who the client is, as a list or a comma-separated string.
+
+When the peer of a request is one of them, the right-most address of the
+``X-Forwarded-For`` header which is not a trusted proxy becomes the address
+of the client, and ``X-Forwarded-Proto`` tells if it used HTTPS. They are
+ignored for any other peer. The proxy must keep the ``Host`` header of the
+client. Empty by default: those headers are never read.
+"""
+
 HTTP_CORS_ENFORCE = "pelix.http.cors.enforce"
 """
 HTTP service property: if set, a request carrying an ``Origin`` header which is
@@ -413,6 +429,66 @@ class BodyTooLargeError(Exception):
         self.max_size = max_size
 
 
+_COOKIE_NAME = re.compile(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+")
+_COOKIE_VALUE = re.compile(r"[\x21\x23-\x2b\x2d-\x3a\x3c-\x5b\x5d-\x7e]*")
+_COOKIE_PATH = re.compile(r"[\x20-\x3a\x3c-\x7e]*")
+
+
+def parse_cookies(header: str | None) -> dict[str, str]:
+    """
+    Parses the value of a ``Cookie`` header
+
+    :param header: The header value, if any
+    :return: The cookies by name. When a name is repeated, the first value wins:
+             browsers send the most specific path first.
+    """
+    cookies: dict[str, str] = {}
+    for item in (header or "").split(";"):
+        name, sep, value = item.partition("=")
+        if sep and name.strip():
+            cookies.setdefault(name.strip(), value.strip().strip('"'))
+    return cookies
+
+
+def format_cookie(
+    name: str,
+    value: str,
+    *,
+    max_age: int | None = None,
+    path: str = "/",
+    secure: bool = False,
+    http_only: bool = True,
+    same_site: str = "Lax",
+) -> str:
+    """
+    Prepares the value of a ``Set-Cookie`` header
+
+    :param name: Cookie name (a token)
+    :param value: Cookie value, without quote or separator: nothing is escaped
+    :param max_age: Lifetime in seconds (0 deletes the cookie), None for a session cookie
+    :param path: Path the cookie is sent for
+    :param secure: If True, the browser only sends it over HTTPS
+    :param http_only: If True, scripts can't read it
+    :param same_site: ``Strict``, ``Lax`` or ``None`` (the latter needs ``secure``)
+    :raise ValueError: A part isn't valid: it could split the header
+    """
+    if not _COOKIE_NAME.fullmatch(name) or not _COOKIE_VALUE.fullmatch(value):
+        raise ValueError("Invalid cookie name or value")
+    if not _COOKIE_PATH.fullmatch(path) or same_site not in ("Strict", "Lax", "None"):
+        raise ValueError("Invalid cookie path or SameSite attribute")
+    if same_site == "None" and not secure:
+        raise ValueError("SameSite=None needs the Secure attribute")
+
+    parts = [f"{name}={value}", f"Path={path}", f"SameSite={same_site}"]
+    if max_age is not None:
+        parts.append(f"Max-Age={int(max_age)}")
+    if secure:
+        parts.append("Secure")
+    if http_only:
+        parts.append("HttpOnly")
+    return "; ".join(parts)
+
+
 async def read_body(reader: "asyncio.StreamReader", size: int | None, max_size: int | None) -> bytes:
     """
     Reads the body of a request from an asynchronous stream, without loading
@@ -456,7 +532,79 @@ async def read_body(reader: "asyncio.StreamReader", size: int | None, max_size: 
     return bytes(data)
 
 
-class AbstractHTTPServletRequest(ABC):
+class _RequestMixin(ABC):
+    """
+    What the synchronous and asynchronous servlet requests share, once the
+    HTTP service gave them the result of the trusted proxies
+    """
+
+    remote: tuple[tuple[str, int], bool] | None = None
+    """
+    The client address and the security of its connection, once the trusted
+    proxies are taken into account. It is set by the HTTP service.
+    """
+
+    def get_peer_address(self) -> tuple[str, int]:
+        """
+        Returns the address of the other end of the connection, i.e. of the
+        reverse proxy if there is one
+
+        :return: A (host, port) tuple
+        :raise NotImplementedError: A request class written before this method
+                                    must override ``get_client_address()``
+        """
+        raise NotImplementedError
+
+    def get_client_address(self) -> tuple[str, int]:
+        """
+        Returns the address of the client, as told by the trusted proxies
+        (see ``pelix.http.proxy.trusted``). Its port is 0 if it comes from a header.
+
+        :return: A (host, port) tuple
+        """
+        return self.remote[0] if self.remote else self.get_peer_address()
+
+    def is_secure(self) -> bool:
+        """
+        Checks if the client used HTTPS, as told by the trusted proxies
+
+        :return: True if the request was sent over TLS
+        """
+        return bool(self.remote and self.remote[1])
+
+
+class _ResponseMixin(ABC):
+    """
+    What the synchronous and asynchronous servlet responses share
+    """
+
+    @abstractmethod
+    def set_header(self, name: str, value: Any) -> None: ...
+
+    def add_header(self, name: str, value: Any) -> None:
+        """
+        Adds a value to a header, e.g. ``Set-Cookie``, which can be sent many times.
+        This method should not be called after ``end_headers()``.
+        Without an override, a response class only keeps the last value.
+
+        :param name: Header name
+        :param value: Header value
+        """
+        self.set_header(name, value)
+
+    def add_cookie(self, name: str, value: str, **attributes: Any) -> None:
+        """
+        Sends a cookie: see :func:`format_cookie` for the arguments.
+        It is ``HttpOnly`` and ``SameSite=Lax`` unless told otherwise;
+        pass ``secure=request.is_secure()`` for the browser to send it
+        over HTTPS only.
+
+        :raise ValueError: The cookie isn't valid
+        """
+        self.add_header("Set-Cookie", format_cookie(name, value, **attributes))
+
+
+class AbstractHTTPServletRequest(_RequestMixin):
     """
     Abstract HTTP Servlet request helper
     """
@@ -475,14 +623,13 @@ class AbstractHTTPServletRequest(ABC):
         """
         ...
 
-    @abstractmethod
-    def get_client_address(self) -> tuple[str, int]:
+    def get_cookies(self) -> dict[str, str]:
         """
-        Returns the address of the client
+        Returns the cookies sent with the request
 
-        :return: A (host, port) tuple
+        :return: The cookie values by name
         """
-        ...
+        return parse_cookies(self.get_header("Cookie"))
 
     @abstractmethod
     def get_header(self, name: str, default: Any = None) -> Any:
@@ -591,7 +738,7 @@ class AbstractHTTPServletRequest(ABC):
         return self.get_rfile().read(size)
 
 
-class AbstractHTTPServletResponse(ABC):
+class AbstractHTTPServletResponse(_ResponseMixin):
     """
     HTTP Servlet response helper
     """
@@ -702,7 +849,7 @@ class AbstractHTTPServletResponse(ABC):
         self.write(raw_content)
 
 
-class AbstractAsyncHTTPServletRequest(ABC):
+class AbstractAsyncHTTPServletRequest(_RequestMixin):
     """
     Asynchronous HTTP Servlet request helper
     """
@@ -721,14 +868,11 @@ class AbstractAsyncHTTPServletRequest(ABC):
         """
         ...
 
-    @abstractmethod
-    def get_client_address(self) -> tuple[str, int]:
+    async def get_cookies(self) -> dict[str, str]:
         """
-        Returns the address of the client
-
-        :return: A (host, port) tuple
+        See :meth:`AbstractHTTPServletRequest.get_cookies`
         """
-        ...
+        return parse_cookies(await self.get_header("Cookie"))
 
     @abstractmethod
     async def get_header(self, name: str, default: Any = None) -> Any:
@@ -850,7 +994,7 @@ class AbstractAsyncWriter(ABC):
         ...  # noqa: PIE790
 
 
-class AbstractAsyncHTTPServletResponse(ABC):
+class AbstractAsyncHTTPServletResponse(_ResponseMixin):
     """
     Asynchronous HTTP Servlet response helper
     """

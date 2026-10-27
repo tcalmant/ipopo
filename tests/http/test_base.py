@@ -7,8 +7,10 @@ Tests the code shared by the HTTP service implementations.
 """
 
 import importlib.util
+import types
 import unittest
-from typing import Any
+from email.message import Message
+from typing import Any, cast
 
 from pelix import http
 from pelix.framework import Framework, FrameworkFactory
@@ -17,9 +19,10 @@ from pelix.http._base import (
     compute_sub_path,
     normalize_allowed_hosts,
     normalize_request_path,
+    normalize_trusted_proxies,
     split_host_port,
 )
-from pelix.http.basic import HttpServiceImpl
+from pelix.http.basic import HttpServiceImpl, _HTTPServletResponse
 from tests.http.utils import DEFAULT_HOST, get_http_code, get_http_page, install_ipopo, instantiate_server
 
 # ------------------------------------------------------------------------------
@@ -245,6 +248,120 @@ class HostTest(unittest.TestCase):
         ):
             with self.subTest(value=value):
                 self.assertEqual(normalize_allowed_hosts(value), expected)
+
+
+class ProxyTest(unittest.TestCase):
+    """
+    Tests the resolution of the client behind trusted proxies
+    """
+
+    def test_normalize_trusted_proxies(self) -> None:
+        self.assertEqual(normalize_trusted_proxies(None), [])
+        self.assertEqual(len(normalize_trusted_proxies("10.0.0.0/8, ::1,")), 2)
+        with self.assertRaises(ValueError):
+            normalize_trusted_proxies(["not an address"])
+
+    def test_resolve_client(self) -> None:
+        forged = {"X-Forwarded-For": ["6.6.6.6"], "X-Forwarded-Proto": ["https"]}
+        proxy = ("10.0.0.2", 1234)
+        cases: list[tuple[str | None, str, dict[str, list[str]], bool, Any]] = [
+            # Headers are ignored by default, and from untrusted peers
+            (None, "10.0.0.2", forged, False, (proxy, False)),
+            ("10.0.0.1", "10.0.0.2", forged, False, (proxy, False)),
+            # The left of the chain is forged by the client: the first untrusted hop from the right is used
+            (
+                "10.0.0.0/8",
+                "10.0.0.2",
+                {"X-Forwarded-For": ["6.6.6.6, 1.2.3.4", "10.0.0.3"]},
+                False,
+                (("1.2.3.4", 0), False),
+            ),
+            (
+                "::1, 127.0.0.1",
+                "::ffff:127.0.0.1",
+                {"X-Forwarded-For": ["2001:db8::1"]},
+                False,
+                (("2001:db8::1", 0), False),
+            ),
+            (None, "::ffff:1.2.3.4", {}, False, (("1.2.3.4", 1234), False)),
+            ("10.0.0.0/8", "10.0.0.2", {"X-Forwarded-For": ["10.0.0.5, 10.0.0.3"]}, False, (proxy, False)),
+            ("10.0.0.0/8", "10.0.0.2", {"X-Forwarded-For": ["1.2.3.4, nonsense"]}, False, (proxy, False)),
+            # One clear text hop makes the request insecure; unknown values are ignored
+            ("10.0.0.2", "10.0.0.2", {"X-Forwarded-Proto": ["https"]}, False, (proxy, True)),
+            ("10.0.0.2", "10.0.0.2", {"X-Forwarded-Proto": ["https, HTTPS"]}, False, (proxy, True)),
+            ("10.0.0.2", "10.0.0.2", {"X-Forwarded-Proto": ["https", "http"]}, True, (proxy, False)),
+            ("10.0.0.2", "10.0.0.2", {"X-Forwarded-Proto": ["javascript"]}, False, (proxy, False)),
+            ("10.0.0.2", "10.0.0.2", {"X-Forwarded-Proto": ["javascript"]}, True, (proxy, True)),
+        ]
+        for trusted, peer, values, uses_ssl, expected in cases:
+            with self.subTest(trusted=trusted, peer=peer, headers=values, uses_ssl=uses_ssl):
+                service = types.SimpleNamespace(
+                    _uses_ssl=uses_ssl, _proxy_trusted=normalize_trusted_proxies(trusted)
+                )
+                headers = Message()
+                for name, items in values.items():
+                    for item in items:
+                        headers[name] = item
+                result = AbstractHttpService.resolve_client(cast(Any, service), (peer, 1234), headers)
+                self.assertEqual(result, expected)
+
+
+class CookieTest(unittest.TestCase):
+    """
+    Tests the cookie helpers and the headers of the responses
+    """
+
+    def test_parse(self) -> None:
+        self.assertEqual(http.parse_cookies(None), {})
+        self.assertEqual(http.parse_cookies('a=1; b="2"; broken; a=other; =x'), {"a": "1", "b": "2"})
+
+    def test_format(self) -> None:
+        self.assertEqual(http.format_cookie("sid", "abc"), "sid=abc; Path=/; SameSite=Lax; HttpOnly")
+        self.assertEqual(
+            http.format_cookie("sid", "abc", max_age=0, secure=True, http_only=False, same_site="None"),
+            "sid=abc; Path=/; SameSite=None; Max-Age=0; Secure",
+        )
+
+        # Nothing can split the header
+        kwargs: dict[str, Any]
+        for kwargs in (
+            {"name": "a b", "value": "x"},
+            {"name": "a", "value": "x\r\nSet-Cookie: b=1"},
+            {"name": "a", "value": "x;y"},
+            {"name": "a", "value": "x", "path": "/;Domain=evil"},
+            {"name": "a", "value": "x", "same_site": "Wide"},
+            {"name": "a", "value": "x", "same_site": "None"},
+        ):
+            with self.subTest(**kwargs), self.assertRaises(ValueError):
+                cast(Any, http.format_cookie)(**kwargs)
+
+    def test_basic_response_headers(self) -> None:
+        response = _HTTPServletResponse(cast(Any, None))
+        response.add_header("X-A", "1")
+        response.add_header("X-A", "2")
+        self.assertEqual(response._headers["x-a"], ["1", "2"])
+        response.set_header("X-A", "3")
+        self.assertEqual(response._headers["x-a"], ["3"])
+        response.set_header("X-A", None)
+        self.assertFalse(response.is_header_set("X-A"))
+        for method in (response.set_header, response.add_header):
+            with self.assertRaises(ValueError):
+                method("X-B", "a\r\nSet-Cookie: b=1")
+
+        # Once the headers are sent, changes are ignored, as they always were
+        response._sent = True
+        response.set_header("X-C", "1")
+        response.add_header("X-C", "1")
+        self.assertFalse(response.is_header_set("X-C"))
+
+    def test_legacy_request_classes(self) -> None:
+        """
+        A request class written before get_peer_address() can still be instantiated
+        """
+        for cls in (http.AbstractHTTPServletRequest, http.AbstractAsyncHTTPServletRequest):
+            with self.subTest(cls=cls):
+                self.assertNotIn("get_peer_address", cls.__abstractmethods__)
+                self.assertNotIn("get_client_address", cls.__abstractmethods__)
 
 
 class ResolveRequestTest(unittest.TestCase):

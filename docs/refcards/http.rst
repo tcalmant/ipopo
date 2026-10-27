@@ -57,6 +57,14 @@ pelix.http.allowed_hosts        (none)  Host names accepted in the ``Host``
                                         An entry without port matches any port.
                                         If not set or empty, the header is not
                                         checked
+pelix.http.proxy.trusted        (none)  Addresses or networks (CIDR) of the
+                                        reverse proxies believed when they
+                                        send ``X-Forwarded-For`` and
+                                        ``X-Forwarded-Proto``. They give the
+                                        client address, and tell if it used
+                                        HTTPS (the ``Origin`` check needs it).
+                                        The proxy must keep the ``Host``
+                                        header. Ignored for other peers
 pelix.http.cors.enforce         False   If set, a request with an ``Origin``
                                         header which is neither the server's
                                         own origin nor allowed by the CORS

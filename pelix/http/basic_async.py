@@ -42,6 +42,7 @@ from typing import IO, TYPE_CHECKING, Any, cast
 
 import aiohttp.client_exceptions
 import aiohttp.web
+from multidict import CIMultiDict
 
 import pelix.constants as fw_constants
 from pelix import http, utilities
@@ -109,7 +110,14 @@ class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
     HTTP Servlet request helper
     """
 
-    def __init__(self, request: aiohttp.web.Request, full_path: str, prefix: str, content: bytes) -> None:
+    def __init__(
+        self,
+        request: aiohttp.web.Request,
+        full_path: str,
+        prefix: str,
+        content: bytes,
+        remote: tuple[tuple[str, int], bool] | None = None,
+    ) -> None:
         """
         Sets up the request helper
 
@@ -117,7 +125,9 @@ class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
         :param full_path: The full request path, including the prefix
         :param prefix: The path to the servlet root
         :param content: The request content
+        :param remote: The client and the security of its connection
         """
+        self.remote = remote
         self._request = request
         self._full_path = full_path
         self._prefix = prefix
@@ -132,9 +142,9 @@ class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
         """
         return self._request.method.upper()
 
-    def get_client_address(self) -> tuple[str, int]:
+    def get_peer_address(self) -> tuple[str, int]:
         """
-        Retrieves the address of the client
+        Retrieves the address of the other end of the connection
 
         :return: A (host, port) tuple
         """
@@ -228,7 +238,7 @@ class _SyncHTTPServletResponse(http.AbstractHTTPServletResponse):
         """
         self._request = request
         self._loop = loop
-        self._headers: dict[str, str] = {}
+        self._headers: CIMultiDict[str] = CIMultiDict()
         self._headers_set: bool = False
         self._code: int = 200
         self._message: str | None = None
@@ -271,9 +281,18 @@ class _SyncHTTPServletResponse(http.AbstractHTTPServletResponse):
             raise OSError("Headers have already been set, cannot change them")
 
         if value is None:
-            self._headers.pop(name.lower(), None)
+            self._headers.popall(name, None)
         else:
-            self._headers[name.lower()] = str(value)
+            self._headers[name] = str(value)
+
+    def add_header(self, name: str, value: Any) -> None:
+        """
+        See :meth:`pelix.http.AbstractHTTPServletResponse.add_header`
+        """
+        if self._headers_set:
+            raise OSError("Headers have already been set, cannot change them")
+
+        self._headers.add(name, str(value))
 
     def is_header_set(self, name: str) -> bool:
         """
@@ -282,7 +301,7 @@ class _SyncHTTPServletResponse(http.AbstractHTTPServletResponse):
         :param name: Header name
         :return: True if it has already been set
         """
-        return name.lower() in self._headers
+        return name in self._headers
 
     def end_headers(self) -> None:
         """
@@ -329,6 +348,7 @@ class _AsyncHTTPServletRequest(http.AbstractAsyncHTTPServletRequest):
         full_path: str,
         prefix: str,
         max_body_size: int | None = None,
+        remote: tuple[tuple[str, int], bool] | None = None,
     ) -> None:
         """
         Sets up the request helper
@@ -337,7 +357,9 @@ class _AsyncHTTPServletRequest(http.AbstractAsyncHTTPServletRequest):
         :param full_path: The full request path, including the prefix
         :param prefix: The path to the servlet root
         :param max_body_size: Maximum accepted size of the body, in bytes
+        :param remote: The client and the security of its connection
         """
+        self.remote = remote
         self._request = request
         self._full_path = full_path
         self._prefix = prefix
@@ -352,9 +374,9 @@ class _AsyncHTTPServletRequest(http.AbstractAsyncHTTPServletRequest):
         """
         return self._request.method.upper()
 
-    def get_client_address(self) -> tuple[str, int]:
+    def get_peer_address(self) -> tuple[str, int]:
         """
-        Retrieves the address of the client
+        Retrieves the address of the other end of the connection
 
         :return: A (host, port) tuple
         """
@@ -475,9 +497,18 @@ class _AsyncHTTPServletResponse(http.AbstractAsyncHTTPServletResponse):
             raise OSError("Headers have already been set, cannot change them")
 
         if value is None:
-            self._response.headers.popall(name.lower(), None)
+            self._response.headers.popall(name, None)
         else:
-            self._response.headers.add(name.lower(), str(value))
+            self._response.headers[name] = str(value)
+
+    def add_header(self, name: str, value: Any) -> None:
+        """
+        See :meth:`pelix.http.AbstractHTTPServletResponse.add_header`
+        """
+        if self._headers_set:
+            raise OSError("Headers have already been set, cannot change them")
+
+        self._response.headers.add(name, str(value))
 
     def is_header_set(self, name: str) -> bool:
         """
@@ -944,14 +975,17 @@ class AsyncHttpServiceImpl(AbstractHttpService):
             return aiohttp.web.Response(status=503, text="Service unavailable")
 
         # Use the raw path: aiohttp already decoded request.path, normalizing it again would double-decode
-        checks = self.check_request(request.method, request.raw_path, request.headers)
+        peer = request.transport.get_extra_info("peername") if request.transport else None
+        checks = self.check_request(
+            request.method, request.raw_path, request.headers, peer if isinstance(peer, tuple) else ("", 0)
+        )
         if checks.refused:
             # A rebound host name or a page of another site: no servlet runs
             return aiohttp.web.Response(
                 status=403, text=self.make_auth_error_page(403), content_type="text/html"
             )
 
-        routing, cors_decision = checks.routing, checks.cors_decision
+        routing, cors_decision, remote = checks.routing, checks.cors_decision, checks.remote
         if cors_decision is not None:
             if cors_decision.preflight:
                 # Preflight requests are answered by the server, not by the servlets
@@ -978,10 +1012,10 @@ class AsyncHttpServiceImpl(AbstractHttpService):
         if self.needs_authentication(routing):
             # Checking a password is slow by design: keep it out of the event loop
             auth_decision = await self._loop.run_in_executor(
-                self._executor, self.resolve_authentication, routing, request.headers, request.remote
+                self._executor, self.resolve_authentication, routing, request.headers, remote[0][0]
             )
         else:
-            auth_decision = self.resolve_authentication(routing, request.headers, request.remote)
+            auth_decision = self.resolve_authentication(routing, request.headers, remote[0][0])
 
         if auth_decision.refused:
             return self.__auth_error_response(401, routing)
@@ -1006,7 +1040,9 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                     match servlet_type:
                         case http.ServletType.ASYNC if hasattr(servlet, async_name):
                             # Prepare the helpers
-                            servlet_request = _AsyncHTTPServletRequest(request, path, prefix, max_body_size)
+                            servlet_request = _AsyncHTTPServletRequest(
+                                request, path, prefix, max_body_size, remote
+                            )
                             servlet_response = _AsyncHTTPServletResponse(request)
 
                             # Handle the request
@@ -1026,7 +1062,7 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                             )
 
                             # Prepare the helpers
-                            servlet_request = _SyncHTTPServletRequest(request, path, prefix, content)
+                            servlet_request = _SyncHTTPServletRequest(request, path, prefix, content, remote)
                             servlet_response = _SyncHTTPServletResponse(request, self._loop)
 
                             # Copy the context here: unlike asyncio.to_thread, run_in_executor does not carry it
@@ -1043,7 +1079,7 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                         case http.ServletType.WEBSOCKET if isinstance(servlet, http.WebSocketHandler):
                             # Prepare the WebSocket handler
                             ws_handler = cast(http.WebSocketHandler, servlet)
-                            servlet_request = _AsyncHTTPServletRequest(request, path, prefix)
+                            servlet_request = _AsyncHTTPServletRequest(request, path, prefix, remote=remote)
 
                             # Prepare the WebSocket response
                             ws_response = aiohttp.web.WebSocketResponse(timeout=_WS_CLOSE_TIMEOUT)

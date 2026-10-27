@@ -33,6 +33,7 @@ the iPOPO binding logic.
 """
 
 import html
+import ipaddress
 import logging
 import re
 import socket
@@ -72,6 +73,7 @@ __all__ = [
     "normalize_allowed_hosts",
     "normalize_max_body_size",
     "normalize_request_path",
+    "normalize_trusted_proxies",
     "split_host_port",
 ]
 
@@ -247,6 +249,36 @@ def normalize_allowed_hosts(value: Any) -> list[tuple[str, str | None]] | None:
     return [split_host_port(item) for item in (str(raw).strip() for raw in value) if item] or None
 
 
+def normalize_trusted_proxies(value: Any) -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
+    """
+    Normalizes the value of a ``pelix.http.proxy.trusted`` configuration
+
+    :param value: None, a (comma-separated) string or an iterable of addresses or networks
+    :return: The trusted networks
+    :raise ValueError: An item is neither an address nor a network
+    """
+    if not value:
+        return []
+
+    if isinstance(value, str):
+        value = value.split(",")
+
+    return [ipaddress.ip_network(item, strict=False) for item in (str(raw).strip() for raw in value) if item]
+
+
+def _parse_ip(value: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    """
+    Parses an address, unwrapping the IPv4 ones mapped in IPv6
+
+    :return: The address, or None if it isn't one
+    """
+    try:
+        address = ipaddress.ip_address(value.strip().strip("[]"))
+    except ValueError:
+        return None
+    return getattr(address, "ipv4_mapped", None) or address
+
+
 @dataclass(frozen=True)
 class RequestRouting:
     """
@@ -289,6 +321,9 @@ class RequestChecks:
     refused: bool
     """ True if the Host or the Origin of the request is refused: answer a 403 """
 
+    remote: tuple[tuple[str, int], bool]
+    """ The client address and the security of its connection (see :meth:`AbstractHttpService.resolve_client`) """
+
 
 # ------------------------------------------------------------------------------
 
@@ -301,6 +336,7 @@ class RequestChecks:
 @Property("_case_sensitive_paths", http.HTTP_CASE_SENSITIVE_PATHS, True)
 @Property("_cors_enforce", http.HTTP_CORS_ENFORCE, False)
 @Property("_allowed_hosts", http.HTTP_ALLOWED_HOSTS, None)
+@Property("_proxy_trusted", http.HTTP_PROXY_TRUSTED, None)
 @Property("_auth_required", http.HTTP_AUTH_REQUIRED, False)
 @Property("_auth_realm", http.HTTP_AUTH_REALM, auth.DEFAULT_REALM)
 @Property("_uses_ssl", http.HTTP_USES_SSL, False)
@@ -326,6 +362,7 @@ class AbstractHttpService(http.HTTPService):
         self._case_sensitive_paths = True
         self._cors_enforce: bool = False
         self._allowed_hosts: Any = None
+        self._proxy_trusted: Any = None
         self._auth_required: bool = False
         self._auth_realm: str = auth.DEFAULT_REALM
         self._uses_ssl = False
@@ -437,6 +474,7 @@ class AbstractHttpService(http.HTTPService):
         # Normalize the origin and host checks
         self._cors_enforce = _to_bool(self._cors_enforce)
         self._allowed_hosts = normalize_allowed_hosts(self._allowed_hosts)
+        self._proxy_trusted = normalize_trusted_proxies(self._proxy_trusted)
 
         # Normalize the authentication configuration
         self._auth_required = _to_bool(self._auth_required)
@@ -502,7 +540,7 @@ class AbstractHttpService(http.HTTPService):
             self.log_exception("Error computing the CORS policy of %s: %s", routing.path, ex)
             return cors.CorsDecision(bool(request_method) and method.upper() == "OPTIONS", None)
 
-    def check_request(self, method: str, raw_path: str, headers: Any) -> RequestChecks:
+    def check_request(self, method: str, raw_path: str, headers: Any, peer: tuple[str, int]) -> RequestChecks:
         """
         Routes a request and checks its ``Host`` and ``Origin`` headers, before
         any servlet is looked for
@@ -510,8 +548,10 @@ class AbstractHttpService(http.HTTPService):
         :param method: The HTTP method of the request
         :param raw_path: The path of the request, as received
         :param headers: The headers of the request
-        :return: The routing, the CORS decision and the refusal of the request
+        :param peer: The (host, port) of the other end of the connection
+        :return: What is known of the request before calling its servlet
         """
+        remote = self.resolve_client(peer, headers)
         host, origin = headers.get("Host"), headers.get("Origin")
         routing = self.resolve_request(raw_path)
         decision = self.resolve_cors(
@@ -521,8 +561,8 @@ class AbstractHttpService(http.HTTPService):
             headers.get("Access-Control-Request-Method"),
             headers.get("Access-Control-Request-Headers"),
         )
-        refused = self.is_host_refused(host) or self.is_origin_refused(origin, host, decision)
-        return RequestChecks(routing, decision, refused)
+        refused = self.is_host_refused(host) or self.is_origin_refused(origin, host, decision, remote[1])
+        return RequestChecks(routing, decision, refused, remote)
 
     def is_host_refused(self, host: str | None) -> bool:
         """
@@ -544,8 +584,51 @@ class AbstractHttpService(http.HTTPService):
         name, port = split_host_port(host)
         return not any(name == a_name and (a_port is None or a_port == port) for a_name, a_port in allowed)
 
+    def resolve_client(self, peer: tuple[str, int], headers: Any) -> tuple[tuple[str, int], bool]:
+        """
+        Finds the client of a request when it comes through a trusted reverse
+        proxy (``pelix.http.proxy.trusted``): the first address of the
+        ``X-Forwarded-For`` chain, from the right, which isn't a trusted proxy.
+        Headers from any other peer are ignored, anyone can forge them.
+
+        :param peer: The (host, port) of the other end of the connection
+        :param headers: The headers of the request (``get_all`` or ``getall`` is needed)
+        :return: The (host, port) of the client (port 0 if it comes from a header),
+                 and True if it used HTTPS
+        """
+        secure = self._uses_ssl
+        trusted = self._proxy_trusted or ()
+        address = _parse_ip(peer[0])
+        if address is None:
+            return peer[:2], secure
+        # The throttle must see one key per host, whatever the way the address is written
+        peer = (str(address), peer[1])
+        if not any(address in network for network in trusted):
+            return peer, secure
+
+        getall = getattr(headers, "getall", None) or headers.get_all
+        protocols = [p.strip().lower() for v in getall("X-Forwarded-Proto", []) for p in v.split(",")]
+        if protocols and all(p in ("http", "https") for p in protocols):
+            # Like Tomcat: a single hop in clear text makes the request insecure
+            secure = all(p == "https" for p in protocols)
+
+        hops = [h for v in getall("X-Forwarded-For", []) for h in v.split(",")]
+        for hop in reversed(hops):
+            hop_address = _parse_ip(hop)
+            if hop_address is None:
+                # Garbage in the chain: the proxy can't be trusted to have checked it
+                break
+            if not any(hop_address in network for network in trusted):
+                return (str(hop_address), 0), secure
+
+        return peer[:2], secure
+
     def is_origin_refused(
-        self, origin: str | None, host: str | None, decision: cors.CorsDecision | None
+        self,
+        origin: str | None,
+        host: str | None,
+        decision: cors.CorsDecision | None,
+        secure: bool,
     ) -> bool:
         """
         Checks the ``Origin`` header of a request when ``pelix.http.cors.enforce``
@@ -554,6 +637,7 @@ class AbstractHttpService(http.HTTPService):
         :param origin: The value of the ``Origin`` header, if any
         :param host: The value of the ``Host`` header, if any
         :param decision: The result of :meth:`resolve_cors` for this request
+        :param secure: True if the client used HTTPS (see :meth:`resolve_client`)
         :return: True if the request must be refused
         """
         if not self._cors_enforce or not origin:
@@ -562,7 +646,7 @@ class AbstractHttpService(http.HTTPService):
         if decision is not None and (decision.preflight or decision.allowed):
             return False
 
-        scheme = "https" if self._uses_ssl else "http"
+        scheme = "https" if secure else "http"
         # A page served by this server is accepted: browsers send Origin on same-origin POST too
         return not host or origin.strip().lower() != f"{scheme}://{host.strip().lower()}"
 
