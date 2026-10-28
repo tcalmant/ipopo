@@ -91,12 +91,12 @@ class RemoteShellUnixTest(unittest.TestCase):
         with use_ipopo(self.context) as ipopo:
             return cast(IPopoRemoteShell, ipopo.instantiate(FACTORY_REMOTE_SHELL, "remote-shell", properties))
 
-    def connect(self, path: pathlib.Path) -> socket.socket:
+    def connect(self, path: pathlib.Path, marker: str = PS1) -> socket.socket:
         sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.addCleanup(sock.close)
         sock.settimeout(10)
         sock.connect(str(path))
-        read_until(sock, PS1)
+        read_until(sock, marker)
         return sock
 
     def kill_shell(self) -> None:
@@ -130,9 +130,12 @@ class RemoteShellUnixTest(unittest.TestCase):
         # Only the owner can connect or change the socket
         self.assertEqual(stat.S_IMODE(path.lstat().st_mode), UNIX_SOCKET_MODE)
 
+        # Trusted as the user of the process, as the system tells: no login
         sock = self.connect(path)
         sock.sendall(to_bytes("echo hello\n"))
         self.assertIn("hello", read_until(sock, PS1))
+        sock.sendall(to_bytes("whoami\n"))
+        self.assertRegex(read_until(sock, PS1), r"Method\s+: local")
 
         second = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
         self.addCleanup(second.close)
@@ -248,26 +251,24 @@ class RemoteShellUnixTest(unittest.TestCase):
             # Closed without a word
             self.assertEqual(sock.recv(4096), b"")
 
-        # Same client, with the check disabled
+        # Same client, with the check disabled: accepted, but it must log in, without the
+        # clear-text warning of TCP
         with use_ipopo(self.context) as ipopo:
             ipopo.kill("remote-shell")
 
         self.start_shell({PROP_UNIX_PATH: str(path), PROP_UNIX_CHECK_PEER: False})
-        with mock.patch("os.geteuid", return_value=real_uid + 1):
-            self.connect(path)
+        with (
+            mock.patch("os.geteuid", return_value=real_uid + 1),
+            self.assertNoLogs("pelix.shell.remote", "WARNING"),
+        ):
+            self.connect(path, "Login: ")
 
-    def test_password_login(self) -> None:
-        """
-        A password prompt works on a Unix socket, without the clear-text warning
-        """
-        path = self.folder / "shell.sock"
-        self.start_shell({PROP_UNIX_PATH: str(path), "pelix.shell.auth.required": True})
-        sock = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
-        self.addCleanup(sock.close)
-        sock.settimeout(10)
-        sock.connect(str(path))
-        with self.assertNoLogs("pelix.shell.remote", "WARNING"):
-            read_until(sock, "Login: ")
+        # Checked again at login: enabling it on the running shell, whose server still
+        # accepts other users, doesn't make their sessions trusted
+        with use_ipopo(self.context) as ipopo:
+            ipopo.reconfigure("remote-shell", {PROP_UNIX_CHECK_PEER: True})
+        with mock.patch("os.geteuid", return_value=real_uid + 1):
+            self.connect(path, "Login: ")
 
     def test_main_unix(self) -> None:
         """

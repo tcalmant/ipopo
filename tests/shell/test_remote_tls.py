@@ -11,6 +11,7 @@ import ipaddress
 import os
 import pathlib
 import re
+import shutil
 import socket
 import sys
 import tempfile
@@ -32,6 +33,7 @@ from pelix.ipopo.instance import StoredInstance
 from pelix.shell import FACTORY_REMOTE_SHELL, RemoteShell, ShellService
 from pelix.utilities import to_bytes, to_str
 from tests.http.gen_cert import call_openssl, make_subj, write_conf
+from tests.shell.test_remote import ADMIN, SECURITY_BUNDLES, start_security
 
 try:
     has_coverage = importlib.util.find_spec("coverage") is not None
@@ -264,9 +266,14 @@ class TLSShellClient:
         self.fail = fail
         self.__wait_prompt = True
 
-    def connect(self, access: tuple[str, int], server_hostname: str | None = None) -> None:
+    def connect(
+        self,
+        access: tuple[str, int],
+        server_hostname: str | None = None,
+        login: tuple[str, str] | None = ADMIN,
+    ) -> None:
         """
-        Connects to the remote shell
+        Connects to the remote shell, and logs in if a login and a password are given
         """
         # Connect to the server
         sock = socket.create_connection(access)
@@ -301,6 +308,27 @@ class TLSShellClient:
             suppress_ragged_eofs=True,
             server_hostname=server_hostname,
         )
+
+        if login is not None:
+            # The certificate of the test client is mapped to no user
+            for marker, answer in zip(("Login: ", "Password: "), login, strict=True):
+                self.read_until(marker)
+                self._socket.sendall(to_bytes(answer + "\n"))
+
+    def read_until(self, marker: str) -> str:
+        """
+        Reads up to a marker the server writes before waiting for input
+
+        :return: What was read, marker included
+        """
+        assert self._socket is not None
+        data = ""
+        while marker not in data:
+            raw = self._socket.recv(4096)
+            if not raw:
+                self.fail(f"Connection closed before {marker!r}: {data!r}")
+            data += to_str(raw)
+        return data
 
     def close(self) -> None:
         """
@@ -439,10 +467,9 @@ else:
             # Check if the remote shell port has been opened
             client = TLSShellClient(ps1, self.fail, client_cert, client_key, ca_chain)
             try:
-                client.connect(("localhost", port), "localhost")
-
-                test_string = "running"
-                self.assertEqual(client.run_command(f"echo {test_string}"), test_string)
+                # The handshake succeeded, then the login: no user is configured, so nobody can
+                client.connect(("localhost", port), "localhost", login=None)
+                client.read_until("Login: ")
 
                 # Good enough: stop there
                 client.close()
@@ -519,9 +546,14 @@ class TLSRemoteShellTest(unittest.TestCase):
         Starts a framework and install the shell bundle
         """
         # Start the framework
-        self.framework = create_framework(("pelix.ipopo.core", "pelix.shell.core", "pelix.shell.remote"))
+        self.framework = create_framework(
+            ("pelix.ipopo.core", "pelix.shell.core", "pelix.shell.remote", *SECURITY_BUNDLES)
+        )
         self.framework.start()
         context = self.framework.get_bundle_context()
+        folder = pathlib.Path(tempfile.mkdtemp(prefix="ipopo-tests-shell-tls-conf"))
+        self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
+        start_security(context, folder)
         # Get the core shell service
         svc_ref = context.get_service_reference(ShellService)
         assert svc_ref is not None

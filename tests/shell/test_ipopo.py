@@ -70,7 +70,7 @@ class IPopoShellTest(unittest.TestCase):
             command = command.format(*args)
 
         # Run command
-        session = beans.ShellSession(beans.IOHandler(None, str_output))
+        session = beans.ShellSession(beans.IOHandler(None, str_output), trusted=True)
         self.shell.execute(command, session)
         return str_output.getvalue()
 

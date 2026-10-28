@@ -9,7 +9,10 @@ users (user1 and user2) with "foobar" as password.
 :author: Thomas Calmant
 """
 
+import pathlib
+import shutil
 import socket
+import tempfile
 import unittest
 from io import StringIO
 from typing import Any
@@ -25,6 +28,7 @@ except ImportError:
 
 from pelix.framework import FrameworkFactory
 from pelix.ipopo.constants import use_ipopo
+from pelix.security import FACTORY_POLICY_FILE, PROP_POLICY_FILE, Subject
 from pelix.shell import FACTORY_XMPP_SHELL, ShellService
 from pelix.shell.beans import IOHandler, ShellSession
 from pelix.threadpool import EventData
@@ -57,8 +61,22 @@ class XMPPShellTest(unittest.TestCase):
         self.context = self.framework.get_bundle_context()
 
         # Install the shell bundle
-        self.context.install_bundle("pelix.ipopo.core").start()
-        self.context.install_bundle("pelix.shell.core").start()
+        for bundle in (
+            "pelix.ipopo.core",
+            "pelix.shell.core",
+            "pelix.security.core",
+            "pelix.security.policy",
+        ):
+            self.context.install_bundle(bundle).start()
+
+        # The user of the XMPP client may run the listings only
+        folder = pathlib.Path(tempfile.mkdtemp(prefix="ipopo-tests-shell-xmpp"))
+        self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
+        (folder / "policy.toml").write_text(
+            '[roles.reader]\nusers = ["reader"]\n\n[permissions]\nreader = ["pelix.shell.read"]\n'
+        )
+        with use_ipopo(self.context) as ipopo:
+            ipopo.instantiate(FACTORY_POLICY_FILE, "policy", {PROP_POLICY_FILE: str(folder / "policy.toml")})
 
         # Get the local shell
         svc_ref = self.context.get_service_reference(ShellService)
@@ -100,6 +118,7 @@ class XMPPShellTest(unittest.TestCase):
                     "shell.xmpp.password": "foobar",
                     # The test server has a self-signed certificate
                     "shell.xmpp.tls.verify": "0",
+                    "shell.xmpp.users": {"user2@localhost": "reader"},
                 },
             )
 
@@ -121,15 +140,15 @@ class XMPPShellTest(unittest.TestCase):
 
         client.add_event_handler("message", on_message)
 
-        # Send commands
-        for command in ("echo test 1", "bl", "bd 0", "sl", "sd 1"):
+        # Send commands: the last one needs the admin level
+        for command in ("echo test 1", "bl", "bd 0", "sl", "sd 1", "install pelix.shell.log"):
             # Send command via XMPP
             msg_event.clear()
             client.send_message(shell_jid, command)
 
-            # Execute it locally, and remove the trailing newline
+            # Execute it locally, as the reader, and remove the trailing newline
             str_output = StringIO()
-            session = ShellSession(IOHandler(None, str_output))
+            session = ShellSession(IOHandler(None, str_output), subject=Subject("reader", authenticated=True))
             self.shell.execute(command, session)
             local_result = str_output.getvalue().rstrip()
 
