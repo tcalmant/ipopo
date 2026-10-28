@@ -32,11 +32,16 @@ the iPOPO binding logic.
     limitations under the License.
 """
 
+import dataclasses
+import hashlib
 import html
+import ipaddress
 import logging
 import re
+import secrets
 import socket
 import threading
+import time
 import urllib.parse
 import uuid
 from dataclasses import dataclass
@@ -48,7 +53,7 @@ from pelix.http import auth, cors
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo import constants
 from pelix.ipopo.decorators import HiddenProperty, Property
-from pelix.security import ANONYMOUS
+from pelix.security import ANONYMOUS, ATTRIBUTE_SESSION_ID, Subject
 
 # ------------------------------------------------------------------------------
 
@@ -65,12 +70,21 @@ __all__ = [
     "HTTP_SERVICE_EXTRA",
     "LOCALHOST_ADDRESS",
     "SERVLET_PARAMETERS",
+    "SESSION_USER",
     "AbstractHttpService",
+    "RequestChecks",
     "RequestRouting",
+    "SessionContext",
+    "SessionManager",
     "compute_sub_path",
+    "normalize_allowed_hosts",
     "normalize_max_body_size",
     "normalize_request_path",
+    "normalize_trusted_proxies",
+    "split_host_port",
 ]
+
+_logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
@@ -204,6 +218,264 @@ def compute_sub_path(full_path: str, prefix: str) -> str:
 # ------------------------------------------------------------------------------
 
 
+def split_host_port(value: str) -> tuple[str, str | None]:
+    """
+    Splits the value of a ``Host`` header into a lower-case host name and a
+    port
+
+    :param value: A ``host``, ``host:port``, ``[ipv6]`` or ``[ipv6]:port`` string
+    :return: A (host, port) tuple, the port being None if there is none
+    """
+    value = value.strip().lower()
+    if value.startswith("["):
+        # IPv6 literal: the host is kept with its brackets
+        end = value.find("]")
+        if end < 0:
+            return value, None
+
+        host, rest = value[: end + 1], value[end + 1 :]
+        return host, rest[1:] if rest.startswith(":") else None
+
+    host, sep, port = value.partition(":")
+    # A trailing dot makes an absolute name, the same host
+    return host.rstrip("."), (port if sep else None)
+
+
+def normalize_allowed_hosts(value: Any) -> list[tuple[str, str | None]] | None:
+    """
+    Normalizes the value of a ``pelix.http.allowed_hosts`` configuration
+
+    :param value: None, a (comma-separated) string or an iterable of strings
+    :return: A list of (host, port) tuples, or None if the Host header must
+             not be checked (nothing configured, or an empty value)
+    """
+    if value is None:
+        return None
+
+    if isinstance(value, str):
+        value = value.split(",")
+
+    return [split_host_port(item) for item in (str(raw).strip() for raw in value) if item] or None
+
+
+def normalize_trusted_proxies(value: Any) -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
+    """
+    Normalizes the value of a ``pelix.http.proxy.trusted`` configuration
+
+    :param value: None, a (comma-separated) string or an iterable of addresses or networks
+    :return: The trusted networks
+    :raise ValueError: An item is neither an address nor a network
+    """
+    if not value:
+        return []
+
+    if isinstance(value, str):
+        value = value.split(",")
+
+    return [ipaddress.ip_network(item, strict=False) for item in (str(raw).strip() for raw in value) if item]
+
+
+def _parse_ip(value: str) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    """
+    Parses an address, unwrapping the IPv4 ones mapped in IPv6
+
+    :return: The address, or None if it isn't one
+    """
+    try:
+        address = ipaddress.ip_address(value.strip().strip("[]"))
+    except ValueError:
+        return None
+    return getattr(address, "ipv4_mapped", None) or address
+
+
+MAX_SESSIONS = 10000
+""" Number of sessions of a service above which the least recently used ones are dropped """
+
+SESSION_USER = "pelix.http.session.user"
+""" Session attribute holding the name of the user who logged in """
+
+
+class SessionManager:
+    """
+    The sessions of an HTTP service, in memory. They are indexed by a hash of
+    their identifier: the one the browser knows is the only way to use a session.
+    """
+
+    def __init__(self, max_inactive_interval: int) -> None:
+        self._interval = max_inactive_interval
+        self._lock = threading.Lock()
+        self._sessions: dict[str, list[Any]] = {}
+        self._next_sweep = time.monotonic() + max_inactive_interval
+
+    @staticmethod
+    def _key(session_id: str) -> str:
+        return hashlib.sha256(session_id.encode()).hexdigest()
+
+    def find(self, session_id: str) -> http.HttpSession | None:
+        """
+        Looks for a live session, which is then kept alive
+        """
+        now = time.monotonic()
+        with self._lock:
+            entry = self._sessions.get(key := self._key(session_id))
+            if entry is None:
+                return None
+            if now - entry[1] > self._interval:
+                del self._sessions[key]
+                return None
+            entry[1] = now
+
+        session: http.HttpSession = entry[0]
+        session._new = False
+        return session
+
+    def create(self) -> http.HttpSession:
+        """
+        Starts a session, with an unguessable identifier
+        """
+        session = http.HttpSession(secrets.token_urlsafe(32), self._interval, self.drop)
+        now = time.monotonic()
+        with self._lock:
+            if now > self._next_sweep:
+                # Expired sessions nobody asks for are only found here
+                self._next_sweep = now + self._interval
+                for key in [k for k, (_, seen) in self._sessions.items() if now - seen > self._interval]:
+                    del self._sessions[key]
+            if len(self._sessions) >= MAX_SESSIONS:
+                # Anyone can start a session on a public servlet: the oldest anonymous
+                # ones give way first, so that this can't log users out
+                keys = [k for k, (s, _) in self._sessions.items() if SESSION_USER not in s._attributes]
+                del self._sessions[min(keys or self._sessions, key=lambda k: self._sessions[k][1])]
+            self._sessions[self._key(session._id)] = [session, now]
+        return session
+
+    def drop(self, session: http.HttpSession) -> None:
+        """
+        Forgets a session
+        """
+        with self._lock:
+            self._sessions.pop(self._key(session._id), None)
+
+    def rename(self, session: http.HttpSession) -> str:
+        """
+        Gives a new identifier to a session: the former one is of no use any more
+
+        :return: The new identifier
+        """
+        with self._lock:
+            entry = self._sessions.pop(self._key(session._id))
+            session._id = secrets.token_urlsafe(32)
+            self._sessions[self._key(session._id)] = entry
+        return session._id
+
+
+class SessionContext:
+    """
+    The sessions of one request: the session its cookie designates, and the
+    cookie to send back
+    """
+
+    def __init__(self, manager: SessionManager, cookie_name: str, cookie_value: str | None, secure: bool):
+        self.cookie_value = cookie_value
+        self.cookie: str | None = None
+        """ The ``Set-Cookie`` header to send, if the cookie changed """
+        self._manager = manager
+        self._name = cookie_name
+        self._secure = secure
+        self.sent = False
+        """ True once the headers went out: the cookie can't change any more """
+        self._session: http.HttpSession | None = None
+        self._loaded = False
+
+    def _check_sent(self) -> None:
+        if self.sent:
+            raise RuntimeError("The headers are sent: the session cookie can't change any more")
+
+    def _send(self, value: str, max_age: int | None = None) -> None:
+        self._check_sent()
+        self.cookie = http.format_cookie(self._name, value, max_age=max_age, secure=self._secure)
+
+    def get(self, create: bool) -> http.HttpSession | None:
+        """
+        Returns the session of the request, an unknown or expired one being none.
+        An unknown cookie is left as is: a parallel request still carrying the
+        cookie of before a login would delete the new one.
+        """
+        if not self._loaded:
+            self._loaded = True
+            if self.cookie_value:
+                self._session = self._manager.find(self.cookie_value)
+        if self._session is None and create:
+            self._check_sent()
+            self._session = self._manager.create()
+            self._send(self._session.get_id())
+        return self._session
+
+    def change_id(self) -> str:
+        """
+        Replaces the identifier of the session
+
+        :raise RuntimeError: No session, or the headers are sent
+        """
+        self._check_sent()
+        if (session := self.get(False)) is None:
+            raise RuntimeError("There is no session")
+        try:
+            new_id = self._manager.rename(session)
+        except KeyError as ex:
+            raise RuntimeError("The session has been dropped") from ex
+        self._send(new_id)
+        return new_id
+
+    def restore(self) -> Subject | None:
+        """
+        Returns the subject who logged in this session, with its current groups and roles.
+        A failure is an anonymous request: a public page must not depend on the session.
+        """
+        try:
+            session = self.get(False)
+            if session is None or (user := session.get_attribute(SESSION_USER)) is None:
+                return None
+            return auth.restore(user, session.get_id())
+        except Exception:
+            # Membership providers may fail, and a logout may invalidate the session meanwhile
+            _logger.exception("Can't restore the user of a session")
+            return None
+
+    def login(self, username: str, password: str, source: str | None) -> Subject:
+        """
+        Checks a password and logs the user in a session with a new identifier,
+        against session fixation
+        """
+        self._check_sent()
+        subject = auth.login(username, password, source)
+        if (session := self.get(False)) is not None:
+            try:
+                if session.get_attribute(SESSION_USER) not in (None, subject.name):
+                    # Another user on the same browser: nothing of the previous one is kept
+                    session.invalidate()
+                    self._session = None
+                else:
+                    self.change_id()
+            except RuntimeError:
+                # Dropped by a concurrent logout or expiration: start over
+                self._session = None
+        session = cast(http.HttpSession, self.get(True))
+        session.set_attribute(SESSION_USER, subject.name)
+        return dataclasses.replace(
+            subject, attributes={**subject.attributes, ATTRIBUTE_SESSION_ID: session.get_id()}
+        )
+
+    def logout(self) -> None:
+        """
+        Drops the session and the cookie
+        """
+        if (session := self.get(False)) is not None:
+            session.invalidate()
+            self._session = None
+            self._send("", 0)
+
+
 @dataclass(frozen=True)
 class RequestRouting:
     """
@@ -230,6 +502,29 @@ class RequestRouting:
     """ Error code to answer with, when the path itself has been refused """
 
 
+@dataclass(frozen=True)
+class RequestChecks:
+    """
+    What the HTTP services decide about a request before looking for its servlet
+    (see :meth:`AbstractHttpService.check_request`)
+    """
+
+    routing: RequestRouting
+    """ The result of the routing of the request """
+
+    cors_decision: cors.CorsDecision | None
+    """ The CORS decision for the request, if it is a cross-origin one """
+
+    refused: bool
+    """ True if the Host or the Origin of the request is refused: answer a 403 """
+
+    remote: tuple[tuple[str, int], bool]
+    """ The client address and the security of its connection (see :meth:`AbstractHttpService.resolve_client`) """
+
+    sessions: "SessionContext | None"
+    """ The sessions of the request, if they are enabled """
+
+
 # ------------------------------------------------------------------------------
 
 
@@ -239,6 +534,12 @@ class RequestRouting:
 @Property("_max_body_size", http.HTTP_MAX_BODY_SIZE, 1024 * 1024)
 @Property("_socket_timeout", http.HTTP_SOCKET_TIMEOUT, 60.0)
 @Property("_case_sensitive_paths", http.HTTP_CASE_SENSITIVE_PATHS, True)
+@Property("_cors_enforce", http.HTTP_CORS_ENFORCE, False)
+@Property("_allowed_hosts", http.HTTP_ALLOWED_HOSTS, None)
+@Property("_proxy_trusted", http.HTTP_PROXY_TRUSTED, None)
+@Property("_session_enabled", http.HTTP_SESSION_ENABLED, False)
+@Property("_session_interval", http.HTTP_SESSION_MAX_INACTIVE_INTERVAL, 1800)
+@Property("_session_cookie", http.HTTP_SESSION_COOKIE_NAME, "PELIXSESSIONID")
 @Property("_auth_required", http.HTTP_AUTH_REQUIRED, False)
 @Property("_auth_realm", http.HTTP_AUTH_REALM, auth.DEFAULT_REALM)
 @Property("_uses_ssl", http.HTTP_USES_SSL, False)
@@ -262,6 +563,13 @@ class AbstractHttpService(http.HTTPService):
         self._max_body_size: int | None = 1024 * 1024
         self._socket_timeout: float | None = 60.0
         self._case_sensitive_paths = True
+        self._cors_enforce: bool = False
+        self._allowed_hosts: Any = None
+        self._proxy_trusted: Any = None
+        self._session_enabled: Any = False
+        self._session_interval: Any = 1800
+        self._session_cookie: Any = "PELIXSESSIONID"
+        self._session_manager: SessionManager | None = None
         self._auth_required: bool = False
         self._auth_realm: str = auth.DEFAULT_REALM
         self._uses_ssl = False
@@ -370,6 +678,28 @@ class AbstractHttpService(http.HTTPService):
         if not isinstance(self._extra, dict):
             self._extra = {}
 
+        # Normalize the origin and host checks
+        self._cors_enforce = _to_bool(self._cors_enforce)
+        self._allowed_hosts = normalize_allowed_hosts(self._allowed_hosts)
+        self._proxy_trusted = normalize_trusted_proxies(self._proxy_trusted)
+
+        # Normalize the sessions: each start of the service forgets the previous ones
+        try:
+            interval = int(self._session_interval)
+        except (TypeError, ValueError):
+            interval = 0
+        self._session_manager = (
+            SessionManager(interval if interval > 0 else 1800) if _to_bool(self._session_enabled) else None
+        )
+        self._session_cookie = str(self._session_cookie)
+        try:
+            http.format_cookie(self._session_cookie, "")
+        except ValueError:
+            self.log(
+                logging.WARNING, "Invalid session cookie name %r: using the default one", self._session_cookie
+            )
+            self._session_cookie = "PELIXSESSIONID"
+
         # Normalize the authentication configuration
         self._auth_required = _to_bool(self._auth_required)
         self._auth_realm = str(self._auth_realm or auth.DEFAULT_REALM)
@@ -434,6 +764,131 @@ class AbstractHttpService(http.HTTPService):
             self.log_exception("Error computing the CORS policy of %s: %s", routing.path, ex)
             return cors.CorsDecision(bool(request_method) and method.upper() == "OPTIONS", None)
 
+    def check_request(self, method: str, raw_path: str, headers: Any, peer: tuple[str, int]) -> RequestChecks:
+        """
+        Routes a request and checks its ``Host`` and ``Origin`` headers, before
+        any servlet is looked for
+
+        :param method: The HTTP method of the request
+        :param raw_path: The path of the request, as received
+        :param headers: The headers of the request
+        :param peer: The (host, port) of the other end of the connection
+        :return: What is known of the request before calling its servlet
+        """
+        remote = self.resolve_client(peer, headers)
+        sessions = self.open_sessions(headers, remote[1])
+        host, origin = headers.get("Host"), headers.get("Origin")
+        routing = self.resolve_request(raw_path)
+        decision = self.resolve_cors(
+            routing,
+            method,
+            origin,
+            headers.get("Access-Control-Request-Method"),
+            headers.get("Access-Control-Request-Headers"),
+        )
+        refused = self.is_host_refused(host) or self.is_origin_refused(origin, host, decision, remote[1])
+        return RequestChecks(routing, decision, refused, remote, sessions)
+
+    def is_host_refused(self, host: str | None) -> bool:
+        """
+        Checks the ``Host`` header of a request against the
+        ``pelix.http.allowed_hosts`` configuration
+
+        :param host: The value of the ``Host`` header, if any
+        :return: True if the request must be refused
+        """
+        allowed = self._allowed_hosts
+        if allowed is None:
+            # Not configured: nothing is checked
+            return False
+
+        if not host:
+            # A browser always sends it: it can only come from a script
+            return True
+
+        name, port = split_host_port(host)
+        return not any(name == a_name and (a_port is None or a_port == port) for a_name, a_port in allowed)
+
+    def resolve_client(self, peer: tuple[str, int], headers: Any) -> tuple[tuple[str, int], bool]:
+        """
+        Finds the client of a request when it comes through a trusted reverse
+        proxy (``pelix.http.proxy.trusted``): the first address of the
+        ``X-Forwarded-For`` chain, from the right, which isn't a trusted proxy.
+        Headers from any other peer are ignored, anyone can forge them.
+
+        :param peer: The (host, port) of the other end of the connection
+        :param headers: The headers of the request (``get_all`` or ``getall`` is needed)
+        :return: The (host, port) of the client (port 0 if it comes from a header),
+                 and True if it used HTTPS
+        """
+        secure = self._uses_ssl
+        trusted = self._proxy_trusted or ()
+        address = _parse_ip(peer[0])
+        if address is None:
+            return peer[:2], secure
+        # The throttle must see one key per host, whatever the way the address is written
+        peer = (str(address), peer[1])
+        if not any(address in network for network in trusted):
+            return peer, secure
+
+        getall = getattr(headers, "getall", None) or headers.get_all
+        protocols = [p.strip().lower() for v in getall("X-Forwarded-Proto", []) for p in v.split(",")]
+        if protocols and all(p in ("http", "https") for p in protocols):
+            # Like Tomcat: a single hop in clear text makes the request insecure
+            secure = all(p == "https" for p in protocols)
+
+        hops = [h for v in getall("X-Forwarded-For", []) for h in v.split(",")]
+        for hop in reversed(hops):
+            hop_address = _parse_ip(hop)
+            if hop_address is None:
+                # Garbage in the chain: the proxy can't be trusted to have checked it
+                break
+            if not any(hop_address in network for network in trusted):
+                return (str(hop_address), 0), secure
+
+        return peer[:2], secure
+
+    def open_sessions(self, headers: http.HeadersView, secure: bool) -> SessionContext | None:
+        """
+        Prepares the sessions of a request
+
+        :param headers: The headers of the request
+        :param secure: True if the client used HTTPS (see :meth:`resolve_client`)
+        :return: None if the sessions are not enabled
+        """
+        if self._session_manager is None:
+            return None
+
+        cookie = http.parse_cookies(headers.get("Cookie")).get(self._session_cookie)
+        return SessionContext(self._session_manager, self._session_cookie, cookie, secure)
+
+    def is_origin_refused(
+        self,
+        origin: str | None,
+        host: str | None,
+        decision: cors.CorsDecision | None,
+        secure: bool,
+    ) -> bool:
+        """
+        Checks the ``Origin`` header of a request when ``pelix.http.cors.enforce``
+        is set. Preflight requests are not concerned.
+
+        :param origin: The value of the ``Origin`` header, if any
+        :param host: The value of the ``Host`` header, if any
+        :param decision: The result of :meth:`resolve_cors` for this request
+        :param secure: True if the client used HTTPS (see :meth:`resolve_client`)
+        :return: True if the request must be refused
+        """
+        if not self._cors_enforce or not origin:
+            return False
+
+        if decision is not None and (decision.preflight or decision.allowed):
+            return False
+
+        scheme = "https" if secure else "http"
+        # A page served by this server is accepted: browsers send Origin on same-origin POST too
+        return not host or origin.strip().lower() != f"{scheme}://{host.strip().lower()}"
+
     def is_auth_required(self, routing: "RequestRouting") -> bool:
         """
         Checks if a request must carry valid credentials
@@ -478,7 +933,11 @@ class AbstractHttpService(http.HTTPService):
         return bool(self._http_authenticators)
 
     def resolve_authentication(
-        self, routing: "RequestRouting", headers: http.HeadersView, source: str | None = None
+        self,
+        routing: "RequestRouting",
+        headers: http.HeadersView,
+        source: str | None = None,
+        sessions: SessionContext | None = None,
     ) -> auth.AuthDecision:
         """
         Authenticates a request. This can take time, as checking a password is
@@ -487,8 +946,13 @@ class AbstractHttpService(http.HTTPService):
         :param routing: The result of the routing of the request
         :param headers: The headers of the request
         :param source: The address of the client, for the brute-force throttle
+        :param sessions: The sessions of the request: a user logged in one takes
+                         precedence over the credentials of the headers
         :return: The decision: the subject to handle the request as, or a refusal
         """
+        if sessions is not None and (subject := sessions.restore()) is not None:
+            return auth.AuthDecision(subject)
+
         authenticators = list(self._http_authenticators or ())
         required = self.is_auth_required(routing)
         if not authenticators:

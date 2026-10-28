@@ -50,6 +50,26 @@ pelix.http.case_sensitive_paths True    If set, servlet paths are matched
                                         case-sensitively, as URI paths are
                                         defined to be. Unset it to restore the
                                         folding of earlier releases
+pelix.http.allowed_hosts        (none)  Host names accepted in the ``Host``
+                                        header, as a list or a comma-separated
+                                        string. Other requests, or requests
+                                        without ``Host``, get a 403 error code.
+                                        An entry without port matches any port.
+                                        If not set or empty, the header is not
+                                        checked
+pelix.http.proxy.trusted        (none)  Addresses or networks (CIDR) of the
+                                        reverse proxies believed when they
+                                        send ``X-Forwarded-For`` and
+                                        ``X-Forwarded-Proto``. They give the
+                                        client address, and tell if it used
+                                        HTTPS (the ``Origin`` check needs it).
+                                        The proxy must keep the ``Host``
+                                        header. Ignored for other peers
+pelix.http.cors.enforce         False   If set, a request with an ``Origin``
+                                        header which is neither the server's
+                                        own origin nor allowed by the CORS
+                                        policy gets a 403 error code, and no
+                                        servlet is called (see :ref:`http_cors`)
 pelix.http.auth.required        False   If set, requests must carry valid
                                         credentials (see :ref:`http_auth`)
 pelix.http.auth.realm           Pelix   Protection space given in the
@@ -65,6 +85,15 @@ pelix.http.auth.realm           Pelix   Protection space given in the
 
 .. versionadded:: 3.2.3
    ``pelix.http.case_sensitive_paths``.
+
+.. versionadded:: 3.3.0
+   ``pelix.http.allowed_hosts`` and ``pelix.http.cors.enforce``.
+
+   A page of another site can post a form to a server it can reach (for
+   example one listening on ``127.0.0.1``), and a hostile name can be rebound
+   to the address of the server: without those two properties, the servlets
+   handle such requests, the browser only hiding the response from the page.
+   Set both on a server which can be reached by a browser.
 
 .. note:: ``pelix.http.socket_timeout`` is only applied by the synchronous HTTP
    service.
@@ -556,3 +585,46 @@ To test this snippet, install and start this bundle and the HTTP service bundle
 in a framework, then open a browser to the servlet URL.
 If you used the HTTP service instantiation sample, this URL should be
 http://localhost:9000/servlet.
+
+
+.. _http_sessions:
+
+Sessions and login
+------------------
+
+Properties of the HTTP service:
+
+* ``pelix.http.session.enabled`` (``False``): requests have sessions and ``login()``
+* ``pelix.http.session.max_inactive_interval`` (``1800``): seconds without request before a session is dropped
+* ``pelix.http.session.cookie.name`` (``PELIXSESSIONID``): name of the cookie. Services of one host need
+  different names
+
+With ``pelix.http.session.enabled``, a servlet can call ``request.get_session(create)``,
+``request.login(user, password)`` and ``request.logout()`` (``await`` ``login()`` in an
+asynchronous servlet). ``login()`` checks the password with ``pelix.security``, then puts the user name in a session
+whose identifier is new. The next requests of the browser are handled as that user: its groups and roles
+are asked to the membership providers each time, so a change applies at once.
+
+The login servlet must be reachable without a session: set ``pelix.http.auth.required`` to ``False`` on it.
+
+* Sessions are in memory and per HTTP service: a restart logs everyone out.
+* An account removed from the identity store keeps its sessions until they expire.
+* The cookie is ``HttpOnly`` and ``SameSite=Lax``, and ``Secure`` when the client used HTTPS. Behind a TLS
+  reverse proxy, set ``pelix.http.proxy.trusted``.
+* There is no CSRF token. ``SameSite=Lax`` with ``pelix.http.cors.enforce`` refuse cross-site requests
+  which change data; changing data with ``GET`` defeats them.
+* An open WebSocket keeps the user it had when it was accepted.
+
+
+Uploads
+-------
+
+``request.get_parts()`` (``await`` it in an asynchronous servlet) returns the fields of a
+``multipart/form-data`` body as ``Part`` beans: ``name``, ``filename``, ``content_type`` and ``data``.
+The whole body is in memory, bound by ``pelix.http.max_body_size``: raise it for the servlet which receives
+files, with the ``pelix.http.max_body_size`` property of its registration. A malformed body raises
+``MultipartError``, which the services answer with a 400 error code.
+
+``filename`` and ``content_type`` come from the client: never use the file name as a path, and check the
+content (its signature) before trusting its type.
+

@@ -14,8 +14,10 @@ import pathlib
 import shutil
 import tempfile
 import unittest
+import urllib.parse
 from email.message import Message
 from typing import Any
+from unittest import mock
 
 from pelix import http
 from pelix.framework import Framework, FrameworkFactory
@@ -136,6 +138,79 @@ class AsyncServlet:
         await response.send_content(200, "posted", "text/plain")
 
 
+class SyncSessionServlet:
+    """
+    Reports the subject and the session, logs in and out
+    """
+
+    @staticmethod
+    def report(session: Any) -> str:
+        subject = get_current_subject()
+        return f"{subject.name}|{subject.method}|{subject.transport}|{session is not None}"
+
+    @staticmethod
+    def parse_form(body: bytes) -> tuple[str, str]:
+        form = urllib.parse.parse_qs(body.decode())
+        return form["user"][0], form["password"][0]
+
+    def do_GET(self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse):
+        response.send_content(200, self.report(request.get_session(False)), "text/plain")
+
+    def do_PUT(self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse):
+        # Starts a session without any user
+        session = request.get_session(True)
+        assert session is not None
+        response.send_content(200, str(session.is_new()), "text/plain")
+
+    def do_POST(self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse):
+        user, password = self.parse_form(request.read_data())
+        try:
+            request.login(user, password)
+        except AuthenticationFailed:
+            response.send_content(401, "no", "text/plain")
+        else:
+            response.send_content(204, "", "text/plain")
+
+    def do_DELETE(self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse):
+        request.logout()
+        response.send_content(204, "", "text/plain")
+
+
+class AsyncSessionServlet(SyncSessionServlet):
+    """
+    The same, asynchronous
+    """
+
+    async def do_async_GET(
+        self, request: http.AbstractAsyncHTTPServletRequest, response: http.AbstractAsyncHTTPServletResponse
+    ):
+        await response.send_content(200, self.report(request.get_session(False)), "text/plain")
+
+    async def do_async_PUT(
+        self, request: http.AbstractAsyncHTTPServletRequest, response: http.AbstractAsyncHTTPServletResponse
+    ):
+        session = request.get_session(True)
+        assert session is not None
+        await response.send_content(200, str(session.is_new()), "text/plain")
+
+    async def do_async_POST(
+        self, request: http.AbstractAsyncHTTPServletRequest, response: http.AbstractAsyncHTTPServletResponse
+    ):
+        user, password = self.parse_form(await request.read_data())
+        try:
+            await request.login(user, password)
+        except AuthenticationFailed:
+            await response.send_content(401, "no", "text/plain")
+        else:
+            await response.send_content(204, "", "text/plain")
+
+    async def do_async_DELETE(
+        self, request: http.AbstractAsyncHTTPServletRequest, response: http.AbstractAsyncHTTPServletResponse
+    ):
+        request.logout()
+        await response.send_content(204, "", "text/plain")
+
+
 class _AuthServerTests:
     """
     Authentication tests against a live HTTP service, run for each kind of
@@ -157,7 +232,9 @@ class _AuthServerTests:
     assertIn: Any
     assertIsNone: Any
     assertLogs: Any
+    assertNotEqual: Any
     assertNotIn: Any
+    assertTrue: Any
     subTest: Any
 
     def setUp(self) -> None:
@@ -234,6 +311,64 @@ class _AuthServerTests:
             return response.status, response.msg, response.read().decode("utf-8")
         finally:
             conn.close()
+
+    def register_session_servlet(self, path: str = "/s", properties: dict[str, Any] | None = None) -> None:
+        """
+        Registers the servlet using the sessions
+        """
+        context = self.framework.get_bundle_context()
+        if self.async_servlet:
+            context.register_service(
+                http.HTTP_SERVLET_ASYNC,
+                AsyncSessionServlet(),
+                {http.HTTP_SERVLET_ASYNC_PATH: path, **(properties or {})},
+            )
+        else:
+            context.register_service(
+                http.HTTP_SERVLET, SyncSessionServlet(), {http.HTTP_SERVLET_PATH: path, **(properties or {})}
+            )
+
+    def start_sessions(self, **properties: Any) -> None:
+        """
+        Starts the HTTP service with its sessions, and the session servlet on /s
+        """
+        self.start_server(
+            with_authenticator=False, properties={http.HTTP_SESSION_ENABLED: True, **properties}
+        )
+        self.register_session_servlet()
+
+    def send(
+        self,
+        method: str,
+        cookie: str | None = None,
+        body: str | None = None,
+        path: str = "/s",
+        **headers: str,
+    ) -> Any:
+        """
+        Sends a request to the session servlet
+
+        :return: The status, the Set-Cookie headers and the body
+        """
+        if cookie:
+            headers["Cookie"] = cookie
+        conn = httplib.HTTPConnection(DEFAULT_HOST, self.port)
+        try:
+            conn.request(method, path, body, {k.replace("_", "-"): v for k, v in headers.items()})
+            response = conn.getresponse()
+            data = response.read().decode()
+            return response.status, response.msg.get_all("Set-Cookie") or [], data
+        finally:
+            conn.close()
+
+    def login(
+        self, user: str = "alice", password: str = "abc", cookie: str | None = None, **headers: str
+    ) -> Any:
+        return self.send("POST", cookie, f"user={user}&password={password}", **headers)
+
+    @staticmethod
+    def cookie_of(set_cookies: list[str]) -> str:
+        return set_cookies[0].split(";")[0]
 
     def test_anonymous(self) -> None:
         """
@@ -404,6 +539,72 @@ class _AuthServerTests:
         status, headers, _ = self.request(headers={"Origin": "https://app.example.com"})
         self.assertEqual(status, 401)
         self.assertEqual(headers["Access-Control-Allow-Origin"], "*")
+
+    def test_sessions_disabled_by_default(self) -> None:
+        self.start_server(with_authenticator=False)
+        self.register_session_servlet()
+        self.assertEqual(self.send("GET"), (200, [], "anonymous|None|None|False"))
+        # Starting a session is a mistake of the servlet, not of the client
+        self.assertEqual(self.login()[0], 500)
+
+    def test_session_login(self) -> None:
+        """
+        Login, wrong password, session fixation, unknown cookie and logout
+        """
+        self.start_sessions()
+        anonymous = "anonymous|None|None|False"
+        self.assertEqual(self.login(password="wrong")[:2], (401, []))
+
+        # A session started before the login is of no use after it
+        status, cookies, body = self.send("PUT")
+        self.assertEqual((status, body), (200, "True"))
+        before = self.cookie_of(cookies)
+        self.assertEqual(self.send("GET", before)[2], "anonymous|None|None|True")
+
+        status, cookies, _ = self.login(cookie=before)
+        self.assertEqual((status, len(cookies)), (204, 1))
+        self.assertIn("HttpOnly", cookies[0])
+        self.assertIn("SameSite=Lax", cookies[0])
+        self.assertNotIn("Secure", cookies[0])
+        after = self.cookie_of(cookies)
+        self.assertNotEqual(before, after)
+        self.assertEqual(self.send("GET", after), (200, [], "alice|form|http|True"))
+
+        # An unknown cookie is anonymous, and isn't deleted: it may be a parallel request of before the login
+        self.assertEqual(self.send("GET", before), (200, [], anonymous))
+        self.assertEqual(self.send("GET"), (200, [], anonymous))
+
+        status, cookies, _ = self.send("DELETE", after)
+        self.assertEqual(status, 204)
+        self.assertIn("Max-Age=0", cookies[0])
+        self.assertEqual(self.send("GET", after)[2], anonymous)
+
+    def test_session_required(self) -> None:
+        self.start_server(
+            with_authenticator=False, required=True, properties={http.HTTP_SESSION_ENABLED: True}
+        )
+        # The login can't need a login
+        self.register_session_servlet("/s", {http.HTTP_AUTH_REQUIRED: False})
+        self.register_session_servlet("/p")
+        self.assertEqual(self.send("GET", path="/p")[0], 401)
+        self.assertEqual(self.send("GET", "PELIXSESSIONID=garbage", path="/p")[0], 401)
+        cookie = self.cookie_of(self.login()[1])
+        self.assertEqual(self.send("GET", cookie, path="/p")[2], "alice|form|http|True")
+
+    def test_session_behind_proxy(self) -> None:
+        """
+        The cookie is Secure for an HTTPS client, and the throttle sees the client, not the proxy
+        """
+        self.start_sessions(
+            **{http.HTTP_SESSION_COOKIE_NAME: "SID", http.HTTP_PROXY_TRUSTED: "127.0.0.0/8, ::1"}
+        )
+        cookies = self.login(X_Forwarded_Proto="https")[1]
+        self.assertTrue(cookies[0].startswith("SID="))
+        self.assertIn("Secure", cookies[0])
+
+        with mock.patch("pelix.security.core.authenticate", side_effect=AuthenticationFailed()) as patched:
+            self.login(password="x", X_Forwarded_For="203.0.113.7")
+        self.assertEqual(patched.call_args.args[1], "203.0.113.7")
 
 
 class BasicAuthTest(_AuthServerTests, unittest.TestCase):

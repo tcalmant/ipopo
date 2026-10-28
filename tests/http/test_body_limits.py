@@ -7,7 +7,9 @@ and lifecycle of the request handling threads.
 :author: Thomas Calmant
 """
 
+import http.client as httplib
 import importlib.util
+import json
 import socket
 import threading
 import time
@@ -17,6 +19,7 @@ from typing import Any, cast
 from pelix import http
 from pelix.framework import Framework, FrameworkFactory, create_framework
 from pelix.ipopo.constants import IPopoService
+from tests.http.test_base import MULTIPART, make_form
 from tests.http.utils import DEFAULT_HOST, install_ipopo
 
 # ------------------------------------------------------------------------------
@@ -64,6 +67,30 @@ class AsyncEchoServlet:
         data = await request.read_data()
         self.bodies.append(data)
         await response.send_content(200, str(len(data)), "text/plain")
+
+
+class UploadServlet:
+    """
+    Servlet which answers the name, file name and size of the fields of a form
+    """
+
+    @staticmethod
+    def describe(parts: list[http.Part]) -> str:
+        return json.dumps([[p.name, p.filename, len(p.data)] for p in parts])
+
+    def do_POST(self, request: http.AbstractHTTPServletRequest, response: Any) -> None:
+        response.send_content(200, self.describe(request.get_parts()), "application/json")
+
+
+class AsyncUploadServlet(UploadServlet):
+    """
+    The same, asynchronous
+    """
+
+    async def do_async_POST(
+        self, request: http.AbstractAsyncHTTPServletRequest, response: http.AbstractAsyncHTTPServletResponse
+    ) -> None:
+        await response.send_content(200, self.describe(await request.get_parts()), "application/json")
 
 
 def list_request_threads() -> list[str]:
@@ -431,6 +458,34 @@ class PerServletLimitsTest(unittest.TestCase):
         self.assertIn(b"200", status)
         self.assertEqual([len(body) for body in servlet.bodies], [1000])
 
+    def check_upload(self, specification: str, servlet: Any, path_property: str) -> None:
+        """
+        Uploads a file bigger than the limit of the service to a servlet which raised it,
+        then malformed forms
+        """
+        self.context.register_service(
+            specification, servlet, {path_property: "/up", http.HTTP_MAX_BODY_SIZE: 4 * 1024 * 1024}
+        )
+
+        def upload(body: bytes, content_type: str = MULTIPART) -> tuple[int, bytes]:
+            conn = httplib.HTTPConnection(DEFAULT_HOST, self.port, timeout=10)
+            try:
+                conn.request("POST", "/up", body, {"Content-Type": content_type})
+                response = conn.getresponse()
+                return response.status, response.read()
+            finally:
+                conn.close()
+
+        status, body = upload(make_form(("title", None, b"hi"), ("file", "a.gif", b"G" * 2_000_000)))
+        self.assertEqual(
+            (status, json.loads(body)), (200, [["title", None, 2], ["file", "a.gif", 2_000_000]])
+        )
+        self.assertEqual(upload(b"nothing", "text/plain")[0], 400)
+        self.assertEqual(upload(make_form(("a", None, b"1"))[:-10])[0], 400)
+
+    def test_upload(self) -> None:
+        self.check_upload(http.HTTP_SERVLET, UploadServlet(), http.HTTP_SERVLET_PATH)
+
     def test_invalid_servlet_limit(self) -> None:
         """
         An unusable value given by a servlet removes the limit, like it does
@@ -499,6 +554,9 @@ class AsyncPerServletLimitsTest(PerServletLimitsTest):
 
         self.assertIn(b"413", answer.splitlines()[0])
         self.assertListEqual(servlet.bodies, [])
+
+    def test_async_upload(self) -> None:
+        self.check_upload(http.HTTP_SERVLET_ASYNC, AsyncUploadServlet(), http.HTTP_SERVLET_ASYNC_PATH)
 
     def test_async_servlet_raises_the_limit(self) -> None:
         """

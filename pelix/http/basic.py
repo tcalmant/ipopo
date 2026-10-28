@@ -46,6 +46,7 @@ from pelix.http._base import (
     SERVLET_PARAMETERS,
     AbstractHttpService,
     RequestRouting,
+    SessionContext,
     compute_sub_path,
 )
 from pelix.internals.registry import ServiceReference
@@ -93,6 +94,8 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         full_path: str,
         prefix: str,
         max_body_size: int | None = None,
+        remote: tuple[tuple[str, int], bool] | None = None,
+        sessions: SessionContext | None = None,
     ) -> None:
         """
         Sets up the request helper
@@ -101,7 +104,11 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         :param full_path: The normalized request path, including the prefix
         :param prefix: The path to the servlet root
         :param max_body_size: Maximum accepted size of the body, in bytes
+        :param remote: The client and the security of its connection
+        :param sessions: The sessions of the request
         """
+        self.remote = remote
+        self.sessions = sessions
         self._handler = request_handler
         self._full_path = full_path
         self._prefix = prefix
@@ -116,9 +123,9 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         """
         return self._handler.command
 
-    def get_client_address(self) -> tuple[str, int]:
+    def get_peer_address(self) -> tuple[str, int]:
         """
-        Retrieves the address of the client
+        Retrieves the address of the other end of the connection
 
         :return: A (host, port) tuple
         """
@@ -177,7 +184,8 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         :param request_handler: The basic request handler
         """
         self._handler = request_handler
-        self._headers: dict[str, Any] = {}
+        self._headers: dict[str, list[str]] = {}
+        self._sent = False
 
     def set_response(self, code: int, message: str | None = None) -> None:
         """
@@ -197,7 +205,33 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         :param name: Header name
         :param value: Header value
         """
-        self._headers[name.lower()] = value
+        text = None if value is None else self._check_header(value)
+        if self._sent:
+            # Too late: ignored, as it always was
+            return
+        if text is None:
+            self._headers.pop(name.lower(), None)
+        else:
+            self._headers[name.lower()] = [text]
+
+    def add_header(self, name: str, value: Any) -> None:
+        """
+        See :meth:`pelix.http.AbstractHTTPServletResponse.add_header`
+        """
+        text = self._check_header(value)
+        if not self._sent:
+            self._headers.setdefault(name.lower(), []).append(text)
+
+    @staticmethod
+    def _check_header(value: Any) -> str:
+        """
+        Refuses a value which would split the response: ``send_header()`` doesn't
+
+        :raise ValueError: The value holds a line break
+        """
+        if "\r" in (text := str(value)) or "\n" in text:
+            raise ValueError("A header value can't hold a line break")
+        return text
 
     def is_header_set(self, name: str) -> bool:
         """
@@ -216,11 +250,20 @@ class _HTTPServletResponse(http.AbstractHTTPServletResponse):
         cors_headers: dict[str, str] | None = getattr(self._handler, "cors_headers", None)
         if cors_headers:
             for name, value in cors_headers.items():
-                self._headers.setdefault(name.lower(), value)
+                self._headers.setdefault(name.lower(), [value])
+
+        # The session cookie is set when the headers are sent, whatever the servlet did, once
+        sessions: SessionContext | None = getattr(self._handler, "sessions", None)
+        if sessions is not None and not sessions.sent:
+            sessions.sent = True
+            if sessions.cookie:
+                self.add_header("Set-Cookie", sessions.cookie)
 
         # Send them all at once
-        for name, value in self._headers.items():
-            self._handler.send_header(name, value)
+        self._sent = True
+        for name, values in self._headers.items():
+            for value in values:
+                self._handler.send_header(name, value)
 
         self._handler.end_headers()
 
@@ -266,6 +309,8 @@ class _RequestHandler(BaseHTTPRequestHandler):
 
         # CORS headers to add to the response of the current request, if any
         self.cors_headers: dict[str, str] | None = None
+        self.remote: tuple[tuple[str, int], bool] = (("", 0), False)
+        self.sessions: SessionContext | None = None
 
         # This calls setup() then the do_* methods
         BaseHTTPRequestHandler.__init__(self, *args, **kwargs)
@@ -295,18 +340,15 @@ class _RequestHandler(BaseHTTPRequestHandler):
             # Not a request handling
             return object.__getattribute__(self, name)
 
-        # Get the corresponding servlet
-        routing = self._service.resolve_request(self.path)
-
         # Keep-alive connections reuse the handler: forget the previous request
         self.cors_headers = None
-        cors_decision = self._service.resolve_cors(
-            routing,
-            self.command,
-            self.headers.get("Origin"),
-            self.headers.get("Access-Control-Request-Method"),
-            self.headers.get("Access-Control-Request-Headers"),
-        )
+        checks = self._service.check_request(self.command, self.path, self.headers, self.client_address)
+        self.remote, self.sessions = checks.remote, checks.sessions
+        if checks.refused:
+            # A rebound host name or a page of another site: no servlet runs
+            return self.send_forbidden_response
+
+        routing, cors_decision = checks.routing, checks.cors_decision
         if cors_decision is not None:
             if cors_decision.preflight:
                 # Preflight requests are answered by the server, not by the servlets
@@ -322,7 +364,12 @@ class _RequestHandler(BaseHTTPRequestHandler):
         if servlet is not None and hasattr(servlet, name):
             # Prepare the helpers
             request = _HTTPServletRequest(
-                self, routing.path, routing.prefix, self._service.resolve_max_body_size(routing.parameters)
+                self,
+                routing.path,
+                routing.prefix,
+                self._service.resolve_max_body_size(routing.parameters),
+                self.remote,
+                self.sessions,
             )
             response = _HTTPServletResponse(self)
 
@@ -343,6 +390,9 @@ class _RequestHandler(BaseHTTPRequestHandler):
                 except http.BodyTooLargeError as ex:
                     # The client announced a body we refuse to read
                     self.send_too_large_response(response, ex)
+                except http.MultipartError:
+                    # A malformed upload form: same page as a refused path
+                    self.send_bad_path_response()
                 except TimeoutError:
                     # The client didn't send the body it announced in time
                     self.send_timeout_response(response)
@@ -376,7 +426,9 @@ class _RequestHandler(BaseHTTPRequestHandler):
         :param routing: The result of the routing of the request
         :return: The subject to handle the request as, or None if it has been refused
         """
-        decision = self._service.resolve_authentication(routing, self.headers, self.client_address[0])
+        decision = self._service.resolve_authentication(
+            routing, self.headers, self.remote[0][0], self.sessions
+        )
         if decision.refused:
             self.send_auth_error(_HTTPServletResponse(self), 401, routing)
             return None
@@ -437,6 +489,13 @@ class _RequestHandler(BaseHTTPRequestHandler):
             for name, value in headers.items():
                 response.set_header(name, value)
             response.end_headers()
+
+    def send_forbidden_response(self) -> None:
+        """
+        Response sent when the Host or the Origin of the request is refused,
+        before any servlet has been looked for
+        """
+        _HTTPServletResponse(self).send_content(403, self._service.make_auth_error_page(403))
 
     def send_bad_path_response(self) -> None:
         """

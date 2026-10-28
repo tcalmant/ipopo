@@ -28,13 +28,19 @@ Defines the interfaces that must respect HTTP service implementations.
 """
 
 import asyncio
+import concurrent.futures
+import email.message
+import email.parser
+import re
+import threading
 from abc import ABC, abstractmethod
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
+from dataclasses import dataclass
 from enum import Enum
 from typing import IO, Any, Protocol, runtime_checkable
 
 from pelix.constants import Specification
-from pelix.security import Credentials
+from pelix.security import Credentials, Subject
 from pelix.utilities import to_bytes
 
 # ------------------------------------------------------------------------------
@@ -54,11 +60,13 @@ __all__ = [
     "HTTPS_CERT_FILE",
     "HTTPS_KEY_FILE",
     "HTTPS_KEY_PASSWORD",
+    "HTTP_ALLOWED_HOSTS",
     "HTTP_AUTHENTICATOR",
     "HTTP_AUTH_REALM",
     "HTTP_AUTH_REQUIRED",
     "HTTP_CASE_SENSITIVE_PATHS",
     "HTTP_CORS_CREDENTIALS",
+    "HTTP_CORS_ENFORCE",
     "HTTP_CORS_EXPOSE_HEADERS",
     "HTTP_CORS_HANDLER",
     "HTTP_CORS_HEADERS",
@@ -68,6 +76,7 @@ __all__ = [
     "HTTP_DEBUG_ERRORS",
     "HTTP_ERROR_PAGES",
     "HTTP_MAX_BODY_SIZE",
+    "HTTP_PROXY_TRUSTED",
     "HTTP_SERVICE",
     "HTTP_SERVICE_ADDRESS",
     "HTTP_SERVICE_PORT",
@@ -75,6 +84,9 @@ __all__ = [
     "HTTP_SERVLET_ASYNC",
     "HTTP_SERVLET_ASYNC_PATH",
     "HTTP_SERVLET_PATH",
+    "HTTP_SESSION_COOKIE_NAME",
+    "HTTP_SESSION_ENABLED",
+    "HTTP_SESSION_MAX_INACTIVE_INTERVAL",
     "HTTP_SOCKET_TIMEOUT",
     "HTTP_USES_SSL",
     "HTTP_WEBSOCKET_HANDLER",
@@ -98,11 +110,17 @@ __all__ = [
     "HTTPService",
     "HeadersView",
     "HttpAuthenticator",
+    "HttpSession",
+    "MultipartError",
+    "Part",
     "Servlet",
     "ServletType",
     "WebSocketHandler",
     "WebSocketSession",
+    "format_cookie",
     "make_html_list",
+    "parse_cookies",
+    "parse_multipart",
     "read_body",
 ]
 
@@ -165,6 +183,26 @@ default).
 
 Avoids a slow client to keep a request handling thread busy forever. A value
 lesser than or equal to 0 removes the timeout.
+"""
+
+# ... Host header whitelist
+HTTP_ALLOWED_HOSTS = "pelix.http.allowed_hosts"
+"""
+Host names the server accepts in the ``Host`` header of the requests (string,
+comma-separated string or list of strings, not set by default).
+
+A request whose ``Host`` header is missing or not listed is answered with a 403
+error code, before any servlet is looked for. This protects the server against
+DNS rebinding: a page loaded from a hostile name resolving to the server
+address can otherwise read its responses, as the browser sees them as
+same-origin.
+
+An entry without port matches any port (``localhost``), an entry with a port
+only matches this port (``localhost:8080``). IPv6 literals are given in
+brackets (``[::1]``). The comparison is case-insensitive. If not set or
+empty, the ``Host`` header is not checked.
+
+.. versionadded:: 3.3.0
 """
 
 # ... case sensitivity of the servlet paths
@@ -248,6 +286,56 @@ HTTP_CORS_CREDENTIALS = "pelix.http.cors.credentials"
 If True, cross-origin requests can carry credentials (cookies, authorization
 header, ...). The allowed origin is then always sent explicitly, never as
 ``*`` (boolean, False by default).
+"""
+
+HTTP_PROXY_TRUSTED = "pelix.http.proxy.trusted"
+"""
+HTTP service property: addresses or networks (CIDR) of the reverse proxies
+allowed to tell who the client is, as a list or a comma-separated string.
+
+When the peer of a request is one of them, the right-most address of the
+``X-Forwarded-For`` header which is not a trusted proxy becomes the address
+of the client, and ``X-Forwarded-Proto`` tells if it used HTTPS. They are
+ignored for any other peer. The proxy must keep the ``Host`` header of the
+client. Empty by default: those headers are never read.
+"""
+
+HTTP_SESSION_ENABLED = "pelix.http.session.enabled"
+"""
+HTTP service property: if set, servlets can use ``get_session()``, ``login()``
+and ``logout()`` of their request, and the user logged in a session is the
+subject of the later requests (boolean, False by default). There is one set of
+sessions per HTTP service, kept in memory: a restart logs everyone out.
+
+The session cookie is ``HttpOnly`` and ``SameSite=Lax``, and ``Secure`` when the
+client used HTTPS (see ``pelix.http.proxy.trusted``). Its content is a random
+identifier, replaced on each login. The ``Lax`` attribute and
+``pelix.http.cors.enforce`` are the protection against cross-site requests.
+"""
+
+HTTP_SESSION_MAX_INACTIVE_INTERVAL = "pelix.http.session.max_inactive_interval"
+""" Seconds without request after which a session is dropped (1800 by default) """
+
+HTTP_SESSION_COOKIE_NAME = "pelix.http.session.cookie.name"
+"""
+Name of the session cookie (``PELIXSESSIONID`` by default). Cookies don't
+isolate ports: services of one host must use different names
+"""
+
+HTTP_CORS_ENFORCE = "pelix.http.cors.enforce"
+"""
+HTTP service property: if set, a request carrying an ``Origin`` header which is
+neither the origin of the server nor allowed by the CORS policy is answered
+with a 403 error code, and no servlet is called (boolean, False by default).
+
+Without it, the CORS policy only decides which ``Access-Control-*`` headers are
+sent: a "simple" cross-site request, like a form posted by a page of another
+site, is still handled by the servlet, and only its response is hidden from
+the page. A request without ``Origin`` header (not sent by a browser) is never
+refused. Preflight requests are not concerned: they are always answered by the
+server.
+
+.. versionadded:: 3.3.0
 """
 
 HTTP_CORS_MAX_AGE = "pelix.http.cors.max_age"
@@ -374,6 +462,247 @@ class BodyTooLargeError(Exception):
         self.max_size = max_size
 
 
+_COOKIE_NAME = re.compile(r"[!#$%&'*+.^_`|~0-9A-Za-z-]+")
+_COOKIE_VALUE = re.compile(r"[\x21\x23-\x2b\x2d-\x3a\x3c-\x5b\x5d-\x7e]*")
+_BOUNDARY = re.compile(r"[0-9A-Za-z'()+_,./:=? -]{0,69}[0-9A-Za-z'()+_,./:=?-]")
+_COOKIE_PATH = re.compile(r"[\x20-\x3a\x3c-\x7e]*")
+
+
+def parse_cookies(header: str | None) -> dict[str, str]:
+    """
+    Parses the value of a ``Cookie`` header
+
+    :param header: The header value, if any
+    :return: The cookies by name. When a name is repeated, the first value wins:
+             browsers send the most specific path first.
+    """
+    cookies: dict[str, str] = {}
+    for item in (header or "").split(";"):
+        name, sep, value = item.partition("=")
+        if sep and name.strip():
+            cookies.setdefault(name.strip(), value.strip().strip('"'))
+    return cookies
+
+
+def format_cookie(
+    name: str,
+    value: str,
+    *,
+    max_age: int | None = None,
+    path: str = "/",
+    secure: bool = False,
+    http_only: bool = True,
+    same_site: str = "Lax",
+) -> str:
+    """
+    Prepares the value of a ``Set-Cookie`` header
+
+    :param name: Cookie name (a token)
+    :param value: Cookie value, without quote or separator: nothing is escaped
+    :param max_age: Lifetime in seconds (0 deletes the cookie), None for a session cookie
+    :param path: Path the cookie is sent for
+    :param secure: If True, the browser only sends it over HTTPS
+    :param http_only: If True, scripts can't read it
+    :param same_site: ``Strict``, ``Lax`` or ``None`` (the latter needs ``secure``)
+    :raise ValueError: A part isn't valid: it could split the header
+    """
+    if not _COOKIE_NAME.fullmatch(name) or not _COOKIE_VALUE.fullmatch(value):
+        raise ValueError("Invalid cookie name or value")
+    if not _COOKIE_PATH.fullmatch(path) or same_site not in ("Strict", "Lax", "None"):
+        raise ValueError("Invalid cookie path or SameSite attribute")
+    if same_site == "None" and not secure:
+        raise ValueError("SameSite=None needs the Secure attribute")
+
+    parts = [f"{name}={value}", f"Path={path}", f"SameSite={same_site}"]
+    if max_age is not None:
+        parts.append(f"Max-Age={int(max_age)}")
+    if secure:
+        parts.append("Secure")
+    if http_only:
+        parts.append("HttpOnly")
+    return "; ".join(parts)
+
+
+class HttpSession:
+    """
+    What the server remembers of a browser between its requests (the Servlet
+    ``HttpSession``). Attributes are kept in memory, and the access is thread-safe.
+    """
+
+    def __init__(
+        self, session_id: str, max_inactive_interval: int, expire: Callable[["HttpSession"], None]
+    ) -> None:
+        """
+        :param session_id: The secret identifier, sent to the browser
+        :param max_inactive_interval: Seconds without request before the session is dropped
+        :param expire: Called with the session to drop it from the server
+        """
+        self._id = session_id
+        self._max_inactive_interval = max_inactive_interval
+        self._expire = expire
+        self._attributes: dict[str, Any] = {}
+        self._lock = threading.Lock()
+        self._new = True
+        self._valid = True
+
+    def _check(self) -> None:
+        if not self._valid:
+            raise RuntimeError("The session has been invalidated")
+
+    def get_id(self) -> str:
+        """
+        Returns the identifier of the session: it is a secret, never log it
+        """
+        self._check()
+        return self._id
+
+    def is_new(self) -> bool:
+        """
+        Checks if the browser doesn't know this session yet
+        """
+        self._check()
+        return self._new
+
+    def get_max_inactive_interval(self) -> int:
+        """
+        Returns the seconds without request after which the session is dropped
+        """
+        return self._max_inactive_interval
+
+    def get_attribute(self, name: str, default: Any = None) -> Any:
+        """
+        Returns an attribute
+
+        :param name: Attribute name
+        :param default: Value if the attribute isn't set
+        """
+        self._check()
+        with self._lock:
+            return self._attributes.get(name, default)
+
+    def set_attribute(self, name: str, value: Any) -> None:
+        """
+        Sets an attribute
+
+        :param name: Attribute name
+        :param value: Attribute value
+        """
+        self._check()
+        with self._lock:
+            self._attributes[name] = value
+
+    def remove_attribute(self, name: str) -> None:
+        """
+        Removes an attribute, if it is set
+
+        :param name: Attribute name
+        """
+        self._check()
+        with self._lock:
+            self._attributes.pop(name, None)
+
+    def invalidate(self) -> None:
+        """
+        Drops the session: the browser's cookie is of no use any more.
+        Prefer ``logout()`` of the request, which also removes the cookie.
+        Does nothing if the session is already invalidated.
+        """
+        with self._lock:
+            if not self._valid:
+                return
+            self._valid = False
+        self._expire(self)
+
+
+class MultipartError(ValueError):
+    """
+    The body of a request is not the ``multipart/form-data`` it claims to be, or
+    is over the limits of :func:`parse_multipart`. The services answer a 400.
+    """
+
+
+@dataclass(frozen=True)
+class Part:
+    """
+    A field of a ``multipart/form-data`` body (the Servlet ``Part``). The data is
+    in memory: the size of the body is bound by ``pelix.http.max_body_size``,
+    which a servlet receiving files can raise for itself.
+    """
+
+    name: str
+    """ Name of the form field """
+
+    filename: str | None
+    """ Name of the file as the browser sent it. It is not checked: never use it as a path """
+
+    content_type: str | None
+    """ Media type of the part, without parameters, if the client gave one: check the content, not this """
+
+    data: bytes
+    """ Content of the part """
+
+
+def parse_multipart(content_type: str | None, body: bytes, max_parts: int = 100) -> list[Part]:
+    """
+    Splits a ``multipart/form-data`` body (RFC 7578)
+
+    :param content_type: Value of the ``Content-Type`` header of the request
+    :param body: The body of the request
+    :param max_parts: Maximum number of parts accepted
+    :return: The parts, in the order of the body
+    :raise MultipartError: The body is malformed, or has too many parts
+    """
+    header = email.message.Message()
+    header["Content-Type"] = content_type or ""
+    boundary = header.get_param("boundary")
+    if header.get_content_type() != "multipart/form-data" or not isinstance(boundary, str):
+        raise MultipartError("Not a multipart/form-data request")
+    if not _BOUNDARY.fullmatch(boundary):
+        raise MultipartError("Invalid boundary")
+
+    # Walked with find(), so that each part is copied once and a body of delimiters costs nothing
+    delimiter = b"--" + boundary.encode("ascii")
+    marker = b"\r\n" + delimiter
+    pos = 0 if body.startswith(delimiter) else body.find(marker) + 2
+    if pos < 2 and not body.startswith(delimiter):
+        raise MultipartError("No delimiter")
+
+    parts: list[Part] = []
+    while True:
+        pos += len(delimiter)
+        if body[pos : pos + 2] == b"--":
+            # Closing delimiter: the epilogue is ignored
+            return parts
+
+        if len(parts) >= max_parts:
+            raise MultipartError(f"More than {max_parts} parts")
+
+        # Spaces and tabs can pad the line of the delimiter
+        eol = body.find(b"\r\n", pos)
+        head_end = body.find(b"\r\n\r\n", eol)
+        if eol < 0 or head_end < 0 or head_end - eol > 8192 or body[pos:eol].strip(b" \t"):
+            raise MultipartError("Malformed part")
+
+        fields = email.parser.HeaderParser().parsestr(body[eol + 2 : head_end].decode("utf-8", "replace"))
+        name = fields.get_param("name", header="Content-Disposition")
+        if fields.get_content_disposition() != "form-data" or not isinstance(name, str):
+            raise MultipartError("A part isn't a form field")
+
+        end = body.find(marker, head_end + 4)
+        if end < 0:
+            raise MultipartError("The closing delimiter is missing")
+
+        parts.append(
+            Part(
+                name,
+                fields.get_filename(),
+                fields.get_content_type() if "Content-Type" in fields else None,
+                body[head_end + 4 : end],
+            )
+        )
+        pos = end + 2
+
+
 async def read_body(reader: "asyncio.StreamReader", size: int | None, max_size: int | None) -> bytes:
     """
     Reads the body of a request from an asynchronous stream, without loading
@@ -417,7 +746,116 @@ async def read_body(reader: "asyncio.StreamReader", size: int | None, max_size: 
     return bytes(data)
 
 
-class AbstractHTTPServletRequest(ABC):
+class _RequestMixin(ABC):
+    """
+    What the synchronous and asynchronous servlet requests share, once the
+    HTTP service gave them the result of the trusted proxies and the sessions
+    """
+
+    remote: tuple[tuple[str, int], bool] | None = None
+    """
+    The client address and the security of its connection, once the trusted
+    proxies are taken into account. It is set by the HTTP service.
+    """
+
+    sessions: Any = None
+    """
+    The sessions of the request, if ``pelix.http.session.enabled`` is set.
+    It is set by the HTTP service.
+    """
+
+    def get_peer_address(self) -> tuple[str, int]:
+        """
+        Returns the address of the other end of the connection, i.e. of the
+        reverse proxy if there is one
+
+        :return: A (host, port) tuple
+        :raise NotImplementedError: A request class written before this method
+                                    must override ``get_client_address()``
+        """
+        raise NotImplementedError
+
+    def get_client_address(self) -> tuple[str, int]:
+        """
+        Returns the address of the client, as told by the trusted proxies
+        (see ``pelix.http.proxy.trusted``). Its port is 0 if it comes from a header.
+
+        :return: A (host, port) tuple
+        """
+        return self.remote[0] if self.remote else self.get_peer_address()
+
+    def is_secure(self) -> bool:
+        """
+        Checks if the client used HTTPS, as told by the trusted proxies
+
+        :return: True if the request was sent over TLS
+        """
+        return bool(self.remote and self.remote[1])
+
+    def _get_sessions(self) -> Any:
+        if self.sessions is None:
+            raise RuntimeError("HTTP sessions are not enabled: see pelix.http.session.enabled")
+        return self.sessions
+
+    def get_session(self, create: bool) -> HttpSession | None:
+        """
+        Returns the session of the browser
+
+        :param create: If True, a session is started when there is none
+        :return: The session, or None if there is none (or they are not enabled, unless ``create``)
+        """
+        return self._get_sessions().get(create) if create or self.sessions else None
+
+    def change_session_id(self) -> str:
+        """
+        Replaces the identifier of the session, to call when the privileges of
+        the browser change (``login()`` does it)
+
+        :return: The new identifier
+        :raise RuntimeError: There is no session
+        """
+        return self._get_sessions().change_id()
+
+    def logout(self) -> None:
+        """
+        Forgets the user of the browser: its session is dropped, and so is its cookie
+        """
+        if self.sessions is not None:
+            self.sessions.logout()
+
+
+class _ResponseMixin(ABC):
+    """
+    What the synchronous and asynchronous servlet responses share
+    """
+
+    @abstractmethod
+    def set_header(self, name: str, value: Any) -> None: ...
+
+    def add_header(self, name: str, value: Any) -> None:
+        """
+        Adds a value to a header, e.g. ``Set-Cookie``, which can be sent many times.
+        This method should not be called after ``end_headers()``.
+        Without an override, a response class only keeps the last value.
+
+        :param name: Header name
+        :param value: Header value
+        """
+        self.set_header(name, value)
+
+    def add_cookie(self, name: str, value: str, **attributes: Any) -> None:
+        """
+        Sends a cookie: see :func:`format_cookie` for the arguments.
+        It is ``HttpOnly`` and ``SameSite=Lax`` unless told otherwise;
+        pass ``secure=request.is_secure()`` for the browser to send it
+        over HTTPS only.
+
+        :raise ValueError: The cookie isn't valid
+        """
+        self.add_header("Set-Cookie", format_cookie(name, value, **attributes))
+
+
+class AbstractHTTPServletRequest(_RequestMixin):
     """
     Abstract HTTP Servlet request helper
     """
@@ -436,14 +874,34 @@ class AbstractHTTPServletRequest(ABC):
         """
         ...
 
-    @abstractmethod
-    def get_client_address(self) -> tuple[str, int]:
+    def get_cookies(self) -> dict[str, str]:
         """
-        Returns the address of the client
+        Returns the cookies sent with the request
 
-        :return: A (host, port) tuple
+        :return: The cookie values by name
         """
-        ...
+        return parse_cookies(self.get_header("Cookie"))
+
+    def get_parts(self, max_parts: int = 100) -> list[Part]:
+        """
+        Reads the fields of a ``multipart/form-data`` body (see :func:`parse_multipart`)
+
+        :raise BodyTooLargeError: The body is bigger than the accepted maximum size
+        :raise MultipartError: The body isn't a valid form
+        """
+        return parse_multipart(self.get_header("Content-Type"), self.read_data(), max_parts)
+
+    def login(self, username: str, password: str) -> Subject:
+        """
+        Authenticates a user with a password, and makes it the subject of the
+        later requests of the browser, in a new session. Failures count for the
+        throttle of ``pelix.security``, by user and by client address.
+
+        :return: The subject, to use for the rest of the request
+        :raise AuthenticationFailed: Wrong credentials, or locked out
+        """
+        addr = self.get_client_address()[0]
+        return self._get_sessions().login(username, password, addr)
 
     @abstractmethod
     def get_header(self, name: str, default: Any = None) -> Any:
@@ -552,7 +1010,7 @@ class AbstractHTTPServletRequest(ABC):
         return self.get_rfile().read(size)
 
 
-class AbstractHTTPServletResponse(ABC):
+class AbstractHTTPServletResponse(_ResponseMixin):
     """
     HTTP Servlet response helper
     """
@@ -663,7 +1121,7 @@ class AbstractHTTPServletResponse(ABC):
         self.write(raw_content)
 
 
-class AbstractAsyncHTTPServletRequest(ABC):
+class AbstractAsyncHTTPServletRequest(_RequestMixin):
     """
     Asynchronous HTTP Servlet request helper
     """
@@ -682,14 +1140,26 @@ class AbstractAsyncHTTPServletRequest(ABC):
         """
         ...
 
-    @abstractmethod
-    def get_client_address(self) -> tuple[str, int]:
+    async def get_cookies(self) -> dict[str, str]:
         """
-        Returns the address of the client
+        See :meth:`AbstractHTTPServletRequest.get_cookies`
+        """
+        return parse_cookies(await self.get_header("Cookie"))
 
-        :return: A (host, port) tuple
+    async def get_parts(self, max_parts: int = 100) -> list[Part]:
         """
-        ...
+        See :meth:`AbstractHTTPServletRequest.get_parts`
+        """
+        content_type, body = await self.get_header("Content-Type"), await self.read_data()
+        # A big upload must not block the event loop while it is parsed
+        return await asyncio.to_thread(parse_multipart, content_type, body, max_parts)
+
+    async def login(self, username: str, password: str) -> Subject:
+        """
+        See :meth:`AbstractHTTPServletRequest.login`
+        """
+        addr = self.get_client_address()[0]
+        return await asyncio.to_thread(self._get_sessions().login, username, password, addr)
 
     @abstractmethod
     async def get_header(self, name: str, default: Any = None) -> Any:
@@ -811,7 +1281,7 @@ class AbstractAsyncWriter(ABC):
         ...  # noqa: PIE790
 
 
-class AbstractAsyncHTTPServletResponse(ABC):
+class AbstractAsyncHTTPServletResponse(_ResponseMixin):
     """
     Asynchronous HTTP Servlet response helper
     """
@@ -1148,6 +1618,36 @@ class WebSocketSession(Protocol):
     async def close(self, code: int = 1000, reason: str | None = None) -> None:
         """
         Closes the WebSocket session
+
+        :param code: Close code (default is 1000, normal closure)
+        :param reason: Optional reason for the closure
+        """
+        ...
+
+    def submit_text(self, message: str) -> concurrent.futures.Future[None]:
+        """
+        Thread-safe :meth:`send_text`: can be called from any thread, e.g. a
+        component pushing events from its own thread. Don't wait for the result
+        from the event loop thread (deadlock).
+
+        :param message: Message to send
+        :return: A future set when the message is sent, or holding the
+                 ``OSError`` of a closed session
+        :raise OSError: The server is stopped
+        """
+        ...
+
+    def submit_binary(self, message: bytes) -> concurrent.futures.Future[None]:
+        """
+        Thread-safe :meth:`send_binary`, see :meth:`submit_text`
+
+        :param message: Binary message to send
+        """
+        ...
+
+    def submit_close(self, code: int = 1000, reason: str | None = None) -> concurrent.futures.Future[None]:
+        """
+        Thread-safe :meth:`close`, see :meth:`submit_text`
 
         :param code: Close code (default is 1000, normal closure)
         :param reason: Optional reason for the closure

@@ -112,6 +112,7 @@ __all__ = [
     "Throttle",
     "authenticate",
     "post_event",
+    "restore_subject",
     "throttle_keys",
 ]
 
@@ -573,6 +574,16 @@ def _authenticate(credentials: Credentials) -> Subject:
     if subject is None:
         raise AuthenticationFailed("No Authenticator recognized these credentials")
 
+    return _enrich(subject)
+
+
+def _enrich(subject: Subject) -> Subject:
+    """
+    Resolves the groups and roles of a subject, with the membership providers
+
+    :param subject: A subject known to be who it claims to be
+    :return: The authenticated subject, complete
+    """
     with _use_services(MembershipProvider) as providers:
         groups = set(subject.groups)
         for provider in providers:
@@ -595,6 +606,30 @@ def _authenticate(credentials: Credentials) -> Subject:
         subject.attributes,
         authenticated=True,
     )
+
+
+def restore_subject(
+    name: str,
+    attributes: dict[str, Any] | None = None,
+    *,
+    method: str | None = None,
+    transport: str | None = None,
+) -> Subject:
+    """
+    Rebuilds the subject of a user authenticated earlier, e.g. kept in an HTTP
+    session: only the membership providers are consulted, so a change of groups
+    or roles applies at once. No credentials are involved, hence no throttling and
+    no audit event: the caller must only give a name it stored after
+    :func:`authenticate`.
+
+    :param name: The user name
+    :param attributes: The attributes of the subject
+    :param method: Name of the mechanism which authenticated the user
+    :param transport: Name of the transport
+    :return: The authenticated subject
+    """
+    subject = _enrich(Subject(name, attributes=attributes or {}))
+    return dataclasses.replace(subject, method=method, transport=transport)
 
 
 # ------------------------------------------------------------------------------
