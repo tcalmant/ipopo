@@ -179,6 +179,14 @@ Exceptions raised by the decorated method are ignored.
 .. autofunction:: InvalidateComponent
 .. autofunction:: Invalidate
 
+When its properties are updated from outside, by
+:meth:`~pelix.ipopo.constants.IPopoService.reconfigure` or by its
+Configuration Admin configuration, a component which stays *VALID* is notified
+by the following decorator.
+Exceptions raised by the decorated method are logged and ignored.
+
+.. autofunction:: Modified
+
 Injections
 ^^^^^^^^^^
 

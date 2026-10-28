@@ -142,6 +142,10 @@ Unreleased
 
 ### iPOPO
 
+* Added the `@Modified` callback decorator, the counterpart of the `modified`
+  method of OSGi Declarative Services: `reconfigure()`, and thus an update of
+  the Configuration Admin configuration of a component, gives it the new and
+  the previous values of the changed properties, as long as it stays valid
 * Fixed a component killed by a `FrameworkException` raised in `@Validate`: it
   was set back to `VALID` then invalidated without the iPOPO service, so that
   `instantiate()` raised a `ValueError` to its caller
