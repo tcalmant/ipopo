@@ -173,6 +173,7 @@ class DecoratorsTest(unittest.TestCase):
             decorators.Unbind: constants.IPOPO_CALLBACK_UNBIND,
             decorators.Validate: constants.IPOPO_CALLBACK_VALIDATE,
             decorators.Invalidate: constants.IPOPO_CALLBACK_INVALIDATE,
+            decorators.Modified: constants.IPOPO_CALLBACK_MODIFIED,
             decorators.ValidateComponent(constants.ARG_BUNDLE_CONTEXT): constants.IPOPO_CALLBACK_VALIDATE,
             decorators.InvalidateComponent(constants.ARG_BUNDLE_CONTEXT): constants.IPOPO_CALLBACK_INVALIDATE,
         }

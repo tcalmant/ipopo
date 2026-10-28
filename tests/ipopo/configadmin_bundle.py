@@ -6,6 +6,8 @@ Bundle defining components managed by ConfigurationAdmin
 :author: Thomas Calmant
 """
 
+from typing import Any
+
 from pelix.constants import SERVICE_PID
 from pelix.framework import BundleContext
 from pelix.ipopo.constants import UPDATE_POLICY_RESTART
@@ -14,6 +16,7 @@ from pelix.ipopo.decorators import (
     HiddenProperty,
     Instantiate,
     Invalidate,
+    Modified,
     Property,
     Provides,
     RequiresConfiguration,
@@ -63,6 +66,7 @@ class Basic:
     def __init__(self) -> None:
         self.validated = 0
         self.invalidated = 0
+        self.changes: list[tuple[dict[str, Any], dict[str, Any]]] = []
 
     @Validate
     def validate(self, _: BundleContext) -> None:
@@ -71,6 +75,10 @@ class Basic:
     @Invalidate
     def invalidate(self, _: BundleContext) -> None:
         self.invalidated += 1
+
+    @Modified
+    def modified(self, properties: dict[str, Any], old_properties: dict[str, Any]) -> None:
+        self.changes.append((properties, old_properties))
 
 
 @ComponentFactory(FACTORY_PID)
@@ -186,6 +194,7 @@ class Restarted:
     def __init__(self) -> None:
         self.validated = 0
         self.invalidated = 0
+        self.changes: list[tuple[dict[str, Any], dict[str, Any]]] = []
 
     @Validate
     def validate(self, _: BundleContext) -> None:
@@ -194,6 +203,10 @@ class Restarted:
     @Invalidate
     def invalidate(self, _: BundleContext) -> None:
         self.invalidated += 1
+
+    @Modified
+    def modified(self, properties: dict[str, Any], old_properties: dict[str, Any]) -> None:
+        self.changes.append((properties, old_properties))
 
 
 @ComponentFactory(FACTORY_NO_PID)

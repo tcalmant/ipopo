@@ -254,6 +254,7 @@ class ConfigAdminBridgeTest(unittest.TestCase):
         self.assertEqual(instance.validated, 1)
         self.assertEqual(instance._name, "world")
         self.assertEqual(self.get_property("test-2", "name"), "world")
+        self.assertEqual(instance.changes, [({"name": "world"}, {"name": "hello"})])
 
         # The property of the provided service follows
         svc_ref = self.context.get_service_reference(SPEC_BASIC, "(instance.name=test-2)")
@@ -799,6 +800,8 @@ class ConfiguredInstanceTest(unittest.TestCase):
         self.pause()
         self.assertEqual((instance.validated, instance.invalidated), (2, 1))
         self.assertEqual(instance._name, "updated")
+        # @Validate got the new values: no @Modified
+        self.assertEqual(instance.changes, [])
 
         config.delete()
         self.pause()

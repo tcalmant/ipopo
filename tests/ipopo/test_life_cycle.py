@@ -12,6 +12,7 @@ from pelix.framework import FrameworkFactory
 from pelix.ipopo import constants, decorators
 from pelix.ipopo.constants import IPopoEvent
 from pelix.ipopo.instance import StoredInstance
+from tests.interfaces import IEchoService
 from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
@@ -261,6 +262,43 @@ class LifeCycleTest(unittest.TestCase):
 
         # Kill instance
         self.ipopo.kill(NAME_A)
+
+    def testModified(self):
+        """
+        Tests the @Modified callback, called by reconfigure() on a component
+        which stays valid
+        """
+        self.framework.get_bundle_context().register_service(IEchoService, object(), {"answer": 42})
+        component = self.ipopo.instantiate(self.module.FACTORY_MODIFIED, NAME_A)
+        details = self.ipopo.get_instance_details
+
+        # Each update, applied in order, with the expected callback arguments
+        for update, expected in (
+            ({"label": "default"}, None),
+            ({"label": "new", "answer": 42}, ({"label": "new"}, {"label": "default"})),
+            ({"other": 1}, ({"other": 1}, {})),
+            ({".secret": "rotated"}, ({"secret": "rotated"}, {"secret": "declared"})),
+            ({"secret": "ignored"}, None),
+            ({"answer": 0}, None),
+            ({"label": "invalid"}, None),
+            ({"answer": 42}, None),
+        ):
+            with self.subTest(update=update):
+                del component.changes[:]
+                self.ipopo.reconfigure(NAME_A, update)
+                self.assertEqual(component.changes, [expected] if expected else [])
+
+        self.assertEqual(details(NAME_A)["state"], StoredInstance.VALID)
+
+        # The component setting its own property is not notified
+        component.label = "own"
+        self.assertEqual(component.changes, [])
+
+        # An error in the callback is logged and the component stays valid
+        component.fail = True
+        with self.assertLogs(level="ERROR"):
+            self.ipopo.reconfigure(NAME_A, {"label": "error"})
+        self.assertEqual(details(NAME_A)["state"], StoredInstance.VALID)
 
 
 # ------------------------------------------------------------------------------
