@@ -6,6 +6,7 @@ Tests the initial configuration file handler
 :author: Thomas Calmant
 """
 
+import contextlib
 import json
 import os
 import sys
@@ -327,15 +328,13 @@ class InitFileHandlerTest(unittest.TestCase):
         """
         Tests that the default file is only looked for in the given folders
         """
-        cwd = os.getcwd()
         conf_dir = os.path.join(self.tmp_dir.name, "conf")
         os.makedirs(conf_dir)
         for folder in (self.tmp_dir.name, conf_dir):
             with open(os.path.join(folder, ".pelix.conf"), "w") as out_file:
                 json.dump({"bundles": [os.path.basename(folder)]}, out_file)
 
-        os.chdir(self.tmp_dir.name)
-        try:
+        with contextlib.chdir(self.tmp_dir.name):
             # The working directory is not searched
             handler = InitFileHandler(search_path=[conf_dir])
             self.assertListEqual(
@@ -348,8 +347,6 @@ class InitFileHandlerTest(unittest.TestCase):
             # Nothing is searched with an empty list
             handler = InitFileHandler(search_path=[])
             self.assertFalse(handler.load())
-        finally:
-            os.chdir(cwd)
 
     def test_instantiate_components_errors(self) -> None:
         """

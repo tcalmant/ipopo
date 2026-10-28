@@ -43,11 +43,12 @@ import hashlib
 import hmac
 import re
 from enum import Enum
+from typing import assert_never
 
 try:
     import bcrypt
 except ImportError:
-    bcrypt = None  # type: ignore
+    bcrypt = None
 
 # Module version
 __version_info__ = (3, 3, 0)
@@ -255,8 +256,12 @@ def verify(password: str, stored: str) -> bool:
             salt = stored[len("$apr1$") :].split("$", 1)[0]
             return hmac.compare_digest(apr1(password, salt), stored)
 
-        case _:  # Scheme.SHA256 or Scheme.SHA512
+        case Scheme.SHA256 | Scheme.SHA512:
             return hmac.compare_digest(sha_crypt(password, stored, scheme), stored)
+
+        case _:
+            # The type checker reports a scheme added to the enumeration but not here
+            assert_never(scheme)
 
 
 def dummy_hash(scheme: Scheme) -> str:

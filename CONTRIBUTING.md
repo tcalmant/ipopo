@@ -51,7 +51,7 @@ uv run ty check pelix tests
 
 ### General
 
-- Your code must be compatible with Python 3.10+.
+- Your code must be compatible with Python 3.11+.
 - Use type hints wherever possible
 - Prefer using typed service specifications instead of named ones in Pelix and iPOPO
 - Use `logging` instead of printing out debug traces.

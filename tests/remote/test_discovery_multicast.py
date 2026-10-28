@@ -152,8 +152,8 @@ class PacketHandlingTest(unittest.TestCase):
         self.discovery._fw_uid = "local-fw-uid"
         self.access = RecordingAccess()
         self.registry = RecordingRegistry()
-        self.discovery._access = self.access  # type: ignore
-        self.discovery._registry = self.registry  # type: ignore
+        self.discovery._access = self.access
+        self.discovery._registry = self.registry
 
     def _handle(self, data: dict[str, Any]) -> None:
         self.discovery._handle_packet(self.SENDER, json.dumps(data))
@@ -224,7 +224,7 @@ class PacketHandlingTest(unittest.TestCase):
 
         # No dispatcher servlet access available: error
         self.access.access = None
-        self.assertRaises(ValueError, self.discovery._make_endpoint_dict, "remove", endpoint)  # type: ignore
+        self.assertRaises(ValueError, self.discovery._make_endpoint_dict, "remove", endpoint)
 
 
 # ------------------------------------------------------------------------------

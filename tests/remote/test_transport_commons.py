@@ -218,7 +218,7 @@ class AbstractCommonExporterTest(unittest.TestCase):
 
         # Clean up members
         self.framework = None  # type: ignore
-        self.dispatcher = None  # type: ignore
+        self.dispatcher = None
 
     def _install_exporter(self) -> Exporter:
         """
@@ -525,7 +525,7 @@ class AbstractCommonImporterTest(unittest.TestCase):
 
         # Clean up members
         self.framework = None  # type: ignore
-        self.registry = None  # type: ignore
+        self.registry = None
 
     def _install_importer(self) -> Importer:
         """

@@ -91,7 +91,7 @@ class ConfigurationAdminTest(unittest.TestCase):
             self.config_ref = None
 
         pelix.framework.FrameworkFactory.delete_framework()
-        self.config = None  # type: ignore
+        self.config = None
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -244,7 +244,7 @@ class ConfigurationAdminTest(unittest.TestCase):
         config.update(props)
 
         # Forget it locally
-        config = None  # type: ignore
+        config = None
 
         # Stop the framework
         self.tearDown()
@@ -314,7 +314,7 @@ class ManagedServiceTest(unittest.TestCase):
             self.config_ref = None
 
         pelix.framework.FrameworkFactory.delete_framework()
-        self.config = None  # type: ignore
+        self.config = None
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -557,7 +557,7 @@ class ManagedServiceFactoryTest(unittest.TestCase):
             self.config_ref = None
 
         pelix.framework.FrameworkFactory.delete_framework()
-        self.config = None  # type: ignore
+        self.config = None
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -1233,7 +1233,7 @@ class FileInstallTest(unittest.TestCase):
         self.config_ref = None
 
         pelix.framework.FrameworkFactory.delete_framework()
-        self.config = None  # type: ignore
+        self.config = None
 
     @classmethod
     def tearDownClass(cls) -> None:
@@ -1272,7 +1272,7 @@ class FileInstallTest(unittest.TestCase):
         """
         Updates the modification time of the given file
         """
-        with open(filepath, "r"):
+        with open(filepath):
             os.utime(filepath, None)
 
     def write(self, filepath: str, value: Any) -> None:

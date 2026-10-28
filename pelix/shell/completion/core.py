@@ -79,7 +79,7 @@ class AbstractCompleter(abc.ABC, Completer):
         Sets up the readline completion hook, if available
         """
         try:
-            readline.set_completion_display_matches_hook(  # type: ignore
+            readline.set_completion_display_matches_hook(
                 lambda sub, matches, longest: display_hook(prompt, session, context, matches, longest)
             )
         except AttributeError:

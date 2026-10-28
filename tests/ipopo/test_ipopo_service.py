@@ -94,7 +94,7 @@ class IPopoServiceTest(unittest.TestCase):
         for invalid in (None, "", "Dummy", [FACTORY]):
             self.assertFalse(
                 (self.ipopo.unregister_factory(invalid)),
-                f"Invalid factory unregistered: {invalid}",  # type: ignore
+                f"Invalid factory unregistered: {invalid}",
             )
 
         self.assertTrue(self.ipopo.unregister_factory(FACTORY))

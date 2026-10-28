@@ -93,7 +93,7 @@ class HashableDict(dict[Any, Any]):
     Small workaround because dictionaries are not hashable in Python
     """
 
-    def __hash__(self) -> int:  # type: ignore
+    def __hash__(self) -> int:
         """
         Computes the hash of the dictionary
         """
@@ -105,7 +105,7 @@ class HashableSet(set[Any]):
     Small workaround because sets are not hashable in Python
     """
 
-    def __hash__(self) -> int:  # type: ignore
+    def __hash__(self) -> int:
         """
         Computes the hash of the set
         """
@@ -117,7 +117,7 @@ class HashableList(list[Any]):
     Small workaround because lists are not hashable in Python
     """
 
-    def __hash__(self) -> int:  # type: ignore
+    def __hash__(self) -> int:
         """
         Computes the hash of the list
         """
@@ -136,7 +136,7 @@ class AttributeMap(dict[Any, Any]):
         super().__init__(*args, **kwargs)
         self.__dict__ = self
 
-    def __hash__(self) -> int:  # type: ignore
+    def __hash__(self) -> int:
         """
         Computes the hash of the dictionary
         """

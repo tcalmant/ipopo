@@ -1589,7 +1589,7 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         :raise IOError: File not found/readable
         :raise ValueError: Invalid PID or invalid file content
         """
-        with open(self._get_file(pid), "r") as filep:
+        with open(self._get_file(pid)) as filep:
             data = filep.read()
 
         # Store the configuration

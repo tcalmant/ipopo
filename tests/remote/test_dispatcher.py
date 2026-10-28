@@ -169,7 +169,7 @@ class DispatcherTest(unittest.TestCase):
         pelix.framework.FrameworkFactory.delete_framework()
 
         self.framework = None  # type: ignore
-        self.service = None  # type: ignore
+        self.service = None
 
     def testEmpty(self) -> None:
         """

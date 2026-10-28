@@ -73,9 +73,9 @@ class XMPPShellTest(unittest.TestCase):
         if self.framework is not None:
             self.framework.stop()
         FrameworkFactory.delete_framework()
-        self.shell = None  # type: ignore
-        self.context = None  # type: ignore
-        self.framework = None  # type: ignore
+        self.shell = None
+        self.context = None
+        self.framework = None
 
     def test_commands(self) -> None:
         """

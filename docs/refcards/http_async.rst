@@ -172,7 +172,7 @@ An asynchronous servlet for the Pelix HTTP service has the following methods:
    it is not necessary to implement them all: the service has a default
    behaviour for missing methods.
 
-   .. py:method:: accept_binding(path: str, parameters: Dict[str, Any]) -> bool | None
+   .. py:method:: accept_binding(path: str, parameters: dict[str, Any]) -> bool | None
 
       This method is called before trying to bind the servlet.
       If it returns False, the servlet won't be bound to the server.
@@ -185,7 +185,7 @@ An asynchronous servlet for the Pelix HTTP service has the following methods:
       :param str path: The path of the servlet in the server
       :param dict parameters: The parameters of the server
 
-   .. py:method:: bound_to(path: str, parameters: Dict[str, Any]) -> bool | None
+   .. py:method:: bound_to(path: str, parameters: dict[str, Any]) -> bool | None
 
       This method is called when the servlet is bound to a path.
       If it returns False or raises an Exception, the registration is aborted.
@@ -193,7 +193,7 @@ An asynchronous servlet for the Pelix HTTP service has the following methods:
       :param str path: The path of the servlet in the server
       :param dict parameters: The parameters of the server
 
-   .. py:method:: unbound_from(path: str, parameters: Dict[str, Any]) -> None
+   .. py:method:: unbound_from(path: str, parameters: dict[str, Any]) -> None
 
       This method is called when the servlet is bound to a path.
       The parameters are the ones given in :meth:`~HttpServlet.accept_binding`

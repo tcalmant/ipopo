@@ -172,7 +172,7 @@ class RSABasicFeatures(unittest.TestCase):
         EDEFWriter().write(export_endpoints, tmp_file)
 
         # Reload it
-        with open(tmp_file, "r") as fd:
+        with open(tmp_file) as fd:
             parsed_endpoints = EDEFReader().parse(fd.read())
 
         for parsed_endpoint in parsed_endpoints:
@@ -268,7 +268,7 @@ class RSABasicFeatures(unittest.TestCase):
 
         # Write & load it
         # Export & import the EDEF XML
-        edef_2 = EDEFWriter().to_string([export_endpoint_2])  # type: ignore
+        edef_2 = EDEFWriter().to_string([export_endpoint_2])
         parsed_endpoint_2 = EDEFReader().parse(edef_2)[0]
 
         # Check parsed file

@@ -14,7 +14,7 @@ supported by the RSA Remote Services (OSGi R7-compliant) implementation.
 
 ## Requirements
 
-This tutorial sample requires Python 3.10+ and iPOPO 3.x.
+This tutorial sample requires Python 3.11+ and iPOPO 3.x.
 
 ## Defining the Remote Service with a Python Class
 

@@ -257,7 +257,7 @@ class TypedEventTest(unittest.TestCase):
 
         with self.assertRaises(EventDeliveryError) as ctx:
             self.bus.deliver(ChunkChanged(2), sync=True, raise_errors=True)
-        self.assertIsInstance(ctx.exception.__cause__, RuntimeError)
+        self.assertIsInstance(ctx.exception.exceptions[0], RuntimeError)
         self.assertEqual(len(good.calls), 2)
 
     def test_async(self) -> None:

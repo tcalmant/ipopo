@@ -31,8 +31,8 @@ import contextvars
 import logging
 import re
 import threading
-from collections.abc import Callable, Iterator, Mapping
-from typing import Any
+from collections.abc import Callable, Iterator, Mapping, Sequence
+from typing import Any, Self
 
 import pelix.threadpool
 
@@ -115,23 +115,39 @@ def topic_matches(scope: str, topic: str) -> bool:
 # ------------------------------------------------------------------------------
 
 
-class EventDeliveryError(Exception):
+class EventDeliveryError(ExceptionGroup):
     """
     Raised by a synchronous delivery, when asked to, if at least one handler failed.
 
-    All the handlers have been notified when it is raised: ``errors`` lists the
-    failures, and the first one is the ``__cause__`` of this exception.
+    All the handlers have been notified when it is raised: it groups their
+    exceptions, and ``errors`` gives the service ID of the handler of each one.
     """
 
-    def __init__(self, topic: str, errors: list[tuple[Any, BaseException]]) -> None:
+    def __new__(cls, topic: str, errors: list[tuple[Any, Exception]]) -> Self:
+        # ExceptionGroup takes its message and exceptions in __new__
+        return super().__new__(cls, f"Handlers failed on event {topic!r}", [ex for _, ex in errors])
+
+    def __init__(self, topic: str, errors: list[tuple[Any, Exception]]) -> None:
         """
         :param topic: Topic of the event
         :param errors: A list of (service ID of the handler, exception) tuples
         """
-        super().__init__(f"{len(errors)} handler(s) failed on event {topic!r}: {errors[0][1]!r}")
+        # Keeps these arguments in args, as pickle gives them back to __new__: the
+        # base __init__ accepts anything, whatever the stubs say
+        super().__init__(topic, errors)  # ty: ignore[invalid-argument-type]
         self.topic = topic
         self.errors = errors
-        self.__cause__ = errors[0][1]
+
+    def derive(self, excs: Sequence[Exception]) -> "EventDeliveryError":
+        # Called by split() and except*: keeps the topic and the handler of each exception.
+        # They come in their original order, but a nested group comes as a new group, with
+        # the traceback of the original one
+        remaining = iter(self.errors)
+        errors = []
+        for ex in excs:
+            sid = next(sid for sid, orig in remaining if orig is ex or orig.__traceback__ is ex.__traceback__)
+            errors.append((sid, ex))
+        return EventDeliveryError(self.topic, errors)
 
 
 class EventProperties(Mapping[str, Any]):

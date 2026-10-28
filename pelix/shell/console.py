@@ -82,14 +82,14 @@ try:
     # Set up readline if available
     import readline
 
-    readline.parse_and_bind("tab: complete")  # type: ignore
-    readline.set_completer(None)  # type: ignore
+    readline.parse_and_bind("tab: complete")
+    readline.set_completer(None)
 
     HAS_READLINE = True
 except ImportError:
     # Readline is missing, not critical
     HAS_READLINE = False
-    readline = None  # type: ignore
+    readline = None
 
 # ------------------------------------------------------------------------------
 
@@ -258,13 +258,13 @@ class InteractiveShell:
             # New completion, reset the list of matches and the display hook
             self._readline_matches = []
             try:
-                readline.set_completion_display_matches_hook(None)  # type: ignore
+                readline.set_completion_display_matches_hook(None)
             except AttributeError:
                 pass
 
             # Get the full line
-            full_line = readline.get_line_buffer()  # type: ignore
-            begin_idx = readline.get_begidx()  # type: ignore
+            full_line = readline.get_line_buffer()
+            begin_idx = readline.get_begidx()
 
             # Parse arguments as best as we can
             try:

@@ -57,7 +57,7 @@ try:
                 cov.save()
 
 except ImportError:
-    WrappedProcess = Process  # type: ignore
+    WrappedProcess = Process
 
 
 def is_server_reachable(host: str, port: int, timeout: float = 1.0) -> bool:

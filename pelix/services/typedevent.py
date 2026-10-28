@@ -305,7 +305,7 @@ class TypedEventAdmin(pelix.services.TypedEventBus, pelix.services.TypedEventMon
         topic: str,
         event: object | None,
         data: Mapping[str, Any],
-        errors: list[tuple[Any, BaseException]] | None,
+        errors: list[tuple[Any, Exception]] | None,
     ) -> None:
         """
         Calls one handler, reporting its failure in ``errors`` if given
@@ -355,7 +355,7 @@ class TypedEventAdmin(pelix.services.TypedEventBus, pelix.services.TypedEventMon
 
         targets = self._select(context, topic, shared)
         if sync:
-            errors: list[tuple[Any, BaseException]] | None = [] if raise_errors else None
+            errors: list[tuple[Any, Exception]] | None = [] if raise_errors else None
             for target in targets:
                 self._notify(context, target, topic, event, shared, errors)
             if errors:

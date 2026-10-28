@@ -70,14 +70,15 @@ documentation.
 Note on this version
 ====================
 
-This is the 3.x branch of iPOPO, which is intended to work with Python 3.10+.
-It is tested from Python 3.10 to 3.15?
+This is the 3.x branch of iPOPO, which is intended to work with Python 3.11+.
+It is tested from Python 3.11 to 3.15.
 The iPOPO API didn't change much between v1 and v3: code written for iPOPO v1
 should generally remain compatible with iPOPO v3 as long as the Python syntax
 and dependencies are also compatible with newer Python versions.
 If that is not the case, please fill in a bug report on
 `GitHub issues <https://github.com/tcalmant/ipopo/issues>`_.
 
+If you are working with Python 3.10, use iPOPO 3.2.x.
 If you are working with Python 2.7 or versions earlier than 3.10, you must
 instead use the `1.x branch <https://github.com/tcalmant/ipopo/tree/v1>`_ of
 iPOPO.
@@ -525,9 +526,10 @@ Compatibility
 
 Pelix and iPOPO are tested using
 `GitHub actions <https://github.com/tcalmant/ipopo/actions>`_
-targeting Python 3.10 to 3.15.
+targeting Python 3.11 to 3.15.
 
-iPOPO v3 doesn't support Python 2 nor versions earlier than 3.10.
+iPOPO v3 doesn't support Python 2 nor versions earlier than 3.10, and requires
+Python 3.11+ since iPOPO 3.3.0.
 If you need to work with those versions of Python, please use iPOPO v1.
 You can then use Remote Services to allow interactions between iPOPO v1 and v3.
 

@@ -32,7 +32,6 @@ from typing import (
     Generic,
     Protocol,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -78,7 +77,7 @@ class ShrinkableList(MutableSequence[T]):
     @overload
     def __getitem__(self, index: slice) -> MutableSequence[T]: ...
 
-    def __getitem__(self, index):  # type: ignore
+    def __getitem__(self, index):
         return self._delegate[index]
 
     def __delitem__(self, index: int | slice) -> None:
@@ -90,7 +89,7 @@ class ShrinkableList(MutableSequence[T]):
     @overload
     def __setitem__(self, index: slice, values: Iterable[T]) -> None: ...
 
-    def __setitem__(self, index, value) -> None:  # type: ignore
+    def __setitem__(self, index, value) -> None:
         raise IndexError
 
     def insert(self, index: int, value: T) -> None:
@@ -143,7 +142,7 @@ class ListenerInfo(Generic[T]):
         bundle_context: "BundleContext",
         listener: T,
         specification: str | None,
-        ldap_filter: Union[None, "LDAPCriteria", "LDAPFilter"],
+        ldap_filter: "LDAPCriteria | LDAPFilter | None",
     ) -> None:
         """
         :param bundle_context: Bundle context
@@ -178,7 +177,7 @@ class ListenerInfo(Generic[T]):
         return self.__specification
 
     @property
-    def ldap_filter(self) -> Union[None, "LDAPCriteria", "LDAPFilter"]:
+    def ldap_filter(self) -> "LDAPCriteria | LDAPFilter | None":
         """
         The LDAP filter on service properties
         """

@@ -17,7 +17,7 @@ iPOPO process.
 
 ## Requirements
 
-This sample requires Python 3.10+ and launching the Java sample prior to
+This sample requires Python 3.11+ and launching the Java sample prior to
 proceeding with {ref}`Starting the Python Sample <rsa_tutorial_py4j_starting_python_sample>`.
 
 It is also required to have installed the

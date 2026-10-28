@@ -8,6 +8,12 @@
 Unreleased
 :::
 
+### Project
+
+* Dropped support for Python 3.10, which reached its end of life: iPOPO now
+  requires Python 3.11 or newer. Use iPOPO 3.2.x with Python 3.10
+* Removed the `tomli` dependency, replaced by the standard `tomllib`
+
 ### Security
 
 * Added the `pelix.http.cors.enforce` property to the HTTP services: a request
@@ -68,8 +74,8 @@ Unreleased
 * EventAdmin: the topic of an event can be tested by a handler filter, as the
   `event.topics` property (OSGi 113.3.2)
 * EventAdmin: `send()` accepts `raise_errors=True` to raise an
-  `EventDeliveryError` once all the handlers were notified, if some of them
-  failed
+  `EventDeliveryError`, an `ExceptionGroup`, once all the handlers were
+  notified, if some of them failed
 * EventAdmin: `send()` and `post()` accept `copy=False` to give all the
   handlers one shared immutable `EventProperties` instead of a deep copy each,
   so that values which can't be copied (locks, connections) can travel with

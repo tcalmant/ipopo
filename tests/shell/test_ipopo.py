@@ -80,7 +80,7 @@ class IPopoShellTest(unittest.TestCase):
         """
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
-        self.shell = None  # type: ignore
+        self.shell = None
         self.framework = None  # type: ignore
 
     def testFactoriesListing(self) -> None:

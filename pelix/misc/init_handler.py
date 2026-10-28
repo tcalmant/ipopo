@@ -332,7 +332,7 @@ class InitFileHandler:
             return at_least_one
         else:
             _, file_extension = os.path.splitext(filename)
-            with open(filename, "r") as filep:
+            with open(filename) as filep:
                 if file_extension == ".yaml" or file_extension == ".yml":
                     try:
                         import yaml

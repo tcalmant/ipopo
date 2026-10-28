@@ -348,7 +348,7 @@ class RSACommandHandler(ShellCommandsProvider):
         if not os.path.isfile(self._edef_filename):
             io_handler.write_line("EDEF file '{0}' does not exist!", self._edef_filename)
         else:
-            with open(self._edef_filename, "r") as f:
+            with open(self._edef_filename) as f:
                 eds = EDEFReader().parse(f.read())
 
             io_handler.write_line(EDEFWriter().to_string(eds))

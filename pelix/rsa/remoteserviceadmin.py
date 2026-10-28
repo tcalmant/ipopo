@@ -29,9 +29,9 @@ Remote Service Admin API
 import logging
 import sys
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from traceback import print_exception
-from typing import IO, Any, Optional, Protocol, cast
+from typing import IO, Any, Protocol, cast
 
 from pelix import constants
 from pelix.constants import (
@@ -568,7 +568,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
 
     def _find_existing_export_endpoint(
         self, svc_ref: ServiceReference[Any], cid: tuple[str, str]
-    ) -> Optional["ExportRegistrationImpl"]:
+    ) -> "ExportRegistrationImpl | None":
         for er in self._exported_regs:
             if er.match_sr(svc_ref, cid):
                 return er
@@ -707,10 +707,10 @@ class _ExportEndpoint:
                 self.__rsa._remove_exported_service(export_reg)
 
                 # Clean up
-                self.__ed = None  # type: ignore
-                self.__export_container = None  # type: ignore
-                self.__svc_ref = None  # type: ignore
-                self.__rsa = None  # type: ignore
+                self.__ed = None
+                self.__export_container = None
+                self.__svc_ref = None
+                self.__rsa = None
                 return True
 
         return False
@@ -1554,7 +1554,7 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
         self._output.write("---End Exception Stack---\n")
 
     def write_type(self, event_type: int) -> None:
-        (dt, micro) = datetime.now(tz=timezone.utc).strftime("%H:%M:%S.%f").split(".")
+        (dt, micro) = datetime.now(tz=UTC).strftime("%H:%M:%S.%f").split(".")
         dt = f"{dt}.{int(micro) // 1000:03d}"
         self._output.write(dt + ";" + self._eventtypestr.get(event_type, "UNKNOWN") + ";")
 

@@ -117,7 +117,7 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher, pelix.http.Servlet):
         data = to_str(request.read_data())
 
         # Dispatch
-        result = self._marshaled_dispatch(data, self._simple_dispatch)  # type: ignore
+        result = self._marshaled_dispatch(data, self._simple_dispatch)
 
         # Send the result
         response.send_content(200, result, "text/xml")

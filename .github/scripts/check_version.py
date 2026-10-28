@@ -38,9 +38,8 @@ import argparse
 import pathlib
 import re
 import sys
-from collections.abc import Iterator
-
 import tomllib
+from collections.abc import Iterator
 
 # Module version
 __version_info__ = (3, 3, 0)

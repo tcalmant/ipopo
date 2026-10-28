@@ -71,8 +71,8 @@ class ShellReportTest(unittest.TestCase):
         if os.path.exists(self.out_file):
             os.remove(self.out_file)
 
-        self.report = None  # type: ignore
-        self.shell = None  # type: ignore
+        self.report = None
+        self.shell = None
         self.context = None  # type: ignore
         self.framework = None  # type: ignore
 
@@ -188,7 +188,7 @@ class ShellReportTest(unittest.TestCase):
         self.assertTrue(os.path.exists(self.out_file))
 
         # Check content
-        with open(self.out_file, "r") as report_file:
+        with open(self.out_file) as report_file:
             self.assertEqual(report_content, report_file.read())
 
     def test_clear(self) -> None:

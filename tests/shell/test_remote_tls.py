@@ -512,8 +512,8 @@ class TLSRemoteShellTest(unittest.TestCase):
         """
         try:
             self.framework.stop()
-            self.remote = None  # type: ignore
-            self.shell = None  # type: ignore
+            self.remote = None
+            self.shell = None
             self.framework = None  # type: ignore
         finally:
             FrameworkFactory.delete_framework()

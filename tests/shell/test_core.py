@@ -62,7 +62,7 @@ class ShellUtilsTest(unittest.TestCase):
         """
         self.framework.stop()
         FrameworkFactory.delete_framework()
-        self.utility = None  # type: ignore
+        self.utility = None
         self.context = None  # type: ignore
         self.framework = None  # type: ignore
 
@@ -174,7 +174,7 @@ class ShellCoreTest(unittest.TestCase):
         """
         self.framework.stop()
         FrameworkFactory.delete_framework()
-        self.shell = None  # type: ignore
+        self.shell = None
         self.context = None  # type: ignore
         self.framework = None  # type: ignore
         self._flag = False
@@ -202,14 +202,14 @@ class ShellCoreTest(unittest.TestCase):
         # Invalid command
         for invalid in (None, "", "  "):
             self.assertFalse(
-                self.shell.register_command("test", invalid, self._command1),  # type: ignore
+                self.shell.register_command("test", invalid, self._command1),
                 f"Invalid command registered: '{invalid}'",
             )
 
         # Invalid method
         self.assertFalse(
             self.shell.register_command("test", "invalid", None),
-            "Invalid method registered",  # type: ignore
+            "Invalid method registered",
         )
 
     def testExecute(self) -> None:
@@ -235,7 +235,7 @@ class ShellCoreTest(unittest.TestCase):
         """
         # Empty line
         for empty in (None, "", "   "):
-            self.assertFalse(self.shell.execute(empty), f"No error executing '{empty}'")  # type: ignore
+            self.assertFalse(self.shell.execute(empty), f"No error executing '{empty}'")
 
         # Unknown command
         for unknown in ("unknown", "test.unknown", "unknown.unknown"):
@@ -335,7 +335,7 @@ class ShellCommandTest(unittest.TestCase):
         """
         self.framework.stop()
         FrameworkFactory.delete_framework()
-        self.shell = None  # type: ignore
+        self.shell = None
         self.context = None  # type: ignore
         self.framework = None  # type: ignore
 
@@ -442,7 +442,7 @@ class ShellCommandTest(unittest.TestCase):
 
         # Unregister the service
         svc_reg.unregister()
-        svc_reg = None  # type: ignore
+        svc_reg = None
 
         # Check state
         self.assertFalse(self.shell.execute("test.command"), "'test.command' can still be called")
@@ -480,7 +480,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         """
         self.framework.stop()
         FrameworkFactory.delete_framework()
-        self.shell = None  # type: ignore
+        self.shell = None
         self.context = None  # type: ignore
         self.framework = None  # type: ignore
 

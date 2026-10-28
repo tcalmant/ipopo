@@ -45,7 +45,7 @@ if TYPE_CHECKING:
 try:
     import readline
 except ImportError:
-    readline = None  # type: ignore
+    readline = None
 
 # ------------------------------------------------------------------------------
 
