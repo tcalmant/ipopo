@@ -688,7 +688,7 @@ class Shell:
         Runs the given "script" file
         """
         try:
-            with open(filename, "r", encoding="utf8") as filep:
+            with open(filename, encoding="utf8") as filep:
                 for lineno, line in enumerate(filep):
                     line = line.strip()
                     if not line or line.startswith("#"):

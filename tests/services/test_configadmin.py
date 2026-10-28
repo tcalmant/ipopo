@@ -1272,7 +1272,7 @@ class FileInstallTest(unittest.TestCase):
         """
         Updates the modification time of the given file
         """
-        with open(filepath, "r"):
+        with open(filepath):
             os.utime(filepath, None)
 
     def write(self, filepath: str, value: Any) -> None:
