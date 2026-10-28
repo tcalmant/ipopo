@@ -47,6 +47,8 @@ from pelix.utilities import get_method_arguments, is_string, to_iterable
 T = TypeVar("T")
 RT = TypeVar("RT")
 P = ParamSpec("P")
+# Keeps the exact type of the method decorated by @Modified
+ModifiedT = TypeVar("ModifiedT", bound=Callable[[Any, dict[str, Any], dict[str, Any]], None])
 
 # ------------------------------------------------------------------------------
 
@@ -67,6 +69,7 @@ __all__ = [
     "Instantiate",
     "Invalidate",
     "InvalidateComponent",
+    "Modified",
     "PostRegistration",
     "PostUnregistration",
     "Property",
@@ -2286,6 +2289,48 @@ def Invalidate(method: Callable[[T, BundleContext], None]) -> Callable[[T, Bundl
     :raise TypeError: The decorated element is not a function
     """
     return InvalidateComponent(constants.ARG_BUNDLE_CONTEXT)(method)
+
+
+def Modified(method: ModifiedT) -> ModifiedT:
+    """
+    The modified callback decorator is called when the properties of a valid
+    component have been updated from outside, i.e. by
+    :meth:`~pelix.ipopo.constants.IPopoService.reconfigure` or by its
+    ConfigurationAdmin configuration, with the ``reconfigure`` update policy.
+    It is not called when the component updates its own properties, nor when
+    the update invalidated the component.
+
+    The decorated method must accept two dictionaries, with the new and the
+    previous values of the changed properties only. A property which didn't
+    exist before is missing from the second one. A hidden property updated
+    confidentially is given with its values in clear: don't log them as is.
+
+    It is the counterpart of the ``modified`` method of OSGi Declarative
+    Services, and its exceptions are logged and ignored.
+
+    :Example:
+
+    .. code-block:: python
+
+       @ComponentFactory()
+       @Property("_host", "host", "localhost")
+       class Foo:
+           @Modified
+           def modified(self, properties, old_properties):
+               if "host" in properties:
+                   # Reconnect to the new host
+                   ...
+
+    :param method: The decorated method
+    :raise TypeError: The decorated element is not a valid function
+    """
+    if not inspect.isroutine(method):
+        raise TypeError("@Modified can only be applied on functions")
+
+    # Tests the number of parameters
+    validate_method_arity(method, "properties", "old_properties")
+    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS, constants.IPOPO_CALLBACK_MODIFIED)
+    return method
 
 
 def PostRegistration(

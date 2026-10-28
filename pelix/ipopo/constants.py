@@ -59,6 +59,7 @@ __all__ = [
     "IPOPO_CALLBACK_BIND",
     "IPOPO_CALLBACK_BIND_FIELD",
     "IPOPO_CALLBACK_INVALIDATE",
+    "IPOPO_CALLBACK_MODIFIED",
     "IPOPO_CALLBACK_POST_REGISTRATION",
     "IPOPO_CALLBACK_POST_UNREGISTRATION",
     "IPOPO_CALLBACK_UNBIND",
@@ -206,6 +207,12 @@ IPOPO_CALLBACK_INVALIDATE = "INVALIDATE"
 """
 InvalidateComponent: Called when one the mandatory dependencies is unbound,
 with component-specific parameters
+"""
+
+IPOPO_CALLBACK_MODIFIED = "MODIFIED"
+"""
+Modified: called when the properties of a valid component have been updated
+from outside, e.g. by its configuration
 """
 
 IPOPO_CALLBACK_POST_REGISTRATION = "POST_REGISTRATION"
@@ -375,7 +382,8 @@ class IPopoService(Protocol):
         declared with ``@HiddenProperty`` is ignored unless its name is given
         prefixed with a dot (e.g. ``.password`` to update the property
         declared as ``password``), in which case its value is updated without
-        ever becoming public.
+        ever becoming public. A component which stays valid is notified of the
+        changes by its ``@Modified`` callback.
 
         :param name: Name of the component to reconfigure
         :param properties: The properties to update

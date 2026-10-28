@@ -731,8 +731,8 @@ class _IPopoService(IPopoService):
         """
         Updates the properties of a running component. The given properties are
         merged into the current ones: entries that are not given are left
-        unchanged. The name of the instance and the hidden properties can't be
-        modified.
+        unchanged. The name of the instance can't be modified, and a hidden
+        property only with its name prefixed with a dot.
 
         :param name: Name of the component to reconfigure
         :param properties: The properties to update
