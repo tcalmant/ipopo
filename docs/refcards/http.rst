@@ -458,7 +458,7 @@ A servlet for the Pelix HTTP service has the following methods:
    it is not necessary to implement them all: the service has a default
    behaviour for missing methods.
 
-   .. py:method:: accept_binding(path: str, parameters: Dict[str, Any]) -> bool | None
+   .. py:method:: accept_binding(path: str, parameters: dict[str, Any]) -> bool | None
 
       This method is called before trying to bind the servlet.
       If it returns False, the servlet won't be bound to the server.
@@ -471,7 +471,7 @@ A servlet for the Pelix HTTP service has the following methods:
       :param str path: The path of the servlet in the server
       :param dict parameters: The parameters of the server
 
-   .. py:method:: bound_to(path: str, parameters: Dict[str, Any]) -> bool | None
+   .. py:method:: bound_to(path: str, parameters: dict[str, Any]) -> bool | None
 
       This method is called when the servlet is bound to a path.
       If it returns False or raises an Exception, the registration is aborted.
@@ -479,7 +479,7 @@ A servlet for the Pelix HTTP service has the following methods:
       :param str path: The path of the servlet in the server
       :param dict parameters: The parameters of the server
 
-   .. py:method:: unbound_from(path: str, parameters: Dict[str, Any]) -> None
+   .. py:method:: unbound_from(path: str, parameters: dict[str, Any]) -> None
 
       This method is called when the servlet is bound to a path.
       The parameters are the ones given in :meth:`~HttpServlet.accept_binding`
@@ -563,7 +563,8 @@ This snippet shows how to write a component providing the servlet service:
           """
           Handle a GET
           """
-          content = """<html>
+          clt_addr = request.get_client_address()
+          content = f"""<html>
     <head>
     <title>Test SimpleServlet</title>
     </head>
@@ -571,13 +572,11 @@ This snippet shows how to write a component providing the servlet service:
     <ul>
     <li>Client address: {clt_addr[0]}</li>
     <li>Client port: {clt_addr[1]}</li>
-    <li>Host: {host}</li>
-    <li>Keys: {keys}</li>
+    <li>Host: {request.get_header('host', 0)}</li>
+    <li>Keys: {request.get_headers().keys()}</li>
     </ul>
     </body>
-    </html>""".format(clt_addr=request.get_client_address(),
-                    host=request.get_header('host', 0),
-                    keys=request.get_headers().keys())
+    </html>"""
 
           response.send_content(200, content)
 

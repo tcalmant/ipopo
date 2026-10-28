@@ -289,9 +289,8 @@ It has to provide the EventHandler specification, which is defined in the
           """
           Event received
           """
-          print('Got a {0} event from {1} at {2}' \
-                .format(topic, properties['name'],
-                        properties[pelix.services.EVENT_PROP_TIMESTAMP]))
+          timestamp = properties[pelix.services.EVENT_PROP_TIMESTAMP]
+          print(f"Got a {topic} event from {properties['name']} at {timestamp}")
 
 It is recommended to define an event filter property, even if it is set to
 ``None`` by default: it allows to customize the event handler when it is
