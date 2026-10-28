@@ -131,6 +131,9 @@ _warned_kinds: set[str] = set()
 # Set once the absence of any authorizer has been reported
 _warned_no_authorizer = False
 
+# Classes of the authenticators already reported for giving groups or roles themselves
+_warned_authenticators: set[str] = set()
+
 # The brute-force throttle of authenticate(), or None when it is disabled: one writer,
 # the activator below
 _throttle: "Throttle | None" = None
@@ -391,6 +394,28 @@ def _use_services(specification: Any, ldap_filter: str | None = None) -> Generat
                 context.unget_service(reference)
 
 
+def _warn_about_authenticator_membership(authenticator: Any) -> None:
+    """
+    Reports, once per class, an authenticator which gives groups or roles itself.
+
+    They are kept for this authentication only: restore_subject(), which HTTP sessions
+    and the shells call before each request or command, only asks the membership
+    providers. Kept rather than dropped, not to break the stores which rely on it.
+
+    :param authenticator: The authenticator
+    """
+    name = type(authenticator).__qualname__
+    if name in _warned_authenticators:
+        return
+
+    _warned_authenticators.add(name)
+    _logger.warning(
+        "%s gives groups or roles to the subjects it authenticates: they are lost when the "
+        "subject is restored, by an HTTP session or a shell. Give them with a MembershipProvider",
+        name,
+    )
+
+
 def _warn_about_missing_authenticator(kind: str) -> None:
     """
     Reports that no authenticator accepts a kind of credentials.
@@ -568,6 +593,9 @@ def _authenticate(credentials: Credentials) -> Subject:
         for authenticator in authenticators:
             candidate = authenticator.authenticate(credentials)
             if candidate is not None:
+                if candidate.groups or candidate.roles:
+                    _warn_about_authenticator_membership(authenticator)
+
                 subject = candidate
                 break
 

@@ -533,6 +533,11 @@ class Authenticator(Protocol):
         """
         Validates the given credentials.
 
+        It tells who the subject is: its groups and roles come from the
+        :class:`MembershipProvider` services. Groups or roles set here are only kept for
+        this authentication, and lost when the subject is restored later
+        (``restore_subject()``, as HTTP sessions and the shells do).
+
         :param credentials: What a transport extracted
         :return: A Subject on success, None to abstain (not my kind, not my user)
         :raise AuthenticationFailed: The credentials were presented and are wrong. No
