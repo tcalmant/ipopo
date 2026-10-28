@@ -157,8 +157,7 @@ If you are deploying iPOPO in production, and particularly on a network you do n
   `pelix.shell.ssl.ca` is **not optional**: setting `pelix.shell.ssl.cert` without it makes the shell accept any client certificate signed by any authority of the system trust store.
   Since 3.3.0 the shell refuses to start in that case (3.2.2 only logs an error)
 - **Keep TLS verification enabled on the XMPP client.**
-  Since 3.3.0 the XMPP shell verifies the certificate of the server by default: do not set its `shell.xmpp.tls.verify` property to `0`, nor pass `--no-tls-verify` to `python -m pelix.shell.xmpp`.
-  When using `pelix.misc.xmpp` directly, pass `ssl_verify=True`: its default does not verify server certificates
+  Since 3.3.0 the XMPP shell and `pelix.misc.xmpp` verify the certificate of the server by default: do not set the `shell.xmpp.tls.verify` property to `0`, pass `--no-tls-verify` to `python -m pelix.shell.xmpp`, nor give `ssl_verify=False` to the bots
 - **Keep Remote Services and mDNS discovery on trusted network segments only.**
   mDNS discovery accepts input from any host on the local link
 - **Validate any externally-derived Configuration Admin PID** before passing it to the Configuration Admin API

@@ -19,9 +19,10 @@ Unreleased
 * **Breaking:** the HTTP services now bind to `127.0.0.1` by default, instead
   of `0.0.0.0`. Set `pelix.http.address` to `0.0.0.0` to accept connections
   from other machines, for example to export remote services
-* **Breaking:** the XMPP shell now verifies the certificate of the XMPP server
-  by default. Set `shell.xmpp.tls.verify` to `0` (or use the `--no-tls-verify`
-  argument of `python -m pelix.shell.xmpp`) to restore the previous behaviour
+* **Breaking:** the XMPP shell and the bots of `pelix.misc.xmpp` now verify the
+  certificate of the XMPP server by default. Set `shell.xmpp.tls.verify` to `0`
+  (or use the `--no-tls-verify` argument of `python -m pelix.shell.xmpp`), or
+  give `ssl_verify=False` to the bots, to restore the previous behaviour
 * **Breaking:** the remote shell refuses to start when `pelix.shell.ssl.cert` is
   set without `pelix.shell.ssl.ca`, instead of only logging an error: any client
   certificate signed by any authority of the system trust store was accepted
