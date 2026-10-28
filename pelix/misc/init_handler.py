@@ -31,7 +31,7 @@ be used by shells to load a default configuration.
 import json
 import os
 import sys
-from collections.abc import Generator
+from collections.abc import Generator, Iterable
 from typing import Any
 
 from pelix.framework import BundleContext
@@ -235,11 +235,11 @@ class _Configuration:
         os.environ.update(self._environment)
 
         # Normalize paths and avoid duplicates
-        self._paths = remove_duplicates(
-            os.path.realpath(os.path.expanduser(os.path.expandvars(path)))
-            for path in self._paths
-            if os.path.exists(path)
+        # (expanded first: "~/lib" or "$HOME/lib" never exist as written)
+        expanded_paths = (
+            os.path.realpath(os.path.expanduser(os.path.expandvars(path))) for path in self._paths
         )
+        self._paths = remove_duplicates(path for path in expanded_paths if os.path.exists(path))
 
         # Normalize the lists of bundles
         self._bundles = remove_duplicates(self._bundles)
@@ -264,7 +264,14 @@ class InitFileHandler:
     Order is from system wide to user specific configuration.
     """
 
-    def __init__(self) -> None:
+    def __init__(self, search_path: Iterable[str] | None = None) -> None:
+        """
+        :param search_path: Folders where :meth:`load` looks for the default
+                            file, from system wide to user specific (default:
+                            :attr:`DEFAULT_PATH`, which includes ``.``)
+        """
+        self.__search_path = tuple(search_path) if search_path is not None else None
+
         # The internal state
         self.__state = _Configuration()
 
@@ -297,7 +304,7 @@ class InitFileHandler:
         :param filename: The name of the file to find
         :return: The complete path to the found files
         """
-        for path in self.DEFAULT_PATH:
+        for path in self.__search_path if self.__search_path is not None else self.DEFAULT_PATH:
             # Normalize path
             path = os.path.expanduser(os.path.expandvars(path))
             fullname = os.path.realpath(os.path.join(path, filename))
@@ -360,13 +367,16 @@ class InitFileHandler:
             # Update configuration
             method(configuration.get(entry))
 
-    def normalize(self) -> None:
+    def normalize(self, cwd_first: bool = True) -> None:
         """
         Normalizes environment variables and the Python path.
 
         This method first updates the environment variables (``os.environ``).
         Then, it normalizes the Python path (``sys.path``) by resolving all
         references to the user directory and environment variables.
+
+        :param cwd_first: If True, force ``.`` first in ``sys.path``: a module
+                          of the current folder then hides an installed one
         """
         # Normalize configuration
         self.__state.normalize()
@@ -375,13 +385,14 @@ class InitFileHandler:
         whole_path = list(self.__state.paths)
         whole_path.extend(sys.path)
 
-        # Ensure the working directory as first search path
-        sys.path = ["."]
+        sys.path = ["."] if cwd_first else []
         for path in whole_path:
             if path not in sys.path:
                 sys.path.append(path)
 
-    def instantiate_components(self, context: BundleContext) -> None:
+    def instantiate_components(
+        self, context: BundleContext, stop_on_error: bool = True
+    ) -> list[tuple[str, Exception]]:
         """
         Instantiate the defined components
 
@@ -391,9 +402,26 @@ class InitFileHandler:
            the list of bundles (or installed and started programmatically).
 
         :param context: A :class:`~pelix.framework.BundleContext` object
+        :param stop_on_error: If True (the default), the first error is raised
+                              and the following components are not
+                              instantiated. If False, all the components are
+                              tried and the errors are returned.
+        :return: The (component name, error) tuples of the components which
+                 couldn't be instantiated: always empty if ``stop_on_error``
+                 is True
         :raise BundleException: Error looking for the iPOPO service or
-                                starting a component
+                                (if ``stop_on_error`` is True) starting a
+                                component
         """
+        errors: list[tuple[str, Exception]] = []
         with use_ipopo(context) as ipopo:
             for name, (factory, properties) in self.__state.components.items():
-                ipopo.instantiate(factory, name, properties)
+                try:
+                    ipopo.instantiate(factory, name, properties)
+                except Exception as ex:
+                    if stop_on_error:
+                        raise
+
+                    errors.append((name, ex))
+
+        return errors

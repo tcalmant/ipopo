@@ -589,6 +589,10 @@ class StoredInstance:
 
                 # Call @ValidateComponent first, then @Validate
                 if not self.__safe_validation_callback(constants.IPOPO_CALLBACK_VALIDATE):
+                    if self._ipopo_service is None:
+                        # Killed by a FrameworkException: nothing left to invalidate
+                        return False
+
                     # Stop there if the callback failed
                     self.state = StoredInstance.VALID
                     self.invalidate(True)
