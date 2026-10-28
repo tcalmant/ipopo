@@ -43,6 +43,7 @@ from typing import (
     Concatenate,
     Generic,
     ParamSpec,
+    Self,
     TypeVar,
     cast,
 )
@@ -749,7 +750,7 @@ class StreamBase(IO[AnyStr]):
         """
         self._closed = False
 
-    def __enter__(self) -> "StreamBase[AnyStr]":
+    def __enter__(self) -> Self:
         return self
 
     def __exit__(
