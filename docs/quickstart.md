@@ -327,8 +327,8 @@ Bundle ID: 16
 $ start 16
 Starting bundle 16 (pelix.http.basic)...
 $ instantiate pelix.http.service.basic.factory httpd pelix.http.port=8000
-INFO:httpd:Starting HTTP server: [0.0.0.0]:8000 ...
-INFO:httpd:HTTP server started: [0.0.0.0]:8000
+INFO:httpd:Starting HTTP server: [127.0.0.1]:8000 ...
+INFO:httpd:HTTP server started: [127.0.0.1]:8000
 Component 'httpd' instantiated.
 ```
 

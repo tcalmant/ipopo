@@ -28,6 +28,7 @@ except ImportError:
 
 from pelix.framework import Framework, FrameworkFactory, create_framework
 from pelix.ipopo.constants import use_ipopo
+from pelix.ipopo.instance import StoredInstance
 from pelix.shell import FACTORY_REMOTE_SHELL, RemoteShell, ShellService
 from pelix.utilities import to_bytes, to_str
 from tests.http.gen_cert import call_openssl, make_subj, write_conf
@@ -643,42 +644,32 @@ class TLSRemoteShellTest(unittest.TestCase):
             # Close the client in any case
             client.close()
 
-    def test_missing_ca_warns_but_starts(self) -> None:
+    def test_missing_ca_refused(self) -> None:
         """
-        Tests that a certificate without an authority chain is accepted, but
-        warned about: without a CA file, any client certificate signed by any
-        CA of the system trust store would be accepted.
+        Tests that a certificate without an authority chain is refused: without
+        a CA file, any client certificate signed by any CA of the system trust
+        store would be accepted.
         """
         srv_cert = os.path.join(TMP_DIR, "server.crt")
         srv_key = os.path.join(TMP_DIR, "server.key")
 
         # Start the remote shell without a CA file
-        context = self.framework.get_bundle_context()
-        with (
-            self.assertLogs("pelix.shell.remote", level="ERROR") as logs,
-            use_ipopo(context) as ipopo,
-        ):
-            self.remote = cast(
-                RemoteShell,
-                ipopo.instantiate(
-                    FACTORY_REMOTE_SHELL,
-                    "remoteShell",
-                    {
-                        "pelix.shell.address": "127.0.0.1",
-                        "pelix.shell.port": 0,
-                        "pelix.shell.ssl.cert": srv_cert,
-                        "pelix.shell.ssl.key": srv_key,
-                    },
-                ),
+        with use_ipopo(self.framework.get_bundle_context()) as ipopo:
+            ipopo.instantiate(
+                FACTORY_REMOTE_SHELL,
+                "remoteShell",
+                {
+                    "pelix.shell.address": "127.0.0.1",
+                    "pelix.shell.port": 0,
+                    "pelix.shell.ssl.cert": srv_cert,
+                    "pelix.shell.ssl.key": srv_key,
+                },
             )
+            details = ipopo.get_instance_details("remoteShell")
 
-        # The warning must name the property to set
-        self.assertIn("pelix.shell.ssl.ca", "\n".join(logs.output))
-
-        # ... but the shell must still be running (this is to change in 3.3.0)
-        _, port = self.remote.get_access()
-        assert port is not None
-        self.assertGreater(port, 0)
+        # The error must name the property to set
+        self.assertEqual(details["state"], StoredInstance.ERRONEOUS)
+        self.assertIn("pelix.shell.ssl.ca", details["error_trace"])
 
     def test_ssl_context_is_reused(self) -> None:
         """

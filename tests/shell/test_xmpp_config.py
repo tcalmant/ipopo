@@ -97,33 +97,16 @@ class XMPPShellConfigTest(unittest.TestCase):
         assert isinstance(bot, _FakeBot)
         return bot
 
-    def test_tls_verify_disabled_by_default(self) -> None:
+    def test_tls_verify(self) -> None:
         """
-        The certificate of the server is not verified by default (3.2.x)
+        The certificate of the server is verified unless shell.xmpp.tls.verify is 0
         """
-        bot = self.instantiate({})
-        self.assertFalse(bot.kwargs["ssl_verify"])
-
-    def test_tls_verify_enabled(self) -> None:
-        """
-        The shell.xmpp.tls.verify property reaches the bot
-        """
-        bot = self.instantiate({"shell.xmpp.tls.verify": "1"})
-        self.assertTrue(bot.kwargs["ssl_verify"])
-
-    def test_tls_verify_explicitly_disabled(self) -> None:
-        """
-        The shell.xmpp.tls.verify property can be set to 0 explicitly
-        """
-        bot = self.instantiate({"shell.xmpp.tls.verify": "0"})
-        self.assertFalse(bot.kwargs["ssl_verify"])
-
-    def test_tls_verify_invalid_value(self) -> None:
-        """
-        An unparsable value falls back to the default (no verification)
-        """
-        bot = self.instantiate({"shell.xmpp.tls.verify": "yes please"})
-        self.assertFalse(bot.kwargs["ssl_verify"])
+        for value, expected in ((None, True), ("1", True), ("0", False), ("yes please", True)):
+            with self.subTest(value=value):
+                bot = self.instantiate({} if value is None else {"shell.xmpp.tls.verify": value})
+                self.assertEqual(bot.kwargs["ssl_verify"], expected)
+                with use_ipopo(self.context) as ipopo:
+                    ipopo.kill("xmpp-shell")
 
 
 # ------------------------------------------------------------------------------

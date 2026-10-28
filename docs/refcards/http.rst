@@ -27,54 +27,54 @@ Configuration properties
 
 All implementations of the HTTP service must support the following properties:
 
-=============================== ======= ========================================
-Property                        Default Description
-=============================== ======= ========================================
-pelix.http.address              0.0.0.0 The address the HTTP server is bound to
-pelix.http.port                 8080    The port the HTTP server is bound to
-pelix.http.debug                False   If set, error pages sent to the clients
-                                        contain the stack trace of the error,
-                                        and the 404 page lists the registered
-                                        servlet paths
-pelix.http.max_body_size        1048576 Maximum size, in bytes, of the body of a
-                                        request. A request with a bigger body is
-                                        answered with a 413 error code. A value
-                                        lesser than or equal to 0 removes the
-                                        limit
-pelix.http.socket_timeout       60      Timeout, in seconds, of the sockets
-                                        handling the requests. A client which
-                                        takes longer to send its request gets a
-                                        408 error code. A value lesser than or
-                                        equal to 0 removes the timeout
-pelix.http.case_sensitive_paths True    If set, servlet paths are matched
-                                        case-sensitively, as URI paths are
-                                        defined to be. Unset it to restore the
-                                        folding of earlier releases
-pelix.http.allowed_hosts        (none)  Host names accepted in the ``Host``
-                                        header, as a list or a comma-separated
-                                        string. Other requests, or requests
-                                        without ``Host``, get a 403 error code.
-                                        An entry without port matches any port.
-                                        If not set or empty, the header is not
-                                        checked
-pelix.http.proxy.trusted        (none)  Addresses or networks (CIDR) of the
-                                        reverse proxies believed when they
-                                        send ``X-Forwarded-For`` and
-                                        ``X-Forwarded-Proto``. They give the
-                                        client address, and tell if it used
-                                        HTTPS (the ``Origin`` check needs it).
-                                        The proxy must keep the ``Host``
-                                        header. Ignored for other peers
-pelix.http.cors.enforce         False   If set, a request with an ``Origin``
-                                        header which is neither the server's
-                                        own origin nor allowed by the CORS
-                                        policy gets a 403 error code, and no
-                                        servlet is called (see :ref:`http_cors`)
-pelix.http.auth.required        False   If set, requests must carry valid
-                                        credentials (see :ref:`http_auth`)
-pelix.http.auth.realm           Pelix   Protection space given in the
-                                        authentication challenges
-=============================== ======= ========================================
+=============================== ========= ========================================
+Property                        Default   Description
+=============================== ========= ========================================
+pelix.http.address              127.0.0.1 The address the HTTP server is bound to
+pelix.http.port                 8080      The port the HTTP server is bound to
+pelix.http.debug                False     If set, error pages sent to the clients
+                                          contain the stack trace of the error,
+                                          and the 404 page lists the registered
+                                          servlet paths
+pelix.http.max_body_size        1048576   Maximum size, in bytes, of the body of a
+                                          request. A request with a bigger body is
+                                          answered with a 413 error code. A value
+                                          lesser than or equal to 0 removes the
+                                          limit
+pelix.http.socket_timeout       60        Timeout, in seconds, of the sockets
+                                          handling the requests. A client which
+                                          takes longer to send its request gets a
+                                          408 error code. A value lesser than or
+                                          equal to 0 removes the timeout
+pelix.http.case_sensitive_paths True      If set, servlet paths are matched
+                                          case-sensitively, as URI paths are
+                                          defined to be. Unset it to restore the
+                                          folding of earlier releases
+pelix.http.allowed_hosts        (none)    Host names accepted in the ``Host``
+                                          header, as a list or a comma-separated
+                                          string. Other requests, or requests
+                                          without ``Host``, get a 403 error code.
+                                          An entry without port matches any port.
+                                          If not set or empty, the header is not
+                                          checked
+pelix.http.proxy.trusted        (none)    Addresses or networks (CIDR) of the
+                                          reverse proxies believed when they
+                                          send ``X-Forwarded-For`` and
+                                          ``X-Forwarded-Proto``. They give the
+                                          client address, and tell if it used
+                                          HTTPS (the ``Origin`` check needs it).
+                                          The proxy must keep the ``Host``
+                                          header. Ignored for other peers
+pelix.http.cors.enforce         False     If set, a request with an ``Origin``
+                                          header which is neither the server's
+                                          own origin nor allowed by the CORS
+                                          policy gets a 403 error code, and no
+                                          servlet is called (see :ref:`http_cors`)
+pelix.http.auth.required        False     If set, requests must carry valid
+                                          credentials (see :ref:`http_auth`)
+pelix.http.auth.realm           Pelix     Protection space given in the
+                                          authentication challenges
+=============================== ========= ========================================
 
 .. versionadded:: 3.2.2
    ``pelix.http.max_body_size`` and ``pelix.http.socket_timeout``.

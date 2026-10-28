@@ -16,6 +16,15 @@ Unreleased
 
 ### Security
 
+* **Breaking:** the HTTP services now bind to `127.0.0.1` by default, instead
+  of `0.0.0.0`. Set `pelix.http.address` to `0.0.0.0` to accept connections
+  from other machines, for example to export remote services
+* **Breaking:** the XMPP shell now verifies the certificate of the XMPP server
+  by default. Set `shell.xmpp.tls.verify` to `0` (or use the `--no-tls-verify`
+  argument of `python -m pelix.shell.xmpp`) to restore the previous behaviour
+* **Breaking:** the remote shell refuses to start when `pelix.shell.ssl.cert` is
+  set without `pelix.shell.ssl.ca`, instead of only logging an error: any client
+  certificate signed by any authority of the system trust store was accepted
 * Added the `pelix.http.cors.enforce` property to the HTTP services: a request
   carrying an `Origin` header which is neither the origin of the server nor
   allowed by the CORS policy is answered with a 403 error code, instead of

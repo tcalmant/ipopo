@@ -91,8 +91,8 @@ _logger = logging.getLogger(__name__)
 HTTP_SERVICE_EXTRA = "http.extra"
 """ HTTP service extra properties (dictionary) """
 
-DEFAULT_BIND_ADDRESS = "0.0.0.0"
-""" By default, bind to all IPv4 interfaces """
+DEFAULT_BIND_ADDRESS = "127.0.0.1"
+""" By default, bind to the local IPv4 interface only """
 
 LOCALHOST_ADDRESS = "127.0.0.1"
 """

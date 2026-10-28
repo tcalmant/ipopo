@@ -1475,11 +1475,10 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         if self._cert_file and not self._ca_file and not self._unix_path:
             # Without an explicit authority chain, any client certificate signed
             # by any CA of the system trust store would be accepted
-            _logger.error(
+            raise ValueError(
                 "pelix.shell.ssl.cert is set without pelix.shell.ssl.ca: ANY client certificate "
-                "signed by ANY CA in the system trust store will be accepted by a shell which can "
-                "install and start arbitrary bundles. Set pelix.shell.ssl.ca. "
-                "This configuration will be refused in iPOPO 3.3.0."
+                "signed by ANY CA in the system trust store would be accepted by a shell which can "
+                "install and start arbitrary bundles. Set pelix.shell.ssl.ca."
             )
 
         # Start the server
