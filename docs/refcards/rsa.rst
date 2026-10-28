@@ -69,61 +69,34 @@ Providers included with Pelix/iPOPO
 iPOPO includes some discovery and transport providers. More of them will be
 added in future releases.
 
-etcd Discovery
---------------
-
-:Bundle: pelix.rsa.providers.discovery.discovery_etcd
-:Requires: *none*
-:Libraries: `python-etcd <https://github.com/jplana/python-etcd>`__
-
-This discovery provider uses `etcd <https://etcd.io/docs/v2.3/>`__ as
-a store of descriptions of endpoints.
-It depends on the `python-etcd <https://github.com/jplana/python-etcd>`__
-third-party package.
-
-This discovery provider is instantiated immediately as the bundle is
-started. The instance configuration must therefore be given as Framework
-properties. Another solution is to kill the ``etcd-endpoint-discovery``
-component and restart it with custom properties.
-
-This provider can be configured with the following properties:
-
-======================= ===================================================== =========================================
-Property                Default value                                         Description
-======================= ===================================================== =========================================
-``etcd.hostname``       localhost                                             Address of the etcd server
-``etcd.port``           2379                                                  Port of the etcd server
-``etcd.toppath``        /org.eclipse.ecf.provider.etcd.EtcdDiscoveryContainer Path in etcd where to store endpoints
-``etcd.sessionttl``     30                                                    Session Time To Live
-======================= ===================================================== =========================================
-
 etcd3 Discovery
 ---------------
 
 :Bundle: pelix.rsa.providers.discovery.etcd3
 :Requires: *none*
-:Libraries: `etcd3 <https://github.com/kragniz/python-etcd3>`__
+:Libraries: `grpcio <https://grpc.io/>`__ and ``protobuf`` (``RSA`` extra)
 
-This discovery provider uses `etcd3 <https://etcd.io/docs/v3.5/>`__ as
-a store of descriptions of endpoints.
-It depends on the `etcd3 <https://github.com/kragniz/python-etcd3>`__
-third-party package.
+This discovery provider uses `etcd <https://etcd.io/docs/v3.5/>`__ (v3 API) as
+a store of descriptions of endpoints. It calls the etcd gRPC API directly, with
+code generated from the etcd ``.proto`` files.
 
-This discovery provider is instantiated immediately as the bundle is
-started. The instance configuration must therefore be given as Framework
-properties. Another solution is to kill the ``etcd-endpoint-discovery``
-component and restart it with custom properties.
+The bundle doesn't instantiate the provider: call
+``instantiate_etcd3_discovery_provider(context, properties)`` from this module,
+or instantiate the ``etcd3-endpoint-discovery-factory`` factory with iPOPO.
 
 This provider can be configured with the following properties:
 
-======================= ====================================================== =========================================
-Property                Default value                                          Description
-======================= ====================================================== =========================================
-``etcd.hostname``       localhost                                              Address of the etcd server
-``etcd.port``           2379                                                   Port of the etcd server
-``etcd.toppath``        org.eclipse.ecf.provider.etcd3.Etcd3DiscoveryContainer Path in etcd where to store endpoints
-``etcd.sessionttl``     30                                                     Session Time To Live
-======================= ====================================================== =========================================
+============================ ================================================================== ==============================================
+Property                     Default value                                                      Description
+============================ ================================================================== ==============================================
+``etcd.hostname``            localhost                                                          Address of the etcd server
+``etcd.port``                2379                                                               Port of the etcd server
+``etcd.top_key``             org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer   Key prefix shared by all the discovery clients
+``etcd.lease_ttl``           30                                                                 Time To Live of the lease, in seconds
+``etcd.keepalive_interval``  25                                                                 Lease keep alive interval, in seconds
+``etcd.call_timeout``        3                                                                  Timeout of the etcd calls, in seconds
+``etcd.grpc_credentials``    None                                                               ``grpc.ChannelCredentials``: TLS if set
+============================ ================================================================== ==============================================
 
 
 XML-RPC Distribution
