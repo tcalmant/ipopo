@@ -114,7 +114,7 @@ ones:
 | `-a ADDR`, `--address ADDR` | localhost | Server binding address |
 | `-p PORT`, `--port PORT` | 9000 | Server binding port |
 | `--unix PATH` | `None` | Listen on a Unix socket instead of an address and port (see [](#remote-shell-unix-socket)). Refused with the TLS arguments |
-| `--ca-chain FILE` | `None` | Path to the certificate authority chain file (to authenticate clients) |
+| `--ca-chain FILE` | `None` | Path to the certificate authority chain file (to authenticate clients), required with `--cert` |
 | `--cert FILE` | `None` | Path to the server certificate file |
 | `--key FILE` | `None` | Path to the server private key file |
 | `--key-password PASSWORD` | `None` | Password of the server private key |

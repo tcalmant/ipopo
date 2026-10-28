@@ -1610,11 +1610,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         group.add_argument(
             "--key-password",
-            help="Password of the server key.Set to '-' for a password request.",
+            help="Password of the server key. Set to '-' for a password request.",
         )
         group.add_argument(
             "--ca-chain",
-            help="Path to the CA chain file to authenticate clients",
+            help="Path to the CA chain file to authenticate clients (required with --cert)",
         )
 
     # Local options
@@ -1709,6 +1709,7 @@ def main(argv: list[str] | None = None) -> int:
                 "A remote shell component (%s) is already configured. Abandon.",
                 rshell_name,
             )
+            framework.stop()
             return 1
 
     # Prepare a banner

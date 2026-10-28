@@ -110,6 +110,26 @@ class XMPPShellConfigTest(unittest.TestCase):
                     with use_ipopo(self.context) as ipopo:
                         ipopo.kill("xmpp-shell")
 
+    def test_main_tls(self) -> None:
+        """
+        The script uses STARTTLS and verifies the certificate unless told otherwise
+        """
+        for argv, tls, verify in (
+            ([], True, True),
+            (["--no-tls"], False, True),
+            (["--no-tls-verify"], True, False),
+        ):
+            with (
+                self.subTest(argv=argv),
+                mock.patch("pelix.framework.create_framework"),
+                mock.patch.object(pelix.shell.xmpp, "use_ipopo") as use_ipopo_mock,
+            ):
+                pelix.shell.xmpp.main(["-j", "bot@localhost", "--password", "foobar", *argv])
+                ipopo = use_ipopo_mock.return_value.__enter__.return_value
+                properties = ipopo.instantiate.call_args.args[2]
+                self.assertEqual(properties["shell.xmpp.tls"], tls)
+                self.assertEqual(properties["shell.xmpp.tls.verify"], verify)
+
 
 # ------------------------------------------------------------------------------
 
