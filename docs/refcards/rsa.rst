@@ -69,34 +69,6 @@ Providers included with Pelix/iPOPO
 iPOPO includes some discovery and transport providers. More of them will be
 added in future releases.
 
-etcd Discovery
---------------
-
-:Bundle: pelix.rsa.providers.discovery.discovery_etcd
-:Requires: *none*
-:Libraries: `python-etcd <https://github.com/jplana/python-etcd>`__
-
-This discovery provider uses `etcd <https://etcd.io/docs/v2.3/>`__ as
-a store of descriptions of endpoints.
-It depends on the `python-etcd <https://github.com/jplana/python-etcd>`__
-third-party package.
-
-This discovery provider is instantiated immediately as the bundle is
-started. The instance configuration must therefore be given as Framework
-properties. Another solution is to kill the ``etcd-endpoint-discovery``
-component and restart it with custom properties.
-
-This provider can be configured with the following properties:
-
-======================= ===================================================== =========================================
-Property                Default value                                         Description
-======================= ===================================================== =========================================
-``etcd.hostname``       localhost                                             Address of the etcd server
-``etcd.port``           2379                                                  Port of the etcd server
-``etcd.toppath``        /org.eclipse.ecf.provider.etcd.EtcdDiscoveryContainer Path in etcd where to store endpoints
-``etcd.sessionttl``     30                                                    Session Time To Live
-======================= ===================================================== =========================================
-
 etcd3 Discovery
 ---------------
 

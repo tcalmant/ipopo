@@ -6,11 +6,6 @@ services:
     ports:
       - "2379:2379"
 
-  etcd2:
-    build: etcd2
-    ports:
-      - "12379:12379"
-
   mqtt-broker:
     image: eclipse-mosquitto
     volumes:

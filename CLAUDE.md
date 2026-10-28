@@ -45,7 +45,7 @@ uv pip install --python .venv-docs/bin/python -r docs/requirements.txt
 Test files are named `test_*.py` (not `*_test.py`), mirroring the module they cover.
 
 Some test suites (parts of `tests/remote`, `tests/rsa`, `tests/misc`, `tests/services`, `tests/shell`)
-depend on external services (etcd2, etcd3, an MQTT broker, Redis, an XMPP server, ZooKeeper) brought
+depend on external services (etcd3, an MQTT broker, Redis, an XMPP server, ZooKeeper) brought
 up via `tests-infra/compose.yaml` (`docker compose -f tests-infra/compose.yaml up -d`, then
 `sh ./tests-infra/xmpp/docker_register_users.sh`). Without that infrastructure, those tests will fail
 or be skipped depending on the module.
