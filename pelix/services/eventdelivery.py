@@ -32,7 +32,7 @@ import logging
 import re
 import threading
 from collections.abc import Callable, Iterator, Mapping
-from typing import Any
+from typing import Any, Self
 
 import pelix.threadpool
 
@@ -115,23 +115,28 @@ def topic_matches(scope: str, topic: str) -> bool:
 # ------------------------------------------------------------------------------
 
 
-class EventDeliveryError(Exception):
+class EventDeliveryError(ExceptionGroup):
     """
     Raised by a synchronous delivery, when asked to, if at least one handler failed.
 
-    All the handlers have been notified when it is raised: ``errors`` lists the
-    failures, and the first one is the ``__cause__`` of this exception.
+    All the handlers have been notified when it is raised: it groups their
+    exceptions, and ``errors`` gives the service ID of the handler of each one.
     """
 
-    def __init__(self, topic: str, errors: list[tuple[Any, BaseException]]) -> None:
+    def __new__(cls, topic: str, errors: list[tuple[Any, Exception]]) -> Self:
+        # ExceptionGroup takes its message and exceptions in __new__
+        return super().__new__(cls, f"Handlers failed on event {topic!r}", [ex for _, ex in errors])
+
+    def __init__(self, topic: str, errors: list[tuple[Any, Exception]]) -> None:
         """
         :param topic: Topic of the event
         :param errors: A list of (service ID of the handler, exception) tuples
         """
-        super().__init__(f"{len(errors)} handler(s) failed on event {topic!r}: {errors[0][1]!r}")
+        # Keeps these arguments in args, as pickle gives them back to __new__: the
+        # base __init__ accepts anything, whatever the stubs say
+        super().__init__(topic, errors)  # ty: ignore[invalid-argument-type]
         self.topic = topic
         self.errors = errors
-        self.__cause__ = errors[0][1]
 
 
 class EventProperties(Mapping[str, Any]):

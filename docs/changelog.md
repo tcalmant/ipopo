@@ -74,8 +74,8 @@ Unreleased
 * EventAdmin: the topic of an event can be tested by a handler filter, as the
   `event.topics` property (OSGi 113.3.2)
 * EventAdmin: `send()` accepts `raise_errors=True` to raise an
-  `EventDeliveryError` once all the handlers were notified, if some of them
-  failed
+  `EventDeliveryError`, an `ExceptionGroup`, once all the handlers were
+  notified, if some of them failed
 * EventAdmin: `send()` and `post()` accept `copy=False` to give all the
   handlers one shared immutable `EventProperties` instead of a deep copy each,
   so that values which can't be copied (locks, connections) can travel with

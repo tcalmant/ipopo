@@ -113,9 +113,10 @@ Errors
 As in OSGi (113.8.1), an exception raised by a handler is logged and the other
 handlers are notified anyway. ``send(..., raise_errors=True)`` raises an
 :class:`~pelix.services.eventdelivery.EventDeliveryError` once all the handlers
-were notified, if some of them failed: its ``errors`` attribute lists the
-(handler service ID, exception) tuples and the first exception is its
-``__cause__``. ``post()`` can only log, as it returns before the delivery.
+were notified, if some of them failed: it is an ``ExceptionGroup`` of their
+exceptions, which can be caught with ``except*``, and its ``errors`` attribute
+lists the (handler service ID, exception) tuples. ``post()`` can only log, as
+it returns before the delivery.
 
 Ordering
 ^^^^^^^^

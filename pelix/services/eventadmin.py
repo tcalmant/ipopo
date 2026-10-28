@@ -201,7 +201,7 @@ class EventAdmin(pelix.services.EventAdmin):
         properties: dict[str, Any],
         handlers_ids: Iterable[str],
         copy_props: bool = True,
-        errors: list[tuple[Any, BaseException]] | None = None,
+        errors: list[tuple[Any, Exception]] | None = None,
     ) -> None:
         """
         Notifies the handlers of an event
@@ -296,7 +296,7 @@ class EventAdmin(pelix.services.EventAdmin):
         handlers = self._get_handlers_ids(topic, properties)
         if handlers:
             # Notify them
-            errors: list[tuple[Any, BaseException]] | None = [] if raise_errors else None
+            errors: list[tuple[Any, Exception]] | None = [] if raise_errors else None
             self.__notify_handlers(topic, properties, [h[0] for h in handlers], copy, errors)
             if errors:
                 raise EventDeliveryError(topic, errors)

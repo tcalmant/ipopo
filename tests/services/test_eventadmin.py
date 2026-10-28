@@ -351,8 +351,10 @@ class EventAdminTest(unittest.TestCase):
         with self.assertRaises(EventDeliveryError) as ctx:
             self.eventadmin.send("/titi/x", raise_errors=True)
 
-        self.assertIsInstance(ctx.exception.__cause__, RuntimeError)
+        self.assertIsInstance(ctx.exception, ExceptionGroup)
+        self.assertEqual(ctx.exception.topic, "/titi/x")
         self.assertEqual(len(ctx.exception.errors), 1)
+        self.assertIsInstance(ctx.exception.exceptions[0], RuntimeError)
         # The other handler was notified
         self.assertEqual(good.pop_event(), "/titi/x")
 
