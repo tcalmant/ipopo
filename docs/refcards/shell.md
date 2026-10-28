@@ -113,6 +113,7 @@ ones:
 | `--no-input` | *not set* | If set, don't start the Python console (useful for server/daemon mode) |
 | `-a ADDR`, `--address ADDR` | localhost | Server binding address |
 | `-p PORT`, `--port PORT` | 9000 | Server binding port |
+| `--unix PATH` | `None` | Listen on a Unix socket instead of an address and port (see [](#remote-shell-unix-socket)). Refused with the TLS arguments |
 | `--ca-chain FILE` | `None` | Path to the certificate authority chain file (to authenticate clients) |
 | `--cert FILE` | `None` | Path to the server certificate file |
 | `--key FILE` | `None` | Path to the server private key file |
@@ -131,6 +132,8 @@ This factory accepts the following properties:
 |----|----|----|
 | `pelix.shell.address` | localhost | Server binding address |
 | `pelix.shell.port` | 9000 | Server binding port |
+| `pelix.shell.unix.path` | `None` | Path of a Unix socket to listen on, instead of the address and port (see [](#remote-shell-unix-socket)) |
+| `pelix.shell.unix.check_peer` | `True` | Refuse the clients of a Unix socket run by another user than the server (root excepted), when the system tells it |
 | `pelix.shell.ssl.ca` | `None` | Path to the clients certificate authority chain file |
 | `pelix.shell.ssl.cert` | `None` | Path to the server's SSL certificate file |
 | `pelix.shell.ssl.key` | `None` | Path to the server's private key |
@@ -165,6 +168,68 @@ by a shell which can install and start arbitrary bundles.
 
 iPOPO 3.2.2 logs an error when it detects this configuration, but still starts.
 Starting with iPOPO 3.3.0, this configuration will be refused.
+:::
+
+#### Remote shell Unix socket
+
+Instead of a TCP address and port, the remote shell can listen on a Unix
+domain socket, which only the user running the framework can open. Set the
+`pelix.shell.unix.path` property (or the `--unix` argument of the script) to
+the path of the socket. The `pelix.shell.address` and `pelix.shell.port`
+properties are then ignored, and `get_access()` returns `(path, None)`.
+
+```python
+ipopo.instantiate(
+    pelix.shell.FACTORY_REMOTE_SHELL,
+    "remote-shell",
+    {"pelix.shell.unix.path": "/run/user/1000/myapp/shell.sock"},
+)
+```
+
+To connect it, use a client able to open a Unix socket, like `nc -U` or `socat`:
+
+```bash
+nc -U /run/user/1000/myapp/shell.sock
+socat - UNIX-CONNECT:/run/user/1000/myapp/shell.sock
+```
+
+With a password login, prefer `socat` with its `READLINE` address: it gives line
+editing and a history, and its `noecho` option hides what is typed after the
+password prompt (`nc` shows the password on the screen, as the terminal echoes
+it):
+
+```bash
+socat "READLINE,history=$HOME/.myapp_shell_history,noecho=Password: " \
+    UNIX-CONNECT:/run/user/1000/myapp/shell.sock
+```
+
+The `exit` (or `quit`) command, or an end of file (`Ctrl-D`), ends the session.
+When the remote shell stops, it waits up to `STOP_TIMEOUT` seconds for the
+sessions to end, so that each client gets the closing message.
+
+The server protects the socket as follows:
+
+* The socket file is created with the mode `0600`, with no moment where another
+  user could connect.
+* The folder of the socket must belong to the user running the server (or to
+  root) and must not be writable by others, unless it has the sticky bit (like
+  `/tmp`): another user could replace the socket. Prefer a private folder, like
+  `$XDG_RUNTIME_DIR`.
+* A socket file left by a server which was not stopped properly is replaced,
+  never a regular file, a symbolic link or the socket of a running server. The
+  file is removed at stop, unless it was replaced in the meantime.
+* Where the system tells it (`SO_PEERCRED`, on Linux), a client run by another
+  user than the server (root excepted) is disconnected, unless
+  `pelix.shell.unix.check_peer` is false.
+* The TLS properties are refused rather than ignored, so that nobody believes
+  that clients are authenticated by certificate.
+* The password authentication works as on TCP, without the clear text warning.
+
+Unix sockets are only supported on Linux and macOS.
+
+:::{versionadded} 3.3.0
+The `pelix.shell.unix.path` and `pelix.shell.unix.check_peer` properties and
+the `--unix` argument.
 :::
 
 #### Remote shell authentication
