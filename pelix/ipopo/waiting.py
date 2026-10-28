@@ -9,7 +9,7 @@ components.
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.4
+:version: 3.3.0
 
 ..
 
@@ -50,7 +50,7 @@ from pelix.ipopo.constants import (
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 4)
+__version_info__ = (3, 3, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format

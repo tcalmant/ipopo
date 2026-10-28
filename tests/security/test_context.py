@@ -16,7 +16,7 @@ from pelix.security import _SUBJECT, ANONYMOUS, Subject, get_current_subject, ru
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 4)
+__version_info__ = (3, 3, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------

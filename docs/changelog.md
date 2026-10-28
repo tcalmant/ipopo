@@ -1,5 +1,126 @@
 # Release Notes
 
+## iPOPO 3.3.0
+
+:::{admonition} Release Date
+:class: info
+
+Unreleased
+:::
+
+### Security
+
+* Added the `pelix.http.cors.enforce` property to the HTTP services: a request
+  carrying an `Origin` header which is neither the origin of the server nor
+  allowed by the CORS policy is answered with a 403 error code, instead of
+  being handled with only the CORS headers missing in the response. A "simple"
+  cross-site request, like a form posted by a page of another site, was
+  executed by the servlet. Off by default to stay backward compatible: it
+  should be set on every server a browser can reach
+* Added the `pelix.http.allowed_hosts` property to the HTTP services, to refuse
+  requests whose `Host` header is not listed (DNS rebinding). The header was
+  not checked at all. Off by default
+* `SECURITY.md` explains how to deploy a web application with logins behind a
+  TLS reverse proxy
+
+### HTTP service
+
+* HTTP sessions and login, for browsers: with `pelix.http.session.enabled`, a
+  servlet gets the `HttpSession` of its request with `get_session(create)`, and
+  calls `login(user, password)` and `logout()`. The password goes through
+  `pelix.security`, the session id is replaced at each login, and the later
+  requests of the browser are handled as that user, with the groups and roles
+  of the moment (`pelix.security.core.restore_subject()`, new). An unknown or
+  expired cookie is an anonymous request, not a 401. The cookie is `HttpOnly`,
+  `SameSite=Lax`, and `Secure` for HTTPS clients. Sessions are kept in memory,
+  per service
+* New `pelix.http.proxy.trusted` property: the addresses or networks of the
+  reverse proxies which are believed when they tell who the client is
+  (`X-Forwarded-For`) and whether it used HTTPS (`X-Forwarded-Proto`).
+  `get_client_address()` (used by the authentication throttle) and the
+  `Origin` check then see the client instead of the proxy; `is_secure()` is
+  new. Empty by default: the headers are ignored. Custom request classes
+  should implement the new `get_peer_address()` to benefit from it
+* Responses can repeat a header with `add_header()` (e.g. `Set-Cookie`) and
+  send a cookie with `add_cookie()`; requests give their cookies with
+  `get_cookies()`. The `set_header()` of the async service now replaces the
+  previous value, as the basic service does, instead of adding one
+* `request.get_parts()` reads a `multipart/form-data` body (an upload form) as
+  a list of `Part`; `parse_multipart()` does it for any body. The upload is
+  bounded by `pelix.http.max_body_size` (also per servlet). A malformed form is
+  answered with a 400 error code
+* The basic and async HTTP services share the checks of the `Host` and
+  `Origin` headers, done before looking for a servlet
+* Async HTTP service: stopping it with a WebSocket open no longer blocks. The
+  open sessions are closed with the code 1001 and `ws_close()` is called
+* `WebSocketSession` has `submit_text()`, `submit_binary()` and
+  `submit_close()`, thread-safe versions of its coroutines
+
+### Services
+
+* EventAdmin: events posted with `post()` reach each handler in posting order
+  (OSGi Event Admin 113.7.3), one handler being served by at most one thread of
+  the pool at a time: a slow handler no longer delays the other handlers of the
+  same event. A handler can ask for unordered delivery with the new
+  `event.delivery` service property
+* EventAdmin: an invalid `event.filter` disables its handler with a warning
+  (OSGi 113.4), instead of making `send()` and `post()` raise
+* EventAdmin: the topic of an event can be tested by a handler filter, as the
+  `event.topics` property (OSGi 113.3.2)
+* EventAdmin: `send()` accepts `raise_errors=True` to raise an
+  `EventDeliveryError` once all the handlers were notified, if some of them
+  failed
+* EventAdmin: `send()` and `post()` accept `copy=False` to give all the
+  handlers one shared immutable `EventProperties` instead of a deep copy each,
+  so that values which can't be copied (locks, connections) can travel with
+  the event
+* Added the Typed Event bus (`pelix.services.typedevent`, component factory
+  `pelix-services-typedevent-factory`), inspired by the OSGi Typed Event
+  specification: events are dataclass instances, delivered to handlers by topic
+  and type, with untyped and unhandled event handlers, synchronous or ordered
+  asynchronous delivery, and an optional event history
+* Added `pelix.services.eventdelivery`, the delivery code and topic rules
+  shared by both event services
+
+### iPOPO
+
+* Fixed a component killed by a `FrameworkException` raised in `@Validate`: it
+  was set back to `VALID` then invalidated without the iPOPO service, so that
+  `instantiate()` raised a `ValueError` to its caller
+
+### Shell
+
+* The remote shell can listen on a Unix domain socket (Linux and macOS), with
+  the new `pelix.shell.unix.path` property or the `--unix` argument of
+  `python -m pelix.shell.remote`. The socket is created with the mode `0600` in
+  a folder the user controls, a stale socket file is replaced at start, and the
+  file is removed at stop. Where the system tells it (`SO_PEERCRED`), the
+  clients run by another user than the server (root excepted) are refused,
+  unless `pelix.shell.unix.check_peer` is false. The TLS properties are refused
+  on a Unix socket
+* The stop of the remote shell waits up to `STOP_TIMEOUT` seconds (2) for its
+  sessions to end: a session is no longer cut by the end of the process
+  without its closing message
+* The `exit` and `quit` commands print "Closing the shell session" instead of
+  "Raising KeyboardInterrupt to stop main thread", in every front-end
+
+### Misc
+
+* `InitFileHandler` takes a `search_path` argument: the folders where it looks
+  for the default `.pelix.conf` file, instead of `DEFAULT_PATH` (which includes
+  the current folder)
+* `InitFileHandler.normalize(cwd_first=False)` doesn't force `.` first in
+  `sys.path`, where a module of the current folder hides an installed one
+* `InitFileHandler.instantiate_components(context, stop_on_error=False)` tries
+  all the components and returns the `(name, error)` tuples of the failed ones
+* Fixed the paths of an initial configuration containing `~` or an environment
+  variable, which were dropped as they were looked for before being expanded
+
+### Documentation
+
+* Added the Typed Event reference card, and updated the EventAdmin, HTTP,
+  shell and initial configuration ones
+
 ## iPOPO 3.2.4
 
 :::{admonition} Release Date
