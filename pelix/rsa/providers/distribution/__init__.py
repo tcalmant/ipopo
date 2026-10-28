@@ -457,7 +457,7 @@ class Container(abc.ABC):
         self.is_valid()
 
     @Invalidate
-    def _invalidate_component(self, _: BundleContext) -> None:
+    def _invalidate_component(self, context: BundleContext) -> None:
         """
         Component invalidated
 

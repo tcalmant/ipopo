@@ -267,7 +267,7 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
         self._framework_uid = context.get_property(constants.FRAMEWORK_UID)
 
     @Invalidate
-    def invalidate(self, _: BundleContext) -> None:
+    def invalidate(self, context: BundleContext) -> None:
         """
         Component invalidated
         """
@@ -391,7 +391,7 @@ class AbstractRpcServiceImporter(abc.ABC, pelix.remote.RemoteServiceImportEndpoi
         self._framework_uid = context.get_property(constants.FRAMEWORK_UID)
 
     @Invalidate
-    def invalidate(self, _: BundleContext) -> None:
+    def invalidate(self, context: BundleContext) -> None:
         """
         Component invalidated
         """

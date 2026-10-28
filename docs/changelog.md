@@ -146,6 +146,9 @@ Unreleased
   method of OSGi Declarative Services: `reconfigure()`, and thus an update of
   the Configuration Admin configuration of a component, gives it the new and
   the previous values of the changed properties, as long as it stays valid
+* The callback decorators (`@Bind`, `@Validate`, `@PostRegistration`, ...)
+  keep the exact type of the decorated method, whose signature is still
+  checked: a type checker no longer sees it as a positional-only callable
 * Fixed a component killed by a `FrameworkException` raised in `@Validate`: it
   was set back to `VALID` then invalidated without the iPOPO service, so that
   `instantiate()` raised a `ValueError` to its caller

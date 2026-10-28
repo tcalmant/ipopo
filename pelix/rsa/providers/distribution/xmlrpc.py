@@ -168,7 +168,7 @@ class XmlRpcExportContainer(ExportContainer):
         )
 
     @Invalidate
-    def _invalidate_component(self, bundle_context: BundleContext) -> None:
+    def _invalidate_component(self, context: BundleContext) -> None:
         """
         First invalidate by unregistering the servlet/dispatcher,
         and then call super._invalidate
@@ -176,7 +176,7 @@ class XmlRpcExportContainer(ExportContainer):
         try:
             dp = self._get_distribution_provider()
             dp._httpservice.unregister(dp._uri_path)
-            ExportContainer._invalidate_component(self, bundle_context)
+            ExportContainer._invalidate_component(self, context)
         except:  # noqa: E722
             _logger.exception("Error while invalidating XmlRpcExportContainer")
 
