@@ -16,6 +16,7 @@ from pelix.ipopo.decorators import (
     HiddenProperty,
     Instantiate,
     Invalidate,
+    Modified,
     PostRegistration,
     PostUnregistration,
     Property,
@@ -57,6 +58,7 @@ FACTORY_REQUIRES_VAR_FILTER_AGGREGATE = "ipopo.tests.var_filter.multiple"
 FACTORY_TEMPORAL = "ipopo.tests.temporal"
 FACTORY_ERRONEOUS = "ipopo.tests.erroneous"
 FACTORY_HIDDEN_PROPS = "ipopo.tests.properties.hidden"
+FACTORY_MODIFIED = "ipopo.tests.modified"
 PROP_USABLE = "usable"
 
 # ------------------------------------------------------------------------------
@@ -526,6 +528,31 @@ class HiddenPropTest:
         """
         self.hidden = None
         self.public = None
+
+
+@ComponentFactory(FACTORY_MODIFIED)
+@RequiresVarFilter("service", IEchoService, spec_filter="(answer={answer})")
+@Property("answer", "answer", 42)
+@Property("label", "label", "default")
+@HiddenProperty("secret", "secret", "declared")
+class ModifiedComponentFactory(TestComponentFactory):
+    """
+    Component notified of the updates of its properties
+    """
+
+    def __init__(self):
+        super().__init__()
+        self.changes = []
+        self.fail = False
+
+    @Modified
+    def modified(self, properties, old_properties):
+        """
+        Properties updated from outside
+        """
+        self.changes.append((properties, old_properties))
+        if self.fail:
+            raise ValueError("Failing on purpose")
 
 
 # ------------------------------------------------------------------------------

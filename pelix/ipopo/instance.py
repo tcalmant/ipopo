@@ -289,6 +289,9 @@ class StoredInstance:
         a dot, e.g. ``.password`` to update the property declared as
         ``password``: the value is applied but still never becomes public.
 
+        A component which stays valid is notified of the changes by its
+        ``@Modified`` callback.
+
         :param properties: The properties to update
         :param restart: If True, invalidate the component before applying the
                         properties: it is validated again once they are set
@@ -304,8 +307,14 @@ class StoredInstance:
                 # its previous properties
                 self.invalidate(True)
 
+            # @Modified only concerns a component which stays valid: the
+            # others get the new values with @Validate
+            was_valid = self.state == StoredInstance.VALID
             hidden = self.context.factory_context.hidden_properties
             current = self.context.properties
+            # Changed properties, given to the @Modified callback
+            changed: dict[str, Any] = {}
+            previous: dict[str, Any] = {}
             for name, new_value in properties.items():
                 if name == constants.IPOPO_INSTANCE_NAME:
                     # The instance name is read-only
@@ -316,10 +325,15 @@ class StoredInstance:
                     # apply it through the same path the component itself
                     # would use, so it still never becomes a public property
                     hidden_name = name[1:]
-                    setter_name = f"{constants.IPOPO_HIDDEN_PROPERTY_PREFIX}{constants.IPOPO_SETTER_SUFFIX}"
-                    setter = getattr(self.instance, setter_name, None)
-                    if setter is not None:
-                        setter(self.instance, hidden_name, new_value)
+                    prefix = constants.IPOPO_HIDDEN_PROPERTY_PREFIX
+                    getter = getattr(self.instance, f"{prefix}{constants.IPOPO_GETTER_SUFFIX}", None)
+                    setter = getattr(self.instance, f"{prefix}{constants.IPOPO_SETTER_SUFFIX}", None)
+                    if getter is not None and setter is not None:
+                        old_value = getter(self.instance, hidden_name)
+                        if new_value != old_value:
+                            setter(self.instance, hidden_name, new_value)
+                            changed[hidden_name] = new_value
+                            previous[hidden_name] = old_value
                     continue
 
                 if name in hidden:
@@ -337,10 +351,15 @@ class StoredInstance:
 
                 old_value = current.get(name)
                 if new_value != old_value:
+                    if name in current:
+                        previous[name] = old_value
                     current[name] = new_value
+                    changed[name] = new_value
                     self.update_property(name, old_value, new_value)
 
             self.check_lifecycle()
+            if changed and was_valid and self.state == StoredInstance.VALID:
+                self.safe_callback(constants.IPOPO_CALLBACK_MODIFIED, changed, previous)
 
     def update_hidden_property(self, name: str, old_value: Any, new_value: Any) -> None:
         """

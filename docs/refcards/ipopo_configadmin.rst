@@ -25,9 +25,11 @@ It provides three mechanisms:
 This is the counterpart of the ``configuration-policy`` attribute and of the
 factory configurations described in the
 `chapter 112 <https://docs.osgi.org/specification/osgi.cmpn/8.1.0/service.component.html>`_
-of the OSGi Compendium Services Specification, adapted to iPOPO: there is no
-callback receiving a configuration dictionary, the entries of a configuration
-are simply mapped onto the *properties* of the component.
+of the OSGi Compendium Services Specification, adapted to iPOPO: the entries
+of a configuration are mapped onto the *properties* of the component. A valid
+component is told about their updates by its
+:func:`~pelix.ipopo.decorators.Modified` callback, which receives the new and
+the previous values of the changed properties.
 
 .. note:: A configuration entry which is only read when the component is
    created, like ``requires.filters`` or ``temporal.timeouts``, keeps its
@@ -219,8 +221,9 @@ different configurations:
 
 The ``update_policy`` argument tells what happens when the configuration of a
 running component is updated: ``reconfigure`` (default) updates its properties
-in place, ``restart`` invalidates the component before applying them, so that
-the ``@Validate`` callback is called again.
+in place and calls the ``@Modified`` callback, ``restart`` invalidates the
+component before applying them, so that the ``@Validate`` callback is called
+again instead.
 
 .. autoclass:: pelix.ipopo.decorators.RequiresConfiguration
    :members:

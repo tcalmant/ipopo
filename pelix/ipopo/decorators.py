@@ -32,7 +32,6 @@ from collections.abc import Callable, Iterable
 from typing import (
     Any,
     Generic,
-    ParamSpec,
     TypeVar,
     cast,
 )
@@ -45,8 +44,14 @@ from pelix.ipopo.contexts import FactoryContext, Requirement
 from pelix.utilities import get_method_arguments, is_string, to_iterable
 
 T = TypeVar("T")
-RT = TypeVar("RT")
-P = ParamSpec("P")
+# Callback decorators return the exact type of the decorated method, while
+# their bound checks its signature
+CallableT = TypeVar("CallableT", bound=Callable[..., Any])
+BindT = TypeVar("BindT", bound=Callable[[Any, Any, ServiceReference[Any]], None])
+UpdateT = TypeVar("UpdateT", bound=Callable[[Any, Any, ServiceReference[Any], dict[str, Any]], None])
+ContextCallbackT = TypeVar("ContextCallbackT", bound=Callable[[Any, BundleContext], None])
+ModifiedT = TypeVar("ModifiedT", bound=Callable[[Any, dict[str, Any], dict[str, Any]], None])
+RegistrationT = TypeVar("RegistrationT", bound=Callable[[Any, ServiceReference[Any]], None])
 
 # ------------------------------------------------------------------------------
 
@@ -67,6 +72,7 @@ __all__ = [
     "Instantiate",
     "Invalidate",
     "InvalidateComponent",
+    "Modified",
     "PostRegistration",
     "PostUnregistration",
     "Property",
@@ -1783,7 +1789,7 @@ class BindField:
         self._field = field
         self._if_valid = if_valid
 
-    def __call__(self, method: Callable[..., Any]) -> Callable[..., Any]:
+    def __call__(self, method: CallableT) -> CallableT:
         """
         Updates the "field callback" list for this method
 
@@ -1802,7 +1808,7 @@ class BindField:
             constants.IPOPO_METHOD_FIELD_CALLBACKS,
             (constants.IPOPO_CALLBACK_BIND_FIELD, self._field, self._if_valid),
         )
-        return cast(Callable[..., Any], method)
+        return method
 
 
 class UpdateField:
@@ -1843,7 +1849,7 @@ class UpdateField:
         self._field = field
         self._if_valid = if_valid
 
-    def __call__(self, method: Callable[..., Any]) -> Callable[..., Any]:
+    def __call__(self, method: CallableT) -> CallableT:
         """
         Updates the "field callback" list for this method
 
@@ -1866,7 +1872,7 @@ class UpdateField:
                 self._if_valid,
             ),
         )
-        return cast(Callable[..., Any], method)
+        return method
 
 
 class UnbindField:
@@ -1910,7 +1916,7 @@ class UnbindField:
         self._field = field
         self._if_valid = if_valid
 
-    def __call__(self, method: Callable[..., Any]) -> Callable[..., Any]:
+    def __call__(self, method: CallableT) -> CallableT:
         """
         Updates the "field callback" list for this method
 
@@ -1933,15 +1939,13 @@ class UnbindField:
                 self._if_valid,
             ),
         )
-        return cast(Callable[..., Any], method)
+        return method
 
 
 # ------------------------------------------------------------------------------
 
 
-def Bind(
-    method: Callable[[Any, T, ServiceReference[T]], None],
-) -> Callable[[Any, T, ServiceReference[T]], None]:
+def Bind(method: BindT) -> BindT:
     """
     The ``@Bind`` callback decorator is called when a component is bound to a
     dependency.
@@ -1981,12 +1985,10 @@ def Bind(
     validate_method_arity(method, "service", "service_reference")
 
     _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS, constants.IPOPO_CALLBACK_BIND)
-    return cast(Callable[[Any, T, ServiceReference[T]], None], method)
+    return method
 
 
-def Update(
-    method: Callable[[Any, T, ServiceReference[T], dict[str, Any]], None],
-) -> Callable[[Any, T, ServiceReference[T], dict[str, Any]], None]:
+def Update(method: UpdateT) -> UpdateT:
     """
     The ``@Update`` callback decorator is called when the properties of an
     injected service have been modified.
@@ -2027,12 +2029,10 @@ def Update(
         constants.IPOPO_METHOD_CALLBACKS,
         constants.IPOPO_CALLBACK_UPDATE,
     )
-    return cast(Callable[[Any, T, ServiceReference[T], dict[str, Any]], None], method)
+    return method
 
 
-def Unbind(
-    method: Callable[[Any, T, ServiceReference[T]], None],
-) -> Callable[[Any, T, ServiceReference[T]], None]:
+def Unbind(method: BindT) -> BindT:
     """
     The ``@Unbind`` callback decorator is called when a component dependency is
     unbound.
@@ -2074,7 +2074,7 @@ def Unbind(
         constants.IPOPO_METHOD_CALLBACKS,
         constants.IPOPO_CALLBACK_UNBIND,
     )
-    return cast(Callable[[Any, T, ServiceReference[T]], None], method)
+    return method
 
 
 # ------------------------------------------------------------------------------
@@ -2147,7 +2147,7 @@ class ValidateComponent:
         # Keep track of the arguments
         self._args = tuple(args)
 
-    def __call__(self, method: Callable[..., None]) -> Callable[..., None]:
+    def __call__(self, method: CallableT) -> CallableT:
         """
         Registers the decorated method as a callback for component validation
 
@@ -2170,7 +2170,7 @@ class ValidateComponent:
         # Append arguments list to the method
         _set_object_entry(method, constants.IPOPO_VALIDATE_ARGS, self._args)
 
-        return cast(Callable[..., None], method)
+        return method
 
 
 class InvalidateComponent(ValidateComponent):
@@ -2188,7 +2188,7 @@ class InvalidateComponent(ValidateComponent):
     after the provided service has been unregistered to the framework.
     """
 
-    def __call__(self, method: Callable[P, RT]) -> Callable[P, RT]:
+    def __call__(self, method: CallableT) -> CallableT:
         """
         Registers the decorated method as a callback for component invalidation
 
@@ -2211,13 +2211,13 @@ class InvalidateComponent(ValidateComponent):
         # Append arguments list to the method
         _set_object_entry(method, constants.IPOPO_VALIDATE_ARGS, self._args)
 
-        return cast(Callable[P, RT], method)
+        return method
 
 
 # ------------------------------------------------------------------------------
 
 
-def Validate(method: Callable[[T, BundleContext], None]) -> Callable[[T, BundleContext], None]:
+def Validate(method: ContextCallbackT) -> ContextCallbackT:
     """
     This decorator is an alias to :class:`ValidateComponent` to decorate a
     callback method than only accepts the
@@ -2253,7 +2253,7 @@ def Validate(method: Callable[[T, BundleContext], None]) -> Callable[[T, BundleC
     return ValidateComponent(constants.ARG_BUNDLE_CONTEXT)(method)
 
 
-def Invalidate(method: Callable[[T, BundleContext], None]) -> Callable[[T, BundleContext], None]:
+def Invalidate(method: ContextCallbackT) -> ContextCallbackT:
     """
     This decorator is an alias to :class:`InvalidateComponent` to decorate a
     callback method than only accepts the
@@ -2288,9 +2288,49 @@ def Invalidate(method: Callable[[T, BundleContext], None]) -> Callable[[T, Bundl
     return InvalidateComponent(constants.ARG_BUNDLE_CONTEXT)(method)
 
 
-def PostRegistration(
-    method: Callable[[T, ServiceReference[Any]], None],
-) -> Callable[[T, ServiceReference[Any]], None]:
+def Modified(method: ModifiedT) -> ModifiedT:
+    """
+    The modified callback decorator is called when the properties of a valid
+    component have been updated from outside, i.e. by
+    :meth:`~pelix.ipopo.constants.IPopoService.reconfigure` or by its
+    ConfigurationAdmin configuration, with the ``reconfigure`` update policy.
+    It is not called when the component updates its own properties, nor when
+    the update invalidated the component.
+
+    The decorated method must accept two dictionaries, with the new and the
+    previous values of the changed properties only. A property which didn't
+    exist before is missing from the second one. A hidden property updated
+    confidentially is given with its values in clear: don't log them as is.
+
+    It is the counterpart of the ``modified`` method of OSGi Declarative
+    Services, and its exceptions are logged and ignored.
+
+    :Example:
+
+    .. code-block:: python
+
+       @ComponentFactory()
+       @Property("_host", "host", "localhost")
+       class Foo:
+           @Modified
+           def modified(self, properties, old_properties):
+               if "host" in properties:
+                   # Reconnect to the new host
+                   ...
+
+    :param method: The decorated method
+    :raise TypeError: The decorated element is not a valid function
+    """
+    if not inspect.isroutine(method):
+        raise TypeError("@Modified can only be applied on functions")
+
+    # Tests the number of parameters
+    validate_method_arity(method, "properties", "old_properties")
+    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS, constants.IPOPO_CALLBACK_MODIFIED)
+    return method
+
+
+def PostRegistration(method: RegistrationT) -> RegistrationT:
     """
     The service post-registration callback decorator is called after a service
     of the component has been registered to the framework.
@@ -2329,12 +2369,10 @@ def PostRegistration(
         constants.IPOPO_METHOD_CALLBACKS,
         constants.IPOPO_CALLBACK_POST_REGISTRATION,
     )
-    return cast(Callable[[T, ServiceReference[Any]], None], method)
+    return method
 
 
-def PostUnregistration(
-    method: Callable[[T, ServiceReference[Any]], None],
-) -> Callable[[T, ServiceReference[Any]], None]:
+def PostUnregistration(method: RegistrationT) -> RegistrationT:
     """
     The service post-unregistration callback decorator is called after a
     service of the component has been unregistered from the framework.
@@ -2377,4 +2415,4 @@ def PostUnregistration(
         constants.IPOPO_METHOD_CALLBACKS,
         constants.IPOPO_CALLBACK_POST_UNREGISTRATION,
     )
-    return cast(Callable[[T, ServiceReference[Any]], None], method)
+    return method
