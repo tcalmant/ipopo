@@ -40,7 +40,14 @@ from pelix.framework import Bundle, BundleContext
 from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceListener, ServiceReference, ServiceRegistration
 from pelix.security import get_current_subject
-from pelix.shell import ShellCommandsProvider, ShellService, ShellUtils, parser
+from pelix.shell import (
+    PERMISSION_READ,
+    CommandPermission,
+    ShellCommandsProvider,
+    ShellService,
+    ShellUtils,
+    parser,
+)
 from pelix.shell.completion import BUNDLE, SERVICE
 from pelix.shell.completion.decorators import Completion
 from pelix.shell.report import format_frame_info
@@ -278,6 +285,7 @@ class _ShellService(parser.Shell, ShellService):
         """
         return self.BANNER
 
+    @CommandPermission(PERMISSION_READ)
     def var_set(self, session: "ShellSession", **kwargs: Any) -> Any:
         """
         Sets the given variables or prints the current ones. "set answer=42"
@@ -291,6 +299,7 @@ class _ShellService(parser.Shell, ShellService):
                 session.write_line("{0}={1}", name, value)
 
     @staticmethod
+    @CommandPermission(PERMISSION_READ)
     def whoami(session: "ShellSession") -> None:
         """
         Prints the identity the commands run as
@@ -306,6 +315,7 @@ class _ShellService(parser.Shell, ShellService):
         session.write_line("Roles         : {0}", ", ".join(sorted(subject.roles)) or "-")
 
     @Completion(BUNDLE)
+    @CommandPermission(PERMISSION_READ)
     def bundle_details(self, session: "ShellSession", bundle_id: int | str) -> Any:
         """
         Prints the details of the bundle with the given ID or name
@@ -370,6 +380,7 @@ class _ShellService(parser.Shell, ShellService):
         session.write("\n".join(lines))
         return None
 
+    @CommandPermission(PERMISSION_READ)
     def bundles_list(self, session: "ShellSession", name: str | None = None) -> Any:
         """
         Lists the bundles in the framework and their state. Possibility to
@@ -411,6 +422,7 @@ class _ShellService(parser.Shell, ShellService):
             session.write_line(f"{len(lines)} filtered bundles")
 
     @Completion(SERVICE)
+    @CommandPermission(PERMISSION_READ)
     def service_details(self, session: "ShellSession", service_id: str) -> Any:
         """
         Prints the details of the service with the given ID
@@ -448,6 +460,7 @@ class _ShellService(parser.Shell, ShellService):
         session.write("\n".join(lines))
         return None
 
+    @CommandPermission(PERMISSION_READ)
     def services_list(self, session: "ShellSession", specification: str | None = None) -> Any:
         """
         Lists the services in the framework. Possibility to filter on an exact
@@ -709,6 +722,7 @@ class _ShellService(parser.Shell, ShellService):
             session.write_line(os.getcwd())
 
     @staticmethod
+    @CommandPermission(PERMISSION_READ)
     def print_dir(session: "ShellSession") -> str:
         """
         Prints the current working directory

@@ -27,15 +27,28 @@ Common parser for shell implementations
 """
 
 import collections
+import contextlib
+import importlib
 import inspect
 import logging
 import shlex
 import string
 import sys
-from collections.abc import Callable
+import uuid
+from collections.abc import Callable, Generator
 from typing import TYPE_CHECKING, Any
 
-from pelix.shell import ShellCommandMethod, beans
+from pelix.constants import BundleException
+from pelix.security import Authorization, Permission, SecurityError, Subject, get_current_subject, run_as
+from pelix.shell import (
+    ATTR_PERMISSION,
+    PERMISSION_ADMIN,
+    PERMISSION_DEBUG,
+    PERMISSION_READ,
+    CommandPermission,
+    ShellCommandMethod,
+    beans,
+)
 from pelix.shell.completion import ATTR_COMPLETERS, CompletionInfo
 from pelix.utilities import get_method_arguments, to_str
 
@@ -124,6 +137,21 @@ def _make_args(
     args = [_ArgTemplate(arg).safe_substitute(variables) for arg in args]
     kwargs = {key: _ArgTemplate(value).safe_substitute(variables) for key, value in kwargs.items()}
     return args, kwargs
+
+
+def _required_permission(method: ShellCommandMethod) -> Permission | None:
+    """
+    Returns the permission a command declared with ``CommandPermission``
+
+    :param method: The command method
+    :return: The permission, None for a command anyone can run
+    """
+    permission = getattr(method, ATTR_PERMISSION, PERMISSION_ADMIN)
+    if permission is None or isinstance(permission, Permission):
+        return permission
+
+    # Not a declaration, e.g. a proxy answering any attribute: the safe default
+    return PERMISSION_ADMIN
 
 
 def _split_ns_command(cmd_token: str) -> tuple[str, str]:
@@ -421,7 +449,7 @@ class Shell:
         :return: True if command succeeded, else False
         """
         if session is None:
-            # Default session
+            # Default session: not trusted, as the line may come from anywhere
             session = beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout), {})
 
         assert isinstance(session, beans.ShellSession)
@@ -446,29 +474,42 @@ class Shell:
             # Extract command information
             namespace, command = self.get_ns_command(line_split[0])
         except ValueError as ex:
-            # Unknown command
-            session.write_line(str(ex))
+            # Unknown command: a remote client doesn't learn which name spaces define it
+            session.write_line(str(ex) if session.trusted else f"Unknown command {line_split[0]}")
             return False
 
         # Get the content of the name space
         space = self._commands.get(namespace, None)
         if not space:
             session.write_line(
-                f"Unknown name space {namespace}",
+                f"Unknown name space {namespace}" if session.trusted else f"Unknown command {line_split[0]}",
             )
             return False
 
         # Get the method object
         method = space.get(command, None)
         if method is None:
-            session.write_line(f"Unknown command: {namespace}.{command}")
+            session.write_line(
+                f"Unknown command: {namespace}.{command}"
+                if session.trusted
+                else f"Unknown command {line_split[0]}"
+            )
             return False
 
-        # Make arguments and keyword arguments
-        args, kwargs = _make_args(line_split[1:], session, self._framework.get_properties())
+        subject = self.__authorize(session, method, f"{namespace}.{command}")
+        if subject is None:
+            # Same answer as an unknown command: the help doesn't list it either
+            session.write_line(f"Unknown command {line_split[0]}")
+            return False
+
+        # Framework properties may hold secrets: only a local session can expand them
+        args, kwargs = _make_args(
+            line_split[1:], session, self._framework.get_properties() if session.trusted else {}
+        )
         try:
-            # Execute it
-            result = method(session, *args, **kwargs)
+            # Execute it, as the subject the security decorators and nested commands check
+            with run_as(subject):
+                result = method(session, *args, **kwargs)
 
             # Store the result as $?
             if result is not None:
@@ -477,15 +518,28 @@ class Shell:
             # 0, None are considered as success, so don't use not nor bool
             return result is not False
         except TypeError as ex:
-            # Invalid arguments...
+            # Invalid arguments... or an error inside the command, whose message only
+            # shows with the debug permission, like the others
             self._logger.error("Error calling %s.%s: %s", namespace, command, ex)
-            session.write_line(f"Invalid method call: {ex}")
+            if session.trusted or self.__is_permitted(PERMISSION_DEBUG, subject):
+                session.write_line(f"Invalid method call: {ex}")
+            else:
+                session.write_line("Invalid method call")
             self.__print_namespace_help(session, namespace, command)
             return False
-        except Exception as ex:
-            # Error
-            self._logger.exception("Error calling %s.%s", namespace, command)
+        except SecurityError as ex:
+            # Refused by a security decorator: what the user needs to know, and no more
+            self._logger.warning("%s.%s refused to %s: %s", namespace, command, subject.name, ex)
             session.write_line(f"{type(ex).__name__}: {ex}")
+            return False
+        except Exception as ex:
+            # The message of an error may describe the server and the data it handles
+            error_id = uuid.uuid4().hex
+            self._logger.exception("Error %s calling %s.%s", error_id, namespace, command)
+            if session.trusted or self.__is_permitted(PERMISSION_DEBUG, subject):
+                session.write_line(f"{type(ex).__name__}: {ex}")
+            else:
+                session.write_line(f"Error running the command. Error ID: {error_id}")
             return False
         finally:
             # Try to flush in any case
@@ -493,6 +547,129 @@ class Shell:
                 session.flush()
             except OSError:
                 pass
+
+    @contextlib.contextmanager
+    def __use_authorization(self) -> Generator[Authorization | None, None, None]:
+        """
+        Looks up the authorization service for one decision.
+
+        Never kept across commands: a session must not keep using a service whose
+        bundle was stopped or updated.
+
+        :return: The authorization service, or None if there is none
+        """
+        context = self._framework.get_bundle_context()
+        reference = context.get_service_reference(Authorization)
+        if reference is None:
+            yield None
+            return
+
+        try:
+            yield context.get_service(reference)
+        finally:
+            with contextlib.suppress(BundleException):
+                context.unget_service(reference)
+
+    def __is_permitted(self, permission: Permission, subject: Subject) -> bool:
+        """
+        Tells whether a subject holds a permission. Without an authorization service, or
+        if it fails, nothing is permitted.
+
+        :param permission: The requested permission
+        :param subject: The subject to check
+        :return: True if the permission is granted
+        """
+        with self.__use_authorization() as authorization:
+            if authorization is None:
+                return False
+
+            try:
+                return authorization.is_permitted(permission, subject)
+            except Exception:
+                self._logger.exception("Error checking the %s permission: denying", permission)
+                return False
+
+    def _can_run(self, session: beans.ShellSession, method: ShellCommandMethod) -> bool:
+        """
+        Tells whether the current subject may run a command in a session, without
+        reporting a denial: for the listing of the help
+
+        :param session: The shell session
+        :param method: The command method
+        :return: True if the command can be run
+        """
+        if session.trusted:
+            return True
+
+        permission = _required_permission(method)
+        if permission is None:
+            return True
+
+        subject = get_current_subject()
+        return self.__is_permitted(permission, subject) or (
+            permission != PERMISSION_ADMIN and self.__is_permitted(PERMISSION_ADMIN, subject)
+        )
+
+    def __can_run_any(self, session: beans.ShellSession, namespace: str) -> bool:
+        """
+        Tells whether the session can run at least one command of a name space
+
+        :param session: The shell session
+        :param namespace: A known name space
+        :return: True if one of its commands can be run
+        """
+        return any(self._can_run(session, method) for method in self._commands[namespace].values())
+
+    def __authorize(
+        self, session: beans.ShellSession, method: ShellCommandMethod, name: str
+    ) -> Subject | None:
+        """
+        Decides whether a session may run a command.
+
+        The subject of an authenticated session is rebuilt for each command, so that a
+        removed group or role applies at once, without a new login.
+
+        :param session: The shell session
+        :param method: The command method
+        :param name: The qualified name of the command, for the logs
+        :return: The subject to run the command as, or None if it is refused
+        """
+        subject = session.subject
+        if session.trusted:
+            return subject
+
+        permission = _required_permission(method)
+        if permission is None:
+            return subject
+
+        if subject.authenticated:
+            try:
+                # Looked up at each call: when its bundle is reinstalled, the module is reloaded
+                core = importlib.import_module("pelix.security.core")
+                subject = core.restore_subject(
+                    subject.name, dict(subject.attributes), method=subject.method, transport=subject.transport
+                )
+            except Exception:
+                self._logger.exception("Error refreshing the subject %s: denying %s", subject.name, name)
+                return None
+
+        with run_as(subject):
+            if self._can_run(session, method):
+                return subject
+
+        self._logger.warning(
+            "Denied %s to %s (%s), which lacks the %s permission",
+            name,
+            subject.name,
+            subject.transport or "unknown transport",
+            permission,
+        )
+        with self.__use_authorization() as authorization, contextlib.suppress(Exception):
+            if authorization is not None:
+                # Only to post the audit event of the denial
+                authorization.check_permitted(permission, subject)
+
+        return None
 
     @staticmethod
     def __extract_help(method: Callable[..., Any]) -> tuple[str, str]:
@@ -574,8 +751,9 @@ class Shell:
 
         # Get all commands in this name space
         if cmd_name is None:
-            names = list(self._commands[namespace])
-            names.sort()
+            names = sorted(
+                name for name, method in self._commands[namespace].items() if self._can_run(session, method)
+            )
         else:
             names = [cmd_name]
 
@@ -588,6 +766,7 @@ class Shell:
             self.__print_command_help(session, namespace, command)
             first_cmd = False
 
+    @CommandPermission(PERMISSION_READ)
     def print_help(self, session: beans.ShellSession, command: str | None = None) -> Any:
         """
         Prints the available methods and their documentation, or the
@@ -595,17 +774,23 @@ class Shell:
         """
         if command:
             # Single command mode
-            if command in self._commands:
+            if command in self._commands and self.__can_run_any(session, command):
                 # Argument is a name space
                 self.__print_namespace_help(session, command)
                 was_namespace = True
             else:
                 was_namespace = False
 
-            # Also print the name of matching commands
+            # Also print the name of matching commands, which the session can run
             try:
                 # Extract command name space and name
-                possibilities = self.get_ns_commands(command)
+                possibilities = [
+                    (namespace, cmd_name)
+                    for namespace, cmd_name in self.get_ns_commands(command)
+                    if self._can_run(session, self._commands[namespace][cmd_name])
+                ]
+                if not possibilities:
+                    raise ValueError(f"Unknown command {command}")
             except ValueError as ex:
                 # Unknown command
                 if not was_namespace:
@@ -621,10 +806,12 @@ class Shell:
                 for namespace, cmd_name in possibilities:
                     self.__print_namespace_help(session, namespace, cmd_name)
         else:
-            # Get all name spaces
-            namespaces = list(self._commands.keys())
-            namespaces.remove(DEFAULT_NAMESPACE)
-            namespaces.sort()
+            # Get all name spaces with a command the session can run
+            namespaces = sorted(
+                namespace
+                for namespace in self._commands
+                if namespace != DEFAULT_NAMESPACE and self.__can_run_any(session, namespace)
+            )
             namespaces.insert(0, DEFAULT_NAMESPACE)
 
             first_ns = True
@@ -640,6 +827,7 @@ class Shell:
         return None
 
     @staticmethod
+    @CommandPermission(PERMISSION_READ)
     def echo(session: beans.ShellSession, *words: str) -> None:
         """
         Echoes the given words
@@ -647,6 +835,7 @@ class Shell:
         session.write_line(" ".join(words))
 
     @staticmethod
+    @CommandPermission(None)
     def quit(session: beans.ShellSession) -> None:
         """
         Stops the current shell session (raises a KeyboardInterrupt exception)
@@ -655,6 +844,7 @@ class Shell:
         session.write_line("Closing the shell session")
         raise KeyboardInterrupt()
 
+    @CommandPermission(PERMISSION_READ)
     def var_set(self, session: beans.ShellSession, **kwargs: Any) -> None:
         """
         Sets the given variables or prints the current ones. "set answer=42"
@@ -669,6 +859,7 @@ class Shell:
                 session.write_line(f"{name}={value}")
 
     @staticmethod
+    @CommandPermission(PERMISSION_READ)
     def var_unset(session: beans.ShellSession, name: str) -> Any:
         """
         Unsets the given variable
