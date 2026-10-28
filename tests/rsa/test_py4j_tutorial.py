@@ -11,6 +11,7 @@ import io
 import os
 import pathlib
 import re
+import socket
 import subprocess
 import sys
 import tarfile
@@ -35,6 +36,65 @@ KARAF_URL = "https://repo1.maven.org/maven2/org/apache/karaf/apache-karaf/4.4.11
 
 # Socket timeout (in seconds): a stalled download must not eat the CI job time
 DOWNLOAD_TIMEOUT = 30
+
+# Karaf 4.4 can't run on Java 24+, which removed the Security Manager: from there,
+# the bundles of the ECF feature run in a bare Felix
+FELIX_URL = (
+    "https://repo1.maven.org/maven2/org/apache/felix/org.apache.felix.main.distribution/7.0.5/"
+    "org.apache.felix.main.distribution-7.0.5.tar.gz"
+)
+MAVEN = "https://repo1.maven.org/maven2/"
+ECF_PY4J = "https://raw.githubusercontent.com/ECF/Py4j-RemoteServicesProvider/master/build/plugins/"
+FELIX_BUNDLES = [
+    # What Karaf provides
+    MAVEN + "org/apache/felix/org.apache.felix.scr/2.2.18/org.apache.felix.scr-2.2.18.jar",
+    MAVEN + "org/apache/felix/org.apache.felix.eventadmin/1.6.4/org.apache.felix.eventadmin-1.6.4.jar",
+    MAVEN + "org/apache/felix/org.apache.felix.configadmin/1.9.26/org.apache.felix.configadmin-1.9.26.jar",
+    MAVEN + "org/apache/felix/org.apache.felix.log/1.3.2/org.apache.felix.log-1.3.2.jar",
+    MAVEN + "org/osgi/org.osgi.service.component/1.5.1/org.osgi.service.component-1.5.1.jar",
+    MAVEN + "org/osgi/org.osgi.util.function/1.2.0/org.osgi.util.function-1.2.0.jar",
+    MAVEN + "org/osgi/org.osgi.util.promise/1.3.0/org.osgi.util.promise-1.3.0.jar",
+    MAVEN + "org/slf4j/slf4j-api/1.7.36/slf4j-api-1.7.36.jar",
+    MAVEN + "org/slf4j/slf4j-simple/1.7.36/slf4j-simple-1.7.36.jar",
+    # The ecf-rs-examples-python.java-hello feature
+    MAVEN
+    + "org/eclipse/platform/org.eclipse.equinox.supplement/1.7.0/org.eclipse.equinox.supplement-1.7.0.jar",
+    MAVEN + "org/eclipse/platform/org.eclipse.equinox.common/3.9.0/org.eclipse.equinox.common-3.9.0.jar",
+    MAVEN + "org/eclipse/platform/org.eclipse.core.jobs/3.9.3/org.eclipse.core.jobs-3.9.3.jar",
+    MAVEN
+    + "org/eclipse/platform/org.eclipse.equinox.concurrent/1.1.0/org.eclipse.equinox.concurrent-1.1.0.jar",
+    MAVEN + "org/eclipse/ecf/org.eclipse.ecf.identity/3.10.0/org.eclipse.ecf.identity-3.10.0.jar",
+    MAVEN + "org/eclipse/ecf/org.eclipse.ecf/3.13.0/org.eclipse.ecf-3.13.0.jar",
+    MAVEN + "org/eclipse/ecf/org.eclipse.ecf.sharedobject/2.7.0/org.eclipse.ecf.sharedobject-2.7.0.jar",
+    MAVEN + "org/eclipse/ecf/org.eclipse.ecf.discovery/5.3.0/org.eclipse.ecf.discovery-5.3.0.jar",
+    MAVEN
+    + "org/eclipse/ecf/org.eclipse.ecf.remoteservice.asyncproxy/2.1.200/"
+    + "org.eclipse.ecf.remoteservice.asyncproxy-2.1.200.jar",
+    MAVEN + "org/eclipse/ecf/org.eclipse.ecf.remoteservice/8.15.0/org.eclipse.ecf.remoteservice-8.15.0.jar",
+    MAVEN
+    + "org/eclipse/ecf/org.eclipse.osgi.services.remoteserviceadmin/1.7.0/"
+    + "org.eclipse.osgi.services.remoteserviceadmin-1.7.0.jar",
+    MAVEN
+    + "org/eclipse/ecf/org.eclipse.ecf.osgi.services.remoteserviceadmin.proxy/1.0.102/"
+    + "org.eclipse.ecf.osgi.services.remoteserviceadmin.proxy-1.0.102.jar",
+    MAVEN
+    + "org/eclipse/ecf/org.eclipse.ecf.osgi.services.remoteserviceadmin/4.9.3/"
+    + "org.eclipse.ecf.osgi.services.remoteserviceadmin-4.9.3.jar",
+    MAVEN
+    + "org/eclipse/ecf/org.eclipse.ecf.osgi.services.distribution/2.2.0/"
+    + "org.eclipse.ecf.osgi.services.distribution-2.2.0.jar",
+    "https://raw.githubusercontent.com/ECF/Py4j-OSGi/master/build/plugins/org.py4j.osgi_1.6.1.202505311223.jar",
+    ECF_PY4J + "org.apache.commons.commons-exec_1.5.0.jar",
+    ECF_PY4J + "com.google.protobuf_4.31.1.jar",
+    ECF_PY4J + "org.eclipse.ecf.provider.direct_2.3.4.202505311223.jar",
+    ECF_PY4J + "org.eclipse.ecf.provider.direct.protobuf_2.2.4.202505311223.jar",
+    ECF_PY4J + "org.eclipse.ecf.provider.py4j_2.4.2.202505311223.jar",
+    ECF_PY4J + "org.eclipse.ecf.provider.py4j.protobuf_1.6.2.202505311223.jar",
+    ECF_PY4J + "org.eclipse.ecf.python_1.1.1.202505311223.jar",
+    ECF_PY4J + "org.eclipse.ecf.python.protobuf_1.3.0.202505311223.jar",
+    ECF_PY4J + "org.eclipse.ecf.examples.hello_1.1.3.202505311223.jar",
+    ECF_PY4J + "org.eclipse.ecf.examples.hello.javahost_1.1.5.202505311223.jar",
+]
 
 __version_info__ = (3, 3, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
@@ -203,9 +263,60 @@ def wait_for_prompt(process: subprocess.Popen, prompt: str = "karaf@root()>") ->
 
 
 @contextmanager
+def use_felix(java_bin: str) -> Generator[subprocess.Popen, None, None]:
+    """
+    Runs the bundles of the ECF tutorial feature in a bare Felix, until the
+    Py4J gateway of the Java side listens
+
+    :param java_bin: The Java executable
+    """
+    with tempfile.TemporaryDirectory() as tmp_dir:
+        with (
+            urlopen(FELIX_URL, timeout=DOWNLOAD_TIMEOUT) as req,
+            tarfile.open(fileobj=req, mode="r|gz") as tar,
+        ):
+            if hasattr(tarfile, "data_filter"):
+                tar.extractall(tmp_dir, filter="data")
+            else:
+                tar.extractall(tmp_dir)
+
+        root = next(pathlib.Path(tmp_dir).iterdir())
+        # Only our bundles: the default shell needs a terminal
+        bundles = root / "bundle"
+        for path in bundles.iterdir():
+            path.unlink()
+        for url in FELIX_BUNDLES:
+            with urlopen(url, timeout=DOWNLOAD_TIMEOUT) as req:
+                (bundles / url.rsplit("/", 1)[1]).write_bytes(req.read())
+
+        felix = subprocess.Popen(
+            [java_bin, "-jar", "bin/felix.jar"],
+            cwd=root,
+            stdin=subprocess.DEVNULL,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+        try:
+            deadline = time.time() + 60
+            while time.time() < deadline:
+                with socket.socket() as sock:
+                    if sock.connect_ex(("127.0.0.1", 25333)) == 0:
+                        break
+                time.sleep(0.5)
+            else:
+                raise OSError("The Py4J gateway of Felix didn't start")
+
+            yield felix
+        finally:
+            felix.kill()
+            felix.wait(5)
+
+
+@contextmanager
 def use_karaf() -> Generator[subprocess.Popen, None, None]:
     """
     A context that prepares a Karaf installation before giving the hand
+    (a bare Felix from Java 24)
     """
     karaf_dir = os.environ.get("KARAF_DIR")
     java_home = os.environ.get("JAVA_HOME")
@@ -229,15 +340,17 @@ def use_karaf() -> Generator[subprocess.Popen, None, None]:
             major_version = int(match.group("version"))
             if major_version < 11:
                 raise unittest.SkipTest(f"Java version is too old ({major_version}), need at least Java 11")
-            elif major_version > 21:
-                # Karaf 4.4 can't run on Java 24+, which removed the Security Manager
-                raise unittest.SkipTest(f"Java version is too new ({major_version}), need at most Java 21")
         else:
             raise unittest.SkipTest("Can't determine Java version")
     except OSError:
         raise unittest.SkipTest("Java is not installed.")
     except AssertionError as e:
         raise unittest.SkipTest(str(e))
+
+    if major_version >= 24:
+        with use_felix(java_bin) as felix:
+            yield felix
+        return
 
     # Start Karaf
     start = time.time()

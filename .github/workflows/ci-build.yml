@@ -53,13 +53,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
-      # Not Java 25: Karaf 4.4 (py4j tutorial test) can't run on Java 24+, which
-      # removed the Security Manager and Subject.getSubject() it relies on
-      - name: Use JDK 21
+      # The py4j tutorial test runs the Java side in Felix: Karaf 4.4 can't run
+      # on Java 24+, which removed the Security Manager
+      - name: Use JDK 25
         uses: actions/setup-java@v6
         with:
           distribution: 'temurin'
-          java-version: '21'
+          java-version: '25'
 
       - name: Install uv and Python ${{ matrix.python-version }}
         uses: astral-sh/setup-uv@v10.3.0
