@@ -110,6 +110,14 @@ Unreleased
 * The `exit` and `quit` commands print "Closing the shell session" instead of
   "Raising KeyboardInterrupt to stop main thread", in every front-end
 
+### Remote
+
+* Removed the etcd2 discovery provider
+  (`pelix.rsa.providers.discovery.discovery_etcd`) and the `etcd2` extra,
+  deprecated since iPOPO 3.1.0: use the etcd3 one
+  (`pelix.rsa.providers.discovery.etcd3`) instead. This also removes the
+  unmaintained `python-etcd` dependency
+
 ### Misc
 
 * `InitFileHandler` takes a `search_path` argument: the folders where it looks

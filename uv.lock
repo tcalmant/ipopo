@@ -706,15 +706,6 @@ wheels = [
 ]
 
 [[package]]
-name = "dnspython"
-version = "2.8.0"
-source = { registry = "https://pypi.org/simple" }
-sdist = { url = "https://files.pythonhosted.org/packages/8c/8b/57666417c0f90f08bcafa776861060426765fdb422eb10212086fb811d26/dnspython-2.8.0.tar.gz", hash = "sha256:181d3c6996452cb1189c4046c61599b84a5a86e099562ffde77d26984ff26d0f", size = 368251, upload-time = "2025-09-07T18:58:00.022Z" }
-wheels = [
-    { url = "https://files.pythonhosted.org/packages/ba/5a/18ad964b0086c6e62e2e7500f7edc89e3faa45033c71c1893d34eed2b2de/dnspython-2.8.0-py3-none-any.whl", hash = "sha256:01d9bbc4a2d76bf0db7c1f729812ded6d912bd318d3b1cf81d30c0f845dbf3af", size = 331094, upload-time = "2025-09-07T18:57:58.071Z" },
-]
-
-[[package]]
 name = "frozenlist"
 version = "1.8.0"
 source = { registry = "https://pypi.org/simple" }
@@ -985,10 +976,6 @@ aiohttp = [
 bcrypt = [
     { name = "bcrypt" },
 ]
-etcd2 = [
-    { name = "osgiservicebridge" },
-    { name = "python-etcd" },
-]
 mqtt = [
     { name = "paho-mqtt" },
 ]
@@ -1031,16 +1018,14 @@ requires-dist = [
     { name = "grpcio-tools", marker = "extra == 'rsa'", specifier = ">=1.80,<1.85" },
     { name = "jsonrpclib-pelix", specifier = ">=0.4.3,<1.3.0" },
     { name = "kazoo", marker = "extra == 'zookeeper'", specifier = "~=2.11.0" },
-    { name = "osgiservicebridge", marker = "extra == 'etcd2'", specifier = "~=1.5.9" },
     { name = "osgiservicebridge", marker = "extra == 'rsa'", specifier = "~=1.5.9" },
     { name = "paho-mqtt", marker = "extra == 'mqtt'", specifier = "~=2.1.0" },
-    { name = "python-etcd", marker = "extra == 'etcd2'", specifier = "~=0.4.5" },
     { name = "pyyaml", marker = "extra == 'yaml'", specifier = "~=6.0.3" },
     { name = "redis", marker = "extra == 'redis'", specifier = ">=7.4,<8.2" },
     { name = "slixmpp", marker = "extra == 'xmpp'", specifier = "~=1.15.0" },
     { name = "zeroconf", marker = "extra == 'zeroconf'", specifier = ">=0.148,<0.152" },
 ]
-provides-extras = ["aiohttp", "bcrypt", "etcd2", "mqtt", "redis", "rsa", "xmpp", "zeroconf", "zookeeper", "yaml"]
+provides-extras = ["aiohttp", "bcrypt", "mqtt", "redis", "rsa", "xmpp", "zeroconf", "zookeeper", "yaml"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1576,16 +1561,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/e4/47/b9efed96c114afcfa
 wheels = [
     { url = "https://files.pythonhosted.org/packages/24/25/1de2678b631f5a49215c6c96fff41ba892b0a34df68d6d80292b1b48aa7f/pytest-9.1.1-py3-none-any.whl", hash = "sha256:37a86b45efb9a47a61a36449063e8e18d0cab3161329fc099eb21783169c4f0c", size = 386536, upload-time = "2026-06-19T10:58:31.347Z" },
 ]
-
-[[package]]
-name = "python-etcd"
-version = "0.4.5"
-source = { registry = "https://pypi.org/simple" }
-dependencies = [
-    { name = "dnspython" },
-    { name = "urllib3" },
-]
-sdist = { url = "https://files.pythonhosted.org/packages/a1/da/616a4d073642da5dd432e5289b7c1cb0963cc5dde23d1ecb8d726821ab41/python-etcd-0.4.5.tar.gz", hash = "sha256:f1b5ebb825a3e8190494f5ce1509fde9069f2754838ed90402a8c11e1f52b8cb", size = 37270, upload-time = "2017-03-02T23:05:36.016Z" }
 
 [[package]]
 name = "pyyaml"

@@ -6,7 +6,7 @@ utility methods and is required to enable remote services based on JSON-RPC.
 It relies on other libraries for extended features, which are declared as
 optional dependencies in [`pyproject.toml`](https://github.com/tcalmant/ipopo/blob/v3/pyproject.toml).
 They can be installed as extras, e.g. `pip install iPOPO[MQTT,zeroconf]`, or all
-at once with `pip install iPOPO[aiohttp,etcd2,MQTT,Redis,RSA,XMPP,zeroconf,ZooKeeper,yaml]`.
+at once with `pip install iPOPO[aiohttp,MQTT,Redis,RSA,XMPP,zeroconf,ZooKeeper,yaml]`.
 
 To install iPOPO, you will need Python 3.11 or newer.
 
