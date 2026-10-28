@@ -18,7 +18,7 @@ jobs:
       # Lint against python 3.14, as some dependencies are not available
       # for 3.15 yet
       - name: Install uv and Python
-        uses: astral-sh/setup-uv@v10.3.0
+        uses: astral-sh/setup-uv@v10.3.2
         with:
           enable-cache: true
           python-version: "3.14"
@@ -62,7 +62,7 @@ jobs:
           java-version: '25'
 
       - name: Install uv and Python ${{ matrix.python-version }}
-        uses: astral-sh/setup-uv@v10.3.0
+        uses: astral-sh/setup-uv@v10.3.2
         with:
           enable-cache: true
           python-version: ${{ matrix.python-version }}
