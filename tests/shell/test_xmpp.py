@@ -98,11 +98,13 @@ class XMPPShellTest(unittest.TestCase):
                     "shell.xmpp.server": localhost,
                     "shell.xmpp.jid": shell_jid,
                     "shell.xmpp.password": "foobar",
+                    # The test server has a self-signed certificate
+                    "shell.xmpp.tls.verify": "0",
                 },
             )
 
         # Prepare a client
-        client = xmpp.BasicBot("user2@localhost", "foobar")
+        client = xmpp.BasicBot("user2@localhost", "foobar", ssl_verify=False)
         self.assertTrue(client.connect(localhost, 5222))
 
         # Ensure both bots can talk to each other

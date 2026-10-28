@@ -65,6 +65,7 @@ from pelix.ipopo.decorators import (
     Requires,
     Validate,
 )
+from pelix.ipopo.instance import StoredInstance
 from pelix.security import (
     ANONYMOUS,
     AuthenticationFailed,
@@ -1475,11 +1476,10 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         if self._cert_file and not self._ca_file and not self._unix_path:
             # Without an explicit authority chain, any client certificate signed
             # by any CA of the system trust store would be accepted
-            _logger.error(
+            raise ValueError(
                 "pelix.shell.ssl.cert is set without pelix.shell.ssl.ca: ANY client certificate "
-                "signed by ANY CA in the system trust store will be accepted by a shell which can "
-                "install and start arbitrary bundles. Set pelix.shell.ssl.ca. "
-                "This configuration will be refused in iPOPO 3.3.0."
+                "signed by ANY CA in the system trust store would be accepted by a shell which can "
+                "install and start arbitrary bundles. Set pelix.shell.ssl.ca."
             )
 
         # Start the server
@@ -1610,11 +1610,11 @@ def main(argv: list[str] | None = None) -> int:
         )
         group.add_argument(
             "--key-password",
-            help="Password of the server key.Set to '-' for a password request.",
+            help="Password of the server key. Set to '-' for a password request.",
         )
         group.add_argument(
             "--ca-chain",
-            help="Path to the CA chain file to authenticate clients",
+            help="Path to the CA chain file to authenticate clients (required with --cert)",
         )
 
     # Local options
@@ -1698,11 +1698,18 @@ def main(argv: list[str] | None = None) -> int:
 
             # Avoid loose reference to the password
             del key_password
+
+            # A refused configuration leaves the component erroneous, with nothing listening
+            if ipopo.get_instance_details(rshell_name)["state"] == StoredInstance.ERRONEOUS:
+                _logger.error("The remote shell could not start. Abandon.")
+                framework.stop()
+                return 1
         else:
             _logger.error(
                 "A remote shell component (%s) is already configured. Abandon.",
                 rshell_name,
             )
+            framework.stop()
             return 1
 
     # Prepare a banner

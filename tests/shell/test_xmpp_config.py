@@ -97,33 +97,38 @@ class XMPPShellConfigTest(unittest.TestCase):
         assert isinstance(bot, _FakeBot)
         return bot
 
-    def test_tls_verify_disabled_by_default(self) -> None:
+    def test_tls_verify(self) -> None:
         """
-        The certificate of the server is not verified by default (3.2.x)
+        The certificate of the server is verified unless shell.xmpp.tls.verify is 0
         """
-        bot = self.instantiate({})
-        self.assertFalse(bot.kwargs["ssl_verify"])
+        for value, expected in ((None, True), ("1", True), ("0", False), ("yes please", True)):
+            with self.subTest(value=value):
+                bot = self.instantiate({} if value is None else {"shell.xmpp.tls.verify": value})
+                try:
+                    self.assertEqual(bot.kwargs["ssl_verify"], expected)
+                finally:
+                    with use_ipopo(self.context) as ipopo:
+                        ipopo.kill("xmpp-shell")
 
-    def test_tls_verify_enabled(self) -> None:
+    def test_main_tls(self) -> None:
         """
-        The shell.xmpp.tls.verify property reaches the bot
+        The script uses STARTTLS and verifies the certificate unless told otherwise
         """
-        bot = self.instantiate({"shell.xmpp.tls.verify": "1"})
-        self.assertTrue(bot.kwargs["ssl_verify"])
-
-    def test_tls_verify_explicitly_disabled(self) -> None:
-        """
-        The shell.xmpp.tls.verify property can be set to 0 explicitly
-        """
-        bot = self.instantiate({"shell.xmpp.tls.verify": "0"})
-        self.assertFalse(bot.kwargs["ssl_verify"])
-
-    def test_tls_verify_invalid_value(self) -> None:
-        """
-        An unparsable value falls back to the default (no verification)
-        """
-        bot = self.instantiate({"shell.xmpp.tls.verify": "yes please"})
-        self.assertFalse(bot.kwargs["ssl_verify"])
+        for argv, tls, verify in (
+            ([], True, True),
+            (["--no-tls"], False, True),
+            (["--no-tls-verify"], True, False),
+        ):
+            with (
+                self.subTest(argv=argv),
+                mock.patch("pelix.framework.create_framework"),
+                mock.patch.object(pelix.shell.xmpp, "use_ipopo") as use_ipopo_mock,
+            ):
+                pelix.shell.xmpp.main(["-j", "bot@localhost", "--password", "foobar", *argv])
+                ipopo = use_ipopo_mock.return_value.__enter__.return_value
+                properties = ipopo.instantiate.call_args.args[2]
+                self.assertEqual(properties["shell.xmpp.tls"], tls)
+                self.assertEqual(properties["shell.xmpp.tls.verify"], verify)
 
 
 # ------------------------------------------------------------------------------

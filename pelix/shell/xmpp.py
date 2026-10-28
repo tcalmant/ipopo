@@ -181,7 +181,7 @@ class _XmppInStream(StreamBase[str]):
 @HiddenProperty("_password", "shell.xmpp.password")
 @Property("_use_tls", "shell.xmpp.tls", "1")
 @Property("_use_ssl", "shell.xmpp.ssl", "0")
-@Property("_tls_verify", "shell.xmpp.tls.verify", "0")
+@Property("_tls_verify", "shell.xmpp.tls.verify", "1")
 class IPopoXMPPShell:
     """
     The iPOPO XMPP Shell, based on the Pelix Shell
@@ -200,7 +200,7 @@ class IPopoXMPPShell:
         self._password: str | None = None
         self._use_tls: bool = True
         self._use_ssl: bool = False
-        self._tls_verify: bool = False
+        self._tls_verify: bool = True
 
         # XMPP Bot
         self.__bot: pelix.misc.xmpp.BasicBot | None = None
@@ -233,7 +233,7 @@ class IPopoXMPPShell:
         self._port = self.__normalize_int(self._port, 5222)
         self._use_tls = bool(self.__normalize_int(self._use_tls, 1))
         self._use_ssl = bool(self.__normalize_int(self._use_ssl, 0))
-        self._tls_verify = bool(self.__normalize_int(self._tls_verify, 0))
+        self._tls_verify = bool(self.__normalize_int(self._tls_verify, 1))
 
         # Check other values
         if not self._host:
@@ -442,7 +442,8 @@ def main(argv: list[str] | None = None) -> int:
     group.add_argument(
         "--tls",
         dest="use_tls",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=True,
         help="Use a STARTTLS connection",
     )
     group.add_argument(
@@ -454,7 +455,8 @@ def main(argv: list[str] | None = None) -> int:
     group.add_argument(
         "--tls-verify",
         dest="tls_verify",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=True,
         help="Verify the certificate of the XMPP server",
     )
 

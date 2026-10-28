@@ -126,9 +126,6 @@ They are known and tracked, and they do **not** need to be reported, but a *spec
   Any client that can reach the port can enumerate and invoke exported services.
   Authentication support is planned.
   Until then, exported services must only be reachable on a trusted network or behind an authenticating reverse proxy
-- **The HTTP service binds to `0.0.0.0` by default.**
-  This is long-standing, documented behavior and is not going to change: too much existing code depends on it.
-  Set the `pelix.http.address` property to `127.0.0.1` unless external exposure is intended
 - **No bundle isolation.**
   See "malicious bundles" above.
   Python's single module namespace makes per-bundle isolation infeasible: iPOPO provides lifecycle management, not a security boundary
@@ -145,8 +142,8 @@ If you believe one of these is materially worse than described here, that is a r
 
 If you are deploying iPOPO in production, and particularly on a network you do not fully control:
 
-- **Bind the HTTP service to loopback.**
-  Set `pelix.http.address` to `127.0.0.1` and put an authenticating reverse proxy in front of it if it must be reachable
+- **Keep the HTTP service on loopback.**
+  It binds to `127.0.0.1` by default since 3.3.0 (`0.0.0.0` before): put an authenticating reverse proxy in front of it if it must be reachable
 - **Put a web application with logins behind a TLS reverse proxy, and tell the HTTP service about it.**
   Set `pelix.http.proxy.trusted` to the proxy address, so that the client address (used by the login throttle) and the scheme (used by the `Origin` check and the `Secure` flag of cookies) are the ones of the client.
   The proxy must keep the `Host` header and overwrite, not forward, the `X-Forwarded-*` headers of its clients.
@@ -158,11 +155,9 @@ If you are deploying iPOPO in production, and particularly on a network you do n
   It binds to `localhost` by default, keep it that way.
   If remote administration is required, use the TLS front-end **with certificate-based client authentication** (`pelix.shell.ssl.ca`), documented in `docs/refcards/shell.md`, and restrict it to an administrative network.
   `pelix.shell.ssl.ca` is **not optional**: setting `pelix.shell.ssl.cert` without it makes the shell accept any client certificate signed by any authority of the system trust store.
-  Since 3.2.2 this is logged as an error; it will be refused in 3.3.0
-- **Enable TLS verification on the XMPP client.**
-  Set the `shell.xmpp.tls.verify` property of the XMPP shell to `1`, or pass `--tls-verify` to `python -m pelix.shell.xmpp`.
-  When using `pelix.misc.xmpp` directly, pass `ssl_verify=True`.
-  The default does not verify server certificates; it will become `1` in 3.3.0
+  Since 3.3.0 the shell refuses to start in that case (3.2.2 only logs an error)
+- **Keep TLS verification enabled on the XMPP client.**
+  Since 3.3.0 the XMPP shell and `pelix.misc.xmpp` verify the certificate of the server by default: do not set the `shell.xmpp.tls.verify` property to `0`, pass `--no-tls-verify` to `python -m pelix.shell.xmpp`, nor give `ssl_verify=False` to the bots
 - **Keep Remote Services and mDNS discovery on trusted network segments only.**
   mDNS discovery accepts input from any host on the local link
 - **Validate any externally-derived Configuration Admin PID** before passing it to the Configuration Admin API

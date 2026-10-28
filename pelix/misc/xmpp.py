@@ -66,7 +66,7 @@ class XMPPBotClient(ClientXMPP):
     """
 
     def __init__(
-        self, jid: str | JID, password: str, initial_priority: int = 0, ssl_verify: bool = False
+        self, jid: str | JID, password: str, initial_priority: int = 0, ssl_verify: bool = True
     ) -> None:
         """
         :param jid: Full Jabber ID of the bot
@@ -102,7 +102,8 @@ class XMPPBotClient(ClientXMPP):
 
     def get_ssl_context(self) -> ssl.SSLContext:
         """
-        Returns a SSL context that doesn't check the host name nor the certificate
+        Returns a SSL context which checks the host name and the certificate, unless
+        ssl_verify was false
         """
         ctx = super().get_ssl_context()
         if not self.__ssl_verify:
@@ -123,8 +124,8 @@ class XMPPBotClient(ClientXMPP):
         """
         Connects to the server.
 
-        By default, uses an un-encrypted connection, as it won't connect to an
-        OpenFire server otherwise
+        By default, uses STARTTLS. An un-encrypted connection is only used when both
+        use_tls and use_ssl are false
 
         :param host: Server host name
         :param port: Server port (default: 5222)
@@ -319,7 +320,7 @@ class BasicBot:
         jid: str | JID,
         password: str,
         initial_priority: int = 0,
-        ssl_verify: bool = False,
+        ssl_verify: bool = True,
         bot_class: type[XMPPBotClient] = XMPPBotClient,
     ) -> None:
         self.__loop: AbstractEventLoop | None = None
