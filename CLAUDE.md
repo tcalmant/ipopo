@@ -6,7 +6,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 iPOPO is a Service-Oriented Component Model (SOCM) for Python, built on top of Pelix, a dynamic
 service platform (an OSGi/iPOJO-inspired framework in pure Python). This is the `v3` branch,
-targeting Python 3.10+. It is not backward compatible with the `v1`/`v2` branches (separate git
+targeting Python 3.11+. It is not backward compatible with the `v1`/`v2` branches (separate git
 branches), though application code written for v1 mostly still runs on v3.
 
 ## Commands
@@ -129,7 +129,7 @@ contains the runnable specification/provider/consumer example referenced in the 
 
 ## Code style (from CONTRIBUTING.md)
 
-- Python 3.10+ compatible; use type hints throughout; prefer typed `Protocol` service
+- Python 3.11+ compatible; use type hints throughout; prefer typed `Protocol` service
   specifications over bare specification-name strings in new code.
 - Every module must define `__version_info__` (tuple) and a matching `__version__` string.
 - Imports go after the module docstring and before any other code; remove unused imports.

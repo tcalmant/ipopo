@@ -22,7 +22,7 @@ inside the built bundle.
 ## Requirements
 
 This tutorial sample requires Karaf 4.4.6+ on Java 17 or higher for the server
-process, Python 3.10+ for the iPOPO sample application process, and iPOPO 3.x.
+process, Python 3.11+ for the iPOPO sample application process, and iPOPO 3.x.
 
 ## Run the `foo` ModuleResolver in [Karaf 4.4.6+](https://karaf.apache.org/download)
 
@@ -57,7 +57,7 @@ By default, a Python.Java gateway will be started and be listening for python co
 
 The iPOPO project has a python-side Python.Java Distribution Provider, and a sample application to connect to the Java server at `localhost:25333` and then resolve and run the code in the `foo` package.  This sample application is [here](https://github.com/tcalmant/ipopo/blob/v3/samples/run_rsa_py4j_importhook.py).
 
-To start the sample from a shell (python 3.10+):
+To start the sample from a shell (python 3.11+):
 
 ```
 python -m samples.run_rsa_py4j_importhook

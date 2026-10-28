@@ -8,10 +8,11 @@ optional dependencies in [`pyproject.toml`](https://github.com/tcalmant/ipopo/bl
 They can be installed as extras, e.g. `pip install iPOPO[MQTT,zeroconf]`, or all
 at once with `pip install iPOPO[aiohttp,etcd2,MQTT,Redis,RSA,XMPP,zeroconf,ZooKeeper,yaml]`.
 
-To install iPOPO, you will need Python 3.10 or newer.
+To install iPOPO, you will need Python 3.11 or newer.
 
 :::{note}
-iPOPO v3 only works with Python 3.10+.
+iPOPO v3 only works with Python 3.11+ since iPOPO 3.3.0: use iPOPO 3.2.x with
+Python 3.10.
 
 If you need support for Python 2.7 or an earlier version of Python 3, please
 use [iPOPO v1](https://github.com/tcalmant/ipopo/tree/v1).

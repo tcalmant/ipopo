@@ -8,6 +8,12 @@
 Unreleased
 :::
 
+### Project
+
+* Dropped support for Python 3.10, which reached its end of life: iPOPO now
+  requires Python 3.11 or newer. Use iPOPO 3.2.x with Python 3.10
+* Removed the `tomli` dependency, replaced by the standard `tomllib`
+
 ### Security
 
 * Added the `pelix.http.cors.enforce` property to the HTTP services: a request

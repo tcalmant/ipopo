@@ -65,6 +65,7 @@ warns loudly when it validates.
 import logging
 import os
 import re
+import tomllib
 from collections.abc import Iterable
 from typing import TYPE_CHECKING, Any
 
@@ -84,13 +85,6 @@ from pelix.security import (
     Permission,
     Subject,
 )
-
-try:
-    # Only one of the two exists on any given interpreter, so a type checker aimed at
-    # the lowest supported version cannot resolve the first one
-    import tomllib  # ty: ignore[unresolved-import]
-except ImportError:  # Python 3.10
-    import tomli as tomllib  # type: ignore[no-redef] # ty: ignore[unresolved-import]
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext

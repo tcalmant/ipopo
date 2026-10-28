@@ -27,7 +27,7 @@ along with the other supported properties, are documented [in the provider modul
 
 ## Requirements
 
-This tutorial sample requires Python 3.10+ and iPOPO 3.x.
+This tutorial sample requires Python 3.11+ and iPOPO 3.x.
 
 ## Using Etcd3 to Advertise an Endpoint Description
 

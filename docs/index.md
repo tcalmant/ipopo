@@ -21,7 +21,7 @@ and [OSGi](https://www.osgi.org/). It was designed by Thomas Calmant in his
 (in French), in continuity with the earlier [iPOJO work](https://theses.hal.science/tel-00347935/document) by Clément Escoffier.
 
 :::{important}
-This documentation targets the current iPOPO 3.x line and Python 3.10+.
+This documentation targets the current iPOPO 3.x line and Python 3.11+.
 :::
 
 ## Why iPOPO
