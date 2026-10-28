@@ -895,6 +895,4 @@ def get_log_level(level: str | int) -> int | None:
     if isinstance(level, int):
         return level
 
-    level = level.upper()
-
-    return logging.getLevelNamesMapping().get(level)
+    return logging.getLevelNamesMapping().get(level.upper())
