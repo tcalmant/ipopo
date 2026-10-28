@@ -31,7 +31,7 @@ import contextvars
 import logging
 import re
 import threading
-from collections.abc import Callable, Iterator, Mapping
+from collections.abc import Callable, Iterator, Mapping, Sequence
 from typing import Any, Self
 
 import pelix.threadpool
@@ -137,6 +137,17 @@ class EventDeliveryError(ExceptionGroup):
         super().__init__(topic, errors)  # ty: ignore[invalid-argument-type]
         self.topic = topic
         self.errors = errors
+
+    def derive(self, excs: Sequence[Exception]) -> "EventDeliveryError":
+        # Called by split() and except*: keeps the topic and the handler of each exception.
+        # They come in their original order, but a nested group comes as a new group, with
+        # the traceback of the original one
+        remaining = iter(self.errors)
+        errors = []
+        for ex in excs:
+            sid = next(sid for sid, orig in remaining if orig is ex or orig.__traceback__ is ex.__traceback__)
+            errors.append((sid, ex))
+        return EventDeliveryError(self.topic, errors)
 
 
 class EventProperties(Mapping[str, Any]):

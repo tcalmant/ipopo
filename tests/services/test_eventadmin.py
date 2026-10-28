@@ -12,6 +12,7 @@ import time
 import unittest
 from typing import Any, cast
 
+import pelix.constants
 import pelix.framework
 import pelix.services
 from pelix.internals.registry import ServiceRegistration
@@ -333,15 +334,25 @@ class EventAdminTest(unittest.TestCase):
         """
 
         class Failing:
+            def __init__(self, error: Exception) -> None:
+                self.error = error
+
             def handle_event(self, topic: str, properties: dict[str, Any]) -> None:
-                raise RuntimeError("refused")
+                raise self.error
 
         context = self.framework.get_bundle_context()
-        context.register_service(
-            pelix.services.ServiceEventHandler,
-            cast(pelix.services.ServiceEventHandler, Failing()),
-            {pelix.services.PROP_EVENT_TOPICS: "/titi/*"},
-        )
+        # A handler can fail with a group, when it sends an event itself with raise_errors
+        nested = ExceptionGroup("nested", [KeyError("deep"), OSError("io")])
+        ids = [
+            context.register_service(
+                pelix.services.ServiceEventHandler,
+                cast(pelix.services.ServiceEventHandler, Failing(error)),
+                {pelix.services.PROP_EVENT_TOPICS: "/titi/*"},
+            )
+            .get_reference()
+            .get_property(pelix.constants.SERVICE_ID)
+            for error in (RuntimeError("refused"), KeyError("missing"), nested)
+        ]
         good, _ = self._register_handler("/titi/*")
 
         # Default: swallowed
@@ -353,10 +364,33 @@ class EventAdminTest(unittest.TestCase):
 
         self.assertIsInstance(ctx.exception, ExceptionGroup)
         self.assertEqual(ctx.exception.topic, "/titi/x")
-        self.assertEqual(len(ctx.exception.errors), 1)
+        self.assertEqual(len(ctx.exception.errors), 3)
         self.assertIsInstance(ctx.exception.exceptions[0], RuntimeError)
         # The other handler was notified
         self.assertEqual(good.pop_event(), "/titi/x")
+
+        # except* splits the failures by type, even nested, keeping the topic and the
+        # handler of each
+        caught: list[ExceptionGroup] = []
+        with self.assertRaises(EventDeliveryError) as ctx:
+            try:
+                self.eventadmin.send("/titi/x", raise_errors=True)
+            except* KeyError as group:
+                caught.append(group)
+
+        for group, expected in (
+            (caught[0], [(ids[1], KeyError), (ids[2], [KeyError])]),
+            (ctx.exception, [(ids[0], RuntimeError), (ids[2], [OSError])]),
+        ):
+            self.assertIsInstance(group, EventDeliveryError)
+            self.assertEqual(cast(EventDeliveryError, group).topic, "/titi/x")
+            self.assertEqual(
+                [
+                    (sid, [type(e) for e in ex.exceptions] if isinstance(ex, ExceptionGroup) else type(ex))
+                    for sid, ex in cast(EventDeliveryError, group).errors
+                ],
+                expected,
+            )
 
         # Counter-example: no failure, no exception
         self.eventadmin.send("/other/x", raise_errors=True)
