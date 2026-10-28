@@ -122,17 +122,17 @@ ETCD_PORT_DEFAULT = 2379
 # as a a separator character
 ETCD_TOPKEY_PROP = f"{ETCD_NAME_PREFIX}.top_key"
 ETCD_TOPKEY_DEFAULT = "org.eclipse.ecf.provider.etcd3.container.Etcd3DiscoveryContainer"
-# etcd.grpc_credentials prop; type: Optional[grpc.ChannelCredentials]; Default: None
+# etcd.grpc_credentials prop; type: grpc.ChannelCredentials | None; Default: None
 # if credentials is not None then a secure channel will be created.  If None then insecure channel will
 # be created
 ETCD_GRPCCREDENTIALS_PROP = f"{ETCD_NAME_PREFIX}.grpc_credentials"
 ETCD_GRPCCREDENTIALS_DEFAULT = None
-# etcd.grpc_options prop; type: Optional[Sequence[Tuple[str, Any]]]; Default: None
+# etcd.grpc_options prop; type: Sequence[tuple[str, Any]] | None; Default: None
 # See grpc documentation for 'options' and 'compression' argument at following
 # https://grpc.github.io/grpc/python/grpc_asyncio.html#grpc.aio.insecure_channel
 ETCD_GRPCOPTIONS_PROP = f"{ETCD_NAME_PREFIX}.grpc_options"
 ETCD_GRPCOPTIONS_DEFAULT = None
-# etcd.grpc_compression prop; type: Optional[grpc.Compression]; Default: None
+# etcd.grpc_compression prop; type: grpc.Compression | None; Default: None
 ETCD_GRPCCOMPRESSION_PROP = f"{ETCD_NAME_PREFIX}.grpc_compression"
 ETCD_GRPCCOMPRESSION_DEFAULT = None
 # etcd.session_id prop; type: str; Default: value returned from call to create_uuid()
@@ -169,7 +169,7 @@ ETCD_DISCONNECTTIMEOUT_DEFAULT = 5
 # socket.gethostbyname(socket.gethostname())
 ETCD_HOSTIP_PROP = f"{ETCD_NAME_PREFIX}.hostip"
 ETCD_HOSTIP_DEFAULT = socket.gethostbyname(socket.gethostname())
-# etcd._call_executor; type: Optional[ThreadPoolExecutor]; Default: None (uses asyncio ThreadPoolExecutor
+# etcd._call_executor; type: ThreadPoolExecutor | None; Default: None (uses asyncio ThreadPoolExecutor
 ETCD_CALLEXECUTOR_PROP = f"{ETCD_NAME_PREFIX}.call_executor"
 ETCD_CALLEXECUTOR_DEFAULT = None
 

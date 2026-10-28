@@ -32,7 +32,6 @@ from typing import (
     Generic,
     Protocol,
     TypeVar,
-    Union,
     overload,
 )
 
@@ -143,7 +142,7 @@ class ListenerInfo(Generic[T]):
         bundle_context: "BundleContext",
         listener: T,
         specification: str | None,
-        ldap_filter: Union[None, "LDAPCriteria", "LDAPFilter"],
+        ldap_filter: "LDAPCriteria | LDAPFilter | None",
     ) -> None:
         """
         :param bundle_context: Bundle context
@@ -178,7 +177,7 @@ class ListenerInfo(Generic[T]):
         return self.__specification
 
     @property
-    def ldap_filter(self) -> Union[None, "LDAPCriteria", "LDAPFilter"]:
+    def ldap_filter(self) -> "LDAPCriteria | LDAPFilter | None":
         """
         The LDAP filter on service properties
         """

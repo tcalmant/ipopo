@@ -31,7 +31,7 @@ Requires Paho MQTT client (paho-mqtt).
 import logging
 import threading
 from collections.abc import Iterable
-from typing import TYPE_CHECKING, Any, Optional, cast
+from typing import TYPE_CHECKING, Any, cast
 
 import paho.mqtt.client as paho
 from paho.mqtt.client import ConnectFlags, DisconnectFlags
@@ -367,7 +367,7 @@ class MqttConnectionFactory(services.MqttConnectorFactory):
                 Reference holder for the service registration
                 """
 
-                registration: Optional["ServiceRegistration[_MqttConnection]"] = None
+                registration: "ServiceRegistration[_MqttConnection] | None" = None
 
             holder = Holder()
 

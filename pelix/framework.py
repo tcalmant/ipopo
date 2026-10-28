@@ -42,7 +42,6 @@ from typing import (
     Any,
     Generic,
     TypeVar,
-    Union,
     cast,
 )
 
@@ -720,7 +719,7 @@ class Framework(Bundle):
         """
         return self._registry.find_service_references(clazz, ldap_filter, only_one)
 
-    def get_bundle_by_id(self, bundle_id: int) -> Union[Bundle, "Framework"]:
+    def get_bundle_by_id(self, bundle_id: int) -> "Bundle | Framework":
         """
         Retrieves the bundle with the given ID
 

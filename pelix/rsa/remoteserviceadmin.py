@@ -31,7 +31,7 @@ import sys
 import threading
 from datetime import UTC, datetime
 from traceback import print_exception
-from typing import IO, Any, Optional, Protocol, cast
+from typing import IO, Any, Protocol, cast
 
 from pelix import constants
 from pelix.constants import (
@@ -568,7 +568,7 @@ class RemoteServiceAdminImpl(RemoteServiceAdmin):
 
     def _find_existing_export_endpoint(
         self, svc_ref: ServiceReference[Any], cid: tuple[str, str]
-    ) -> Optional["ExportRegistrationImpl"]:
+    ) -> "ExportRegistrationImpl | None":
         for er in self._exported_regs:
             if er.match_sr(svc_ref, cid):
                 return er

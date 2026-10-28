@@ -29,7 +29,7 @@ import functools
 import inspect
 import re
 from collections.abc import Callable, Iterable
-from typing import Any, Union
+from typing import Any
 
 from pelix.utilities import is_string
 
@@ -59,9 +59,6 @@ __all__ = [
     "operator2str",
     "unescape_LDAP",
 ]
-
-# Utility type alias
-LdapFilterOrCriteria = Union["LDAPFilter", "LDAPCriteria"]
 
 # ------------------------------------------------------------------------------
 
@@ -149,7 +146,7 @@ class LDAPFilter:
         """
         return f"({operator2str(self.operator)}{''.join(str(subfilter) for subfilter in self.subfilters)})"
 
-    def append(self, ldap_filter: Union["LDAPFilter", "LDAPCriteria"]) -> None:
+    def append(self, ldap_filter: "LDAPFilter | LDAPCriteria") -> None:
         """
         Appends a filter or a criterion to this filter
 
@@ -187,7 +184,7 @@ class LDAPFilter:
 
         return result
 
-    def normalize(self) -> Union[None, "LDAPCriteria", "LDAPFilter"]:
+    def normalize(self) -> "LDAPCriteria | LDAPFilter | None":
         """
         Returns the first meaningful object in this filter.
         """
@@ -315,6 +312,9 @@ class LDAPCriteria:
         """
         return self
 
+
+# Utility type alias
+LdapFilterOrCriteria = LDAPFilter | LDAPCriteria
 
 # ------------------------------------------------------------------------------
 
