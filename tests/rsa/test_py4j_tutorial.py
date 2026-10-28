@@ -227,6 +227,7 @@ def use_karaf() -> Generator[subprocess.Popen, None, None]:
             if major_version < 11:
                 raise unittest.SkipTest(f"Java version is too old ({major_version}), need at least Java 11")
             elif major_version > 21:
+                # Karaf 4.4 can't run on Java 24+, which removed the Security Manager
                 raise unittest.SkipTest(f"Java version is too new ({major_version}), need at most Java 21")
         else:
             raise unittest.SkipTest("Can't determine Java version")
