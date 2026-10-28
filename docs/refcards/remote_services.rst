@@ -195,6 +195,12 @@ This servlet must be instantiated explicitly using its
 As it is a servlet, it requires the HTTP service to be up and running to
 provide it to clients.
 
+.. note::
+
+   Since iPOPO 3.3.0, the HTTP service only listens on ``127.0.0.1`` by
+   default: set its ``pelix.http.address`` property to ``0.0.0.0`` to share
+   services with frameworks on other machines.
+
 Its API is very simple:
 
 * ``/framework``: returns the framework UID as a JSON string
@@ -291,10 +297,10 @@ and instantiate the associated components:
 
 .. code-block:: shell
 
-   # Start the HTTP service with default parameters
+   # Start the HTTP service, reachable from other machines
    install pelix.http.basic
    start $?
-   instantiate pelix.http.service.basic.factory httpd
+   instantiate pelix.http.service.basic.factory httpd pelix.http.address=0.0.0.0
 
    # Install Remote Services Core
    install pelix.remote.registry
@@ -359,10 +365,10 @@ and instantiate the associated components:
 
 .. code-block:: shell
 
-   # Start the HTTP service with default parameters
+   # Start the HTTP service, reachable from other machines
    install pelix.http.basic
    start $?
-   instantiate pelix.http.service.basic.factory httpd
+   instantiate pelix.http.service.basic.factory httpd pelix.http.address=0.0.0.0
 
    # Install Remote Services Core
    install pelix.remote.registry
@@ -461,10 +467,10 @@ and instantiate the associated components:
 
 .. code-block:: shell
 
-   # Start the HTTP service with default parameters
+   # Start the HTTP service, reachable from other machines
    install pelix.http.basic
    start $?
-   instantiate pelix.http.service.basic.factory httpd
+   instantiate pelix.http.service.basic.factory httpd pelix.http.address=0.0.0.0
 
    # Install Remote Services Core
    install pelix.remote.registry
@@ -513,10 +519,10 @@ and instantiate the associated components:
 
 .. code-block:: shell
 
-   # Start the HTTP service with default parameters
+   # Start the HTTP service, reachable from other machines
    install pelix.http.basic
    start $?
-   instantiate pelix.http.service.basic.factory httpd
+   instantiate pelix.http.service.basic.factory httpd pelix.http.address=0.0.0.0
 
    # Install Remote Services Core
    install pelix.remote.registry
@@ -570,10 +576,10 @@ and instantiate the associated components:
 
 .. code-block:: shell
 
-   # Start the HTTP service with default parameters
+   # Start the HTTP service, reachable from other machines
    install pelix.http.basic
    start $?
-   instantiate pelix.http.service.basic.factory httpd
+   instantiate pelix.http.service.basic.factory httpd pelix.http.address=0.0.0.0
 
    # Install Remote Services Core
    install pelix.remote.registry

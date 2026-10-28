@@ -124,8 +124,8 @@ class XMPPBotClient(ClientXMPP):
         """
         Connects to the server.
 
-        By default, uses an un-encrypted connection, as it won't connect to an
-        OpenFire server otherwise
+        By default, uses STARTTLS. An un-encrypted connection is only used when both
+        use_tls and use_ssl are false
 
         :param host: Server host name
         :param port: Server port (default: 5222)

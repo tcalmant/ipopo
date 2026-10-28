@@ -104,9 +104,11 @@ class XMPPShellConfigTest(unittest.TestCase):
         for value, expected in ((None, True), ("1", True), ("0", False), ("yes please", True)):
             with self.subTest(value=value):
                 bot = self.instantiate({} if value is None else {"shell.xmpp.tls.verify": value})
-                self.assertEqual(bot.kwargs["ssl_verify"], expected)
-                with use_ipopo(self.context) as ipopo:
-                    ipopo.kill("xmpp-shell")
+                try:
+                    self.assertEqual(bot.kwargs["ssl_verify"], expected)
+                finally:
+                    with use_ipopo(self.context) as ipopo:
+                        ipopo.kill("xmpp-shell")
 
 
 # ------------------------------------------------------------------------------

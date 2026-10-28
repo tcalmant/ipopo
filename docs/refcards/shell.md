@@ -322,7 +322,7 @@ In addition to the common parameters, the script accepts the following ones:
 | `--password PASSWORD` | `None` | Account password |
 | `-s ADDR`, `--server ADDR` | `None` | Address of the XMPP server (found in the Jabber ID by default) |
 | `-p PORT`, `--port PORT` | 5222 | Port of the XMPP server |
-| `--tls` | *not set* | If set, use a STARTTLS connection |
+| `--no-tls` | *not set* | If set, don't use a STARTTLS connection |
 | `--ssl` | *not set* | If set, use an SSL connection |
 | `--no-tls-verify` | *not set* | If set, don't verify the certificate of the XMPP server |
 

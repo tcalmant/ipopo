@@ -65,6 +65,7 @@ from pelix.ipopo.decorators import (
     Requires,
     Validate,
 )
+from pelix.ipopo.instance import StoredInstance
 from pelix.security import (
     ANONYMOUS,
     AuthenticationFailed,
@@ -1697,6 +1698,12 @@ def main(argv: list[str] | None = None) -> int:
 
             # Avoid loose reference to the password
             del key_password
+
+            # A refused configuration leaves the component erroneous, with nothing listening
+            if ipopo.get_instance_details(rshell_name)["state"] == StoredInstance.ERRONEOUS:
+                _logger.error("The remote shell could not start. Abandon.")
+                framework.stop()
+                return 1
         else:
             _logger.error(
                 "A remote shell component (%s) is already configured. Abandon.",

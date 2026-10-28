@@ -442,7 +442,8 @@ def main(argv: list[str] | None = None) -> int:
     group.add_argument(
         "--tls",
         dest="use_tls",
-        action="store_true",
+        action=argparse.BooleanOptionalAction,
+        default=True,
         help="Use a STARTTLS connection",
     )
     group.add_argument(

@@ -474,6 +474,26 @@ else:
                     # Process was already stopped
                     pass
 
+        def test_remote_main_missing_ca(self) -> None:
+            """
+            The script exits with an error when the shell refuses a certificate without a CA,
+            instead of reporting a port nobody listens on
+            """
+            with tempfile.TemporaryDirectory(prefix="ipopo-tests-shell-tls") as certs_dir:
+                make_certs(pathlib.Path(certs_dir), PASSWORD)
+                args = [sys.executable, "-m"]
+                if has_coverage:
+                    args += ["coverage", "run", "-m"]
+                args += ["pelix.shell.remote", "-a", "127.0.0.1", "-p", "0", "--no-input"]
+                args += ["--cert", os.path.join(certs_dir, "server.crt")]
+                args += ["--key", os.path.join(certs_dir, "server.key")]
+                result = subprocess.run(
+                    args, check=False, stdin=subprocess.DEVNULL, capture_output=True, timeout=30
+                )
+
+            self.assertEqual(result.returncode, 1)
+            self.assertNotIn(b"Remote shell bound to", result.stderr)
+
 
 # ------------------------------------------------------------------------------
 
