@@ -91,7 +91,7 @@ class ShellTest(unittest.TestCase):
         except KeyError:
             # No session given
             str_output = StringIO()
-            session = beans.ShellSession(beans.IOHandler(None, str_output))
+            session = beans.ShellSession(beans.IOHandler(None, str_output), trusted=True)
 
         # Run command
         self.shell.execute(command, session)

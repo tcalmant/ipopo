@@ -130,11 +130,11 @@ They are known and tracked, and they do **not** need to be reported, but a *spec
   See "malicious bundles" above.
   Python's single module namespace makes per-bundle isolation infeasible: iPOPO provides lifecycle management, not a security boundary
 - **No concurrency limit on network services.**
-  The HTTP service and remote shell spawn a thread per connection without a concurrency cap or rate limiting.
+  The HTTP service spawns a thread per connection without a concurrency cap or rate limiting.
   Since 3.2.2 the HTTP service does bound each individual request, with `pelix.http.max_body_size` (1 MiB by default) and `pelix.http.socket_timeout` (60 seconds by default, applied by the synchronous service only), so a single client can no longer hold a handling thread forever.
   Both limits apply to `read_data()`: a servlet reading the raw stream given by `get_rfile()` has to bound what it reads itself.
-  The remote shell has no equivalent limits.
-  Do not expose either to untrusted clients
+  The shells have their own limits: since 3.2.3 the remote shell bounds its clients (`pelix.shell.max_clients`), the length of a line and the time to log in or to stay idle, and since 3.3.0 the XMPP shell gives each session its own thread, with an idle timeout and at most `shell.xmpp.max_sessions` sessions per JID.
+  Do not expose the HTTP service to untrusted clients
 
 If you believe one of these is materially worse than described here, that is a report worth making.
 
@@ -151,11 +151,14 @@ If you are deploying iPOPO in production, and particularly on a network you do n
   With the session cookie (`SameSite=Lax`), `pelix.http.cors.enforce` is the protection against cross-site request forgery: there is no CSRF token, and a servlet changing data on a `GET` request is not protected.
   Sessions have a sliding expiration only (`pelix.http.session.max_inactive_interval` without request), and an account removed from the identity store keeps its sessions until they expire
 - **Do not expose the remote shell.**
-  It allows installing, starting and stopping arbitrary bundles, which is equivalent to remote code execution.
-  It binds to `localhost` by default, keep it that way.
+  The `pelix.shell.admin` permission allows installing, starting and stopping arbitrary bundles, which is equivalent to remote code execution.
+  It binds to `localhost` by default, keep it that way, or prefer a Unix socket (`pelix.shell.unix.path`) for local administration.
+  Since 3.3.0 every TCP client must log in, and each command needs a permission from the security layer: grant `pelix.shell.read` to the users which only need to look.
   If remote administration is required, use the TLS front-end **with certificate-based client authentication** (`pelix.shell.ssl.ca`), documented in `docs/refcards/shell.md`, and restrict it to an administrative network.
-  `pelix.shell.ssl.ca` is **not optional**: setting `pelix.shell.ssl.cert` without it makes the shell accept any client certificate signed by any authority of the system trust store.
+  `pelix.shell.ssl.ca` is **not optional** unless `pelix.shell.ssl.client_auth` is `none`: setting `pelix.shell.ssl.cert` without it would make the shell accept any client certificate signed by any authority of the system trust store.
   Since 3.3.0 the shell refuses to start in that case (3.2.2 only logs an error)
+- **List the users of the XMPP shell.**
+  Since 3.3.0 it only answers the JIDs of `shell.xmpp.users`, and trusts the XMPP server (and the servers it federates with) to authenticate them: prefer a server which only federates over verified TLS, or none
 - **Keep TLS verification enabled on the XMPP client.**
   Since 3.3.0 the XMPP shell and `pelix.misc.xmpp` verify the certificate of the server by default: do not set the `shell.xmpp.tls.verify` property to `0`, pass `--no-tls-verify` to `python -m pelix.shell.xmpp`, nor give `ssl_verify=False` to the bots
 - **Keep Remote Services and mDNS discovery on trusted network segments only.**

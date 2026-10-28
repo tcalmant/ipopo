@@ -26,9 +26,10 @@ Pelix shell package
 """
 
 from collections.abc import Callable, Iterable
-from typing import TYPE_CHECKING, Any, Protocol
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
 from pelix.constants import Specification
+from pelix.security import Permission
 
 if TYPE_CHECKING:
     from pelix.shell.beans import ShellSession
@@ -43,8 +44,12 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 
 __all__ = [
+    "ATTR_PERMISSION",
     "FACTORY_REMOTE_SHELL",
     "FACTORY_XMPP_SHELL",
+    "PERMISSION_ADMIN",
+    "PERMISSION_DEBUG",
+    "PERMISSION_READ",
     "REMOTE_SHELL_SPEC",
     "SERVICE_SHELL",
     "SERVICE_SHELL_COMMAND",
@@ -54,6 +59,7 @@ __all__ = [
     "SHELL_COMMAND_SPEC",
     "SHELL_SERVICE_SPEC",
     "SHELL_UTILS_SERVICE_SPEC",
+    "CommandPermission",
     "RemoteShell",
     "ShellCommandMethod",
     "ShellCommandsProvider",
@@ -112,6 +118,42 @@ Report command service: gives access to the report methods for a future reuse
 """
 
 ShellCommandMethod = Callable[..., Any]
+
+# ------------------------------------------------------------------------------
+
+PERMISSION_READ = Permission("pelix.shell.read")
+""" Permission to run the commands which only list or describe bundles, services and components """
+
+PERMISSION_ADMIN = Permission("pelix.shell.admin")
+"""
+Permission to run any command. Most commands (install, start, instantiate, run, ...) execute
+arbitrary code as the user of the process: this is not a finer level than full control
+"""
+
+PERMISSION_DEBUG = Permission("pelix.shell.debug")
+""" Permission to see the details and the stack trace of an error """
+
+ATTR_PERMISSION = "__pelix_shell_permission__"
+""" Attribute of a command method holding the permission it requires """
+
+_T = TypeVar("_T")
+
+
+def CommandPermission(permission: Permission | None) -> Callable[[_T], _T]:
+    """
+    Declares the permission a shell command requires, checked in every session but the
+    trusted local ones. A command declaring nothing requires :data:`PERMISSION_ADMIN`,
+    which always suffices.
+
+    :param permission: The required permission, or None for a command anyone can run
+    :return: The decorator, which returns the command method itself
+    """
+
+    def decorator(method: _T) -> _T:
+        setattr(method, ATTR_PERMISSION, permission)
+        return method
+
+    return decorator
 
 
 @Specification(SERVICE_SHELL)

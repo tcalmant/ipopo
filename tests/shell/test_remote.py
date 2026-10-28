@@ -7,9 +7,12 @@ Tests the remote shell
 """
 
 import importlib.util
+import pathlib
 import re
+import shutil
 import socket
 import sys
+import tempfile
 import threading
 import time
 import unittest
@@ -17,8 +20,9 @@ from collections.abc import Callable
 from io import StringIO
 from typing import Any
 
-from pelix.framework import Framework, FrameworkFactory, create_framework
+from pelix.framework import BundleContext, Framework, FrameworkFactory, create_framework
 from pelix.ipopo.constants import use_ipopo
+from pelix.security import FACTORY_HTPASSWD, FACTORY_POLICY_FILE, PROP_HTPASSWD_FILE, PROP_POLICY_FILE
 from pelix.shell import FACTORY_REMOTE_SHELL, RemoteShell, ShellService, beans
 from pelix.utilities import to_bytes, to_str
 
@@ -40,7 +44,36 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+# "good", hashed with SHA-crypt over SHA-512
+GOOD_SHA512 = (
+    "$6$FGkY6bLp$FLRsAi6byimzKD0qdHddj.KT3zGYn0YAQb1fz92.0iRT7oOWSxlrqtRH5PsV2.O54EGWS.YTWcL/GI.oOsXnx."
+)
+
+ADMIN = ("admin", "good")
+""" Login and password of the user start_security() grants every shell command """
+
+SECURITY_BUNDLES = ("pelix.security.core", "pelix.security.htpasswd", "pelix.security.policy")
+""" Bundles start_security() needs """
+
 # ------------------------------------------------------------------------------
+
+
+def start_security(context: BundleContext, folder: pathlib.Path) -> None:
+    """
+    Instantiates a password store with the ADMIN user, and a policy granting it every
+    shell command, as a remote shell needs to accept a TCP client
+
+    :param context: A bundle context of a framework with the SECURITY_BUNDLES
+    :param folder: Where to write the password and policy files
+    """
+    (folder / ".htpasswd").write_text(f"{ADMIN[0]}:{GOOD_SHA512}\n")
+    (folder / ".htpasswd").chmod(0o600)
+    (folder / "policy.toml").write_text(
+        f'[roles.admin]\nusers = ["{ADMIN[0]}"]\n\n[permissions]\nadmin = ["pelix.shell.admin"]\n'
+    )
+    with use_ipopo(context) as ipopo:
+        ipopo.instantiate(FACTORY_HTPASSWD, "test-users", {PROP_HTPASSWD_FILE: str(folder / ".htpasswd")})
+        ipopo.instantiate(FACTORY_POLICY_FILE, "test-policy", {PROP_POLICY_FILE: str(folder / "policy.toml")})
 
 
 class ShellClient:
@@ -58,9 +91,9 @@ class ShellClient:
         self.fail = fail
         self.__wait_prompt = True
 
-    def connect(self, access: tuple[str, int]) -> None:
+    def connect(self, access: tuple[str, int], login: tuple[str, str] | None = ADMIN) -> None:
         """
-        Connects to the remote shell
+        Connects to the remote shell, and logs in if a login and a password are given
         """
         # Connect to the server
         self._socket = socket.create_connection(access)
@@ -70,6 +103,26 @@ class ShellClient:
             banner = to_str(self._socket.recv(len(self._banner)))
             if banner != self._banner:
                 self.fail("Incorrect banner read from remote shell")
+
+        if login is not None:
+            for marker, answer in zip(("Login: ", "Password: "), login, strict=True):
+                self.read_until(marker)
+                self._socket.sendall(to_bytes(answer + "\n"))
+
+    def read_until(self, marker: str) -> str:
+        """
+        Reads up to a marker the server writes before waiting for input
+
+        :return: What was read, marker included
+        """
+        assert self._socket is not None
+        data = ""
+        while marker not in data:
+            raw = self._socket.recv(4096)
+            if not raw:
+                self.fail(f"Connection closed before {marker!r}: {data!r}")
+            data += to_str(raw)
+        return data
 
     def close(self) -> None:
         """
@@ -182,11 +235,9 @@ class RemoteShellStandaloneTest(unittest.TestCase):
 
         client = ShellClient(None, ps1, self.fail)
         try:
-            # Check if the remote shell port has been opened
-            client.connect(("127.0.0.1", port))
-
-            test_string = "running"
-            self.assertEqual(client.run_command(f"echo {test_string}"), test_string)
+            # A TCP client must log in: no user is configured, so nobody can
+            client.connect(("127.0.0.1", port), login=None)
+            client.read_until("Login: ")
 
             # Good enough: stop there
             client.close()
@@ -238,9 +289,14 @@ class RemoteShellTest(unittest.TestCase):
         Starts a framework and install the shell bundle
         """
         # Start the framework
-        self.framework = create_framework(("pelix.ipopo.core", "pelix.shell.core", "pelix.shell.remote"))
+        self.framework = create_framework(
+            ("pelix.ipopo.core", "pelix.shell.core", "pelix.shell.remote", *SECURITY_BUNDLES)
+        )
         self.framework.start()
         context = self.framework.get_bundle_context()
+        folder = pathlib.Path(tempfile.mkdtemp(prefix="ipopo-tests-shell-remote"))
+        self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
+        start_security(context, folder)
         # Get the core shell service
         svc_ref = context.get_service_reference(ShellService)
         assert svc_ref is not None
@@ -276,7 +332,7 @@ class RemoteShellTest(unittest.TestCase):
             command = command.format(*args)
 
         # Run command
-        session = beans.ShellSession(beans.IOHandler(None, str_output))
+        session = beans.ShellSession(beans.IOHandler(None, str_output), trusted=True)
         self.shell.execute(command, session)
         return str_output.getvalue().strip()
 

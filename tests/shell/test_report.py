@@ -84,7 +84,7 @@ class ShellReportTest(unittest.TestCase):
         str_output = StringIO()
 
         # Session bean
-        session = beans.ShellSession(beans.IOHandler(None, str_output))
+        session = beans.ShellSession(beans.IOHandler(None, str_output), trusted=True)
         return session, str_output
 
     def _run_command(self, command: str, *args: Any, **kwargs: Any) -> str:
@@ -105,7 +105,7 @@ class ShellReportTest(unittest.TestCase):
         except KeyError:
             # No session given
             str_output = StringIO()
-            session = beans.ShellSession(beans.IOHandler(None, str_output))
+            session = beans.ShellSession(beans.IOHandler(None, str_output), trusted=True)
 
         # Run command
         self.shell.execute(command, session)

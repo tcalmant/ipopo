@@ -6,10 +6,12 @@ iPOPO remote shell
 Provides a remote interface for the Pelix shell that can be accessed using
 telnet or netcat.
 
-Authentication is optional and based on :mod:`pelix.security`: a TLS client
-certificate the security layer maps to a user, or a login and password prompt when
-``pelix.shell.auth.required`` is set. Every command then runs as the authenticated
-subject, or as the anonymous one when authentication is not required.
+Authentication is based on :mod:`pelix.security`: a TLS client certificate the
+security layer maps to a user, else a login and password prompt. Every command then
+runs as the authenticated subject, if it holds the permission the command requires.
+
+On a Unix socket, the user the system tells is trusted like the console: no login,
+no permission check.
 
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
@@ -36,6 +38,7 @@ subject, or as the anonymous one when authentication is not required.
 import argparse
 import errno
 import importlib
+import ipaddress
 import logging
 import os
 import shlex
@@ -67,17 +70,14 @@ from pelix.ipopo.decorators import (
 )
 from pelix.ipopo.instance import StoredInstance
 from pelix.security import (
-    ANONYMOUS,
     AuthenticationFailed,
     Authorization,
     ClientCertificate,
     Credentials,
-    Permission,
     Subject,
     UsernamePassword,
-    run_as,
 )
-from pelix.shell import beans
+from pelix.shell import PERMISSION_DEBUG, beans
 from pelix.shell.console import handle_common_arguments, make_common_parser
 
 if TYPE_CHECKING:
@@ -107,6 +107,7 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 
 __all__ = [
+    "CLIENT_AUTH_MODES",
     "DEFAULT_IDLE_TIMEOUT",
     "DEFAULT_LOGIN_TIMEOUT",
     "DEFAULT_MAX_CLIENTS",
@@ -115,7 +116,7 @@ __all__ = [
     "METHOD_CERTIFICATE",
     "METHOD_PASSWORD",
     "POLL_INTERVAL",
-    "PROP_AUTH_REQUIRED",
+    "PROP_CLIENT_AUTH",
     "PROP_IDLE_TIMEOUT",
     "PROP_LOGIN_TIMEOUT",
     "PROP_MAX_CLIENTS",
@@ -138,11 +139,15 @@ _logger = logging.getLogger(__name__)
 
 # ------------------------------------------------------------------------------
 
-PROP_AUTH_REQUIRED = "pelix.shell.auth.required"
-""" Component property: refuse every command until the client authenticated. Default: False """
+PROP_CLIENT_AUTH = "pelix.shell.ssl.client_auth"
+"""
+Component property: TLS client certificates. "required" (default): a certificate signed by
+the CA is mandatory, "optional": verified against the CA if one is presented, "none": never
+asked. A client authenticated by no certificate gets a login prompt
+"""
 
-PERMISSION_DEBUG = Permission("pelix.shell.debug")
-""" Permission to see the stack trace of an error outside a command """
+CLIENT_AUTH_MODES = {"required": "CERT_REQUIRED", "optional": "CERT_OPTIONAL", "none": "CERT_NONE"}
+""" TLS verification mode of each value of the client_auth property """
 
 METHOD_CERTIFICATE = "certificate"
 """ Authentication method of a session opened with a TLS client certificate """
@@ -493,42 +498,45 @@ class RemoteConsole(socketserver.StreamRequestHandler):
 
         return data.decode(self._shell.get_encoding(), errors="replace")
 
-    def _login(self, client_ip: str) -> Subject | None:
+    def _login(self, client_ip: str) -> tuple[Subject, bool] | None:
         """
-        Authenticates the client: first with its TLS certificate, then with a login and
-        a password if authentication is required.
+        Authenticates the client: on a Unix socket, by the user the system tells;
+        otherwise with its TLS certificate, then with a login and a password.
 
         :param client_ip: The address of the client
-        :return: The subject of the session, or None to close the connection
+        :return: The subject of the session and whether the session is trusted, or None
+                 to close the connection
         """
-        # Without the security core, a shell which does not require authentication
-        # behaves as it always did, without even a warning about missing authenticators
+        if self._shell.is_unix() and self._shell.trusts_unix_peers():
+            try:
+                peer = _get_peer_uid(cast(socket.socket, self.connection))
+            except OSError as ex:
+                _logger.warning("Cannot get the user of a client of the shell socket: %s", ex)
+                peer = None
+
+            # Checked here too: the server filters with the setting it started with
+            if peer is not None and peer[0] in (os.geteuid(), 0):
+                # Same user as the process (or root): as trusted as the console
+                return beans.make_local_subject(TRANSPORT, peer[0]), True
+
         if self._is_tls() and self._shell.is_security_active():
             certificate = ClientCertificate.from_socket(cast(ssl.SSLSocket, self.connection))
             if certificate is not None:
                 try:
-                    subject = self._shell.authenticate(certificate, client_ip, METHOD_CERTIFICATE)
+                    # Without the source: a certificate the TLS layer verified is no guess, and
+                    # its rejection must not lock out the address where a password comes next
+                    subject = self._shell.authenticate(certificate, None, METHOD_CERTIFICATE)
                 except AuthenticationFailed:
                     # The TLS layer verified it: it is simply not mapped to any user
                     _logger.info(
-                        "Client certificate %s (%s) from %s is not mapped to a user",
+                        "Client certificate %s (%s) from %s is not mapped to a user: asking a password",
                         certificate.fingerprint,
                         certificate.subject,
                         client_ip,
                     )
                 else:
                     _logger.info("User %s from %s authenticated by certificate", subject.name, client_ip)
-                    return subject
-
-        if not self._shell.is_auth_required():
-            return ANONYMOUS
-
-        if not self._is_tls() and not self._shell.is_unix():
-            _logger.warning(
-                "Password login prompted to %s over a clear-text connection: "
-                "the password will travel unencrypted",
-                client_ip,
-            )
+                    return subject, False
 
         for attempt in range(1, MAX_LOGIN_ATTEMPTS + 1):
             self.send("Login: ")
@@ -552,7 +560,7 @@ class RemoteConsole(socketserver.StreamRequestHandler):
                 self.send("Login incorrect\n")
             else:
                 _logger.info("User %s from %s authenticated by password", subject.name, client_ip)
-                return subject
+                return subject, False
 
         _logger.warning("Too many failed logins from %s: closing the connection", client_ip)
         self.send("Too many failed login attempts.\n")
@@ -593,13 +601,14 @@ class RemoteConsole(socketserver.StreamRequestHandler):
         :param client_ip: The address of the client
         :param line: The command line
         """
+        # Before the permission check, which logs its own denials
         _logger.info(
-            "User %s from %s ran %s",
+            "User %s from %s requested %s",
             session.subject.name,
             client_ip,
             self._shell.get_command_name(line) or "an unknown command",
         )
-        _logger.debug("User %s from %s ran: %s", session.subject.name, client_ip, line)
+        _logger.debug("User %s from %s requested: %s", session.subject.name, client_ip, line)
 
     def handle(self) -> None:
         """
@@ -617,8 +626,8 @@ class RemoteConsole(socketserver.StreamRequestHandler):
             self.send(self._shell.get_banner())
 
             # No command at all, not even "help", before the client is authenticated
-            subject = self._login(client_ip)
-            if subject is None:
+            login = self._login(client_ip)
+            if login is None:
                 return
 
             # Prepare the session: commands reading their own input share the reader
@@ -628,7 +637,7 @@ class RemoteConsole(socketserver.StreamRequestHandler):
                     cast(Any, _ReaderInput(self._reader, self._shell.get_idle_timeout())), self.wfile
                 ),
                 {"remote_client_ip": client_ip},
-                subject,
+                *login,
             )
 
             def get_ps1() -> str:
@@ -657,9 +666,7 @@ class RemoteConsole(socketserver.StreamRequestHandler):
 
                     # Execute it
                     try:
-                        # Every command, so that the security decorators see who runs it
-                        with run_as(session.subject):
-                            self._shell.handle_line(line, session)
+                        self._shell.handle_line(line, session)
                     except KeyboardInterrupt:
                         # The "exit" and "quit" commands: a signal never reaches the thread of a
                         # client, so this is the client asking to leave, not an interruption
@@ -827,6 +834,7 @@ class ThreadingTCPServerFamily(_ClientLimitMixin, socketserver.ThreadingTCPServe
         key_password: str | None = None,
         ca_file: str | None = None,
         max_clients: int | None = None,
+        client_auth: str = "required",
     ):
         """
         Sets up the TCP server. Doesn't bind nor activate it.
@@ -838,6 +846,7 @@ class ThreadingTCPServerFamily(_ClientLimitMixin, socketserver.ThreadingTCPServe
         :param key_password: Password for the key file
         :param ca_file: Path to Certificate Authority to authenticate clients
         :param max_clients: Maximum number of simultaneous clients, or None
+        :param client_auth: Client certificates: "required", "optional" or "none"
         """
         self._init_limits(max_clients)
 
@@ -853,6 +862,7 @@ class ThreadingTCPServerFamily(_ClientLimitMixin, socketserver.ThreadingTCPServe
         self.key_file = key_file
         self.key_password = key_password
         self.ca_file = ca_file
+        self.client_auth = client_auth
 
         # Prepare the SSL context once: the certificate and key files must not
         # be re-read and re-parsed for each incoming connection
@@ -871,9 +881,9 @@ class ThreadingTCPServerFamily(_ClientLimitMixin, socketserver.ThreadingTCPServe
 
     def __make_ssl_context(self) -> "ssl.SSLContext | None":
         """
-        Prepares the SSL context to accept clients with a certificate signed by
-        a known chain of authority. Other clients will be rejected during the
-        handshake.
+        Prepares the SSL context. Depending on the client_auth mode, a client certificate
+        is required or optional, and then must be signed by the given authority chain, or
+        is never asked.
 
         :return: The SSL context, or None if TLS is not configured
         """
@@ -883,8 +893,7 @@ class ThreadingTCPServerFamily(_ClientLimitMixin, socketserver.ThreadingTCPServe
 
         context = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
         try:
-            # Force a valid/signed client-side certificate
-            context.verify_mode = ssl.CERT_REQUIRED
+            context.verify_mode = getattr(ssl, CLIENT_AUTH_MODES[self.client_auth])
 
             # Load the server certificate
             context.load_cert_chain(
@@ -894,11 +903,9 @@ class ThreadingTCPServerFamily(_ClientLimitMixin, socketserver.ThreadingTCPServe
             )
 
             if self.ca_file:
-                # Load the given authority chain
+                # Load the given authority chain. Never the system trust store: any of its
+                # authorities could then issue a certificate opening the shell
                 context.load_verify_locations(self.ca_file)
-            else:
-                # Load the default chain if none given
-                context.load_default_certs(ssl.Purpose.CLIENT_AUTH)
         except Exception as ex:
             # Explicitly log the error as the default behaviour hides it
             _logger.error("Error setting up the SSL context: %s", ex)
@@ -1135,6 +1142,19 @@ class ThreadingUnixServer(_ClientLimitMixin, _UnixStreamServer):
         return client_socket, (f"unix:uid={uid}" if uid is not None else "unix", pid)
 
 
+def _is_loopback(address: str) -> bool:
+    """
+    Tells whether a bound address is a loopback one
+
+    :param address: An IPv4 or IPv6 address, with an optional scope
+    :return: True for a loopback address, including an IPv4 one mapped in IPv6
+    """
+    ip = ipaddress.ip_address(address.split("%", 1)[0])
+    if isinstance(ip, ipaddress.IPv6Address) and ip.ipv4_mapped is not None:
+        ip = ip.ipv4_mapped
+    return ip.is_loopback
+
+
 def _create_server(
     shell: "IPopoRemoteShell",
     server_address: str,
@@ -1146,6 +1166,7 @@ def _create_server(
     max_clients: int | None = None,
     unix_path: str | None = None,
     check_peer: bool = True,
+    client_auth: str = "required",
 ) -> tuple[threading.Thread, socketserver.TCPServer, SharedBoolean]:
     """
     Creates the console on the given address and port, or on a Unix socket
@@ -1160,7 +1181,9 @@ def _create_server(
     :param max_clients: Maximum number of simultaneous clients, or None
     :param unix_path: Path of a Unix socket to use instead of the address and port
     :param check_peer: Refuse the clients of another user on a Unix socket
+    :param client_auth: Client certificates: "required", "optional" or "none"
     :return: A tuple: Server thread, server object, Server active flag
+    :raise ValueError: A clear-text TCP server is not bound to a loopback address
     """
     # Set up the request handler creator
     active_flag = SharedBoolean(True)
@@ -1189,6 +1212,7 @@ def _create_server(
             key_password,
             ca_file,
             max_clients,
+            client_auth,
         )
         # Reuse the address of a server just stopped
         server.allow_reuse_address = True
@@ -1199,6 +1223,13 @@ def _create_server(
     # Activate the server
     try:
         server.server_bind()
+        if not unix_path and not cert_file and not _is_loopback(server.socket.getsockname()[0]):
+            # Checked on the bound socket: a name like "localhost" may resolve to anything
+            raise ValueError(
+                f"The remote shell is bound to {server.socket.getsockname()[0]} without TLS: passwords "
+                "would cross the network in clear text. Set pelix.shell.ssl.cert, or bind to a "
+                "loopback address"
+            )
         server.server_activate()
     except BaseException:
         # Don't leak the socket (nor the socket file) of a server which can't start
@@ -1220,7 +1251,7 @@ def _create_server(
 @Provides(pelix.shell.RemoteShell)
 @Requires("_shell", pelix.shell.ShellService)
 @Requires("_authorization", Authorization, optional=True)
-@Property("_auth_required", PROP_AUTH_REQUIRED, False)
+@Property("_client_auth", PROP_CLIENT_AUTH, "required")
 @Property("_max_line_length", PROP_MAX_LINE_LENGTH, DEFAULT_MAX_LINE_LENGTH)
 @Property("_idle_timeout", PROP_IDLE_TIMEOUT, DEFAULT_IDLE_TIMEOUT)
 @Property("_login_timeout", PROP_LOGIN_TIMEOUT, DEFAULT_LOGIN_TIMEOUT)
@@ -1247,7 +1278,7 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         Sets up the component
         """
         # Security configuration
-        self._auth_required: bool = False
+        self._client_auth: str = "required"
         self._authorization = None
 
         # Limits (None: no limit)
@@ -1339,11 +1370,11 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         """
         return self.__login_timeout
 
-    def is_auth_required(self) -> bool:
+    def trusts_unix_peers(self) -> bool:
         """
-        Tells whether a client must authenticate before running any command
+        Tells whether the clients of the Unix socket are trusted as the user the system tells
         """
-        return self._auth_required
+        return _to_bool(self._unix_check_peer)
 
     def is_security_active(self) -> bool:
         """
@@ -1351,12 +1382,12 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         """
         return self._authorization is not None
 
-    def authenticate(self, credentials: Credentials, client_ip: str, method: str) -> Subject:
+    def authenticate(self, credentials: Credentials, client_ip: str | None, method: str) -> Subject:
         """
         Authenticates a client through the security layer.
 
         :param credentials: What the client presented
-        :param client_ip: The address of the client, for the brute-force throttle
+        :param client_ip: The address of the client, for the brute-force throttle, if it applies
         :param method: Name of the authentication mechanism
         :return: The authenticated subject
         :raise AuthenticationFailed: The credentials are wrong, unknown, or locked out
@@ -1466,21 +1497,24 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         max_clients = _to_limit(self._max_clients, DEFAULT_MAX_CLIENTS)
         self.__max_clients = int(max_clients) if max_clients is not None else None
 
-        self._auth_required = _to_bool(self._auth_required)
-        if self._auth_required and not self._cert_file and not self._unix_path:
-            _logger.warning(
-                "The remote shell requires authentication without TLS: passwords will travel "
-                "in clear text. Set pelix.shell.ssl.cert and pelix.shell.ssl.ca"
+        if self._client_auth not in CLIENT_AUTH_MODES:
+            raise ValueError(
+                f"Invalid {PROP_CLIENT_AUTH}: {self._client_auth!r}. Use one of {', '.join(CLIENT_AUTH_MODES)}"
             )
 
-        if self._cert_file and not self._ca_file and not self._unix_path:
-            # Without an explicit authority chain, any client certificate signed
-            # by any CA of the system trust store would be accepted
-            raise ValueError(
-                "pelix.shell.ssl.cert is set without pelix.shell.ssl.ca: ANY client certificate "
-                "signed by ANY CA in the system trust store would be accepted by a shell which can "
-                "install and start arbitrary bundles. Set pelix.shell.ssl.ca."
-            )
+        if self._cert_file and not self._unix_path:
+            if self._client_auth == "none":
+                if self._ca_file:
+                    # Refused rather than ignored: the owner would believe certificates are checked
+                    raise ValueError(f"pelix.shell.ssl.ca is set but {PROP_CLIENT_AUTH} is none")
+            elif not self._ca_file:
+                # Without an explicit authority chain, the certificates would be verified against
+                # the system trust store, of which any authority could issue one
+                raise ValueError(
+                    "pelix.shell.ssl.cert is set without pelix.shell.ssl.ca: client certificates "
+                    "can't be verified. Set pelix.shell.ssl.ca, or set "
+                    f"{PROP_CLIENT_AUTH} to none to log in with passwords only."
+                )
 
         # Start the server
         self._thread, self._server, self._server_flag = _create_server(
@@ -1494,6 +1528,7 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
             self.__max_clients,
             self._unix_path,
             _to_bool(self._unix_check_peer),
+            self._client_auth,
         )
 
         if self._unix_path:
@@ -1614,7 +1649,15 @@ def main(argv: list[str] | None = None) -> int:
         )
         group.add_argument(
             "--ca-chain",
-            help="Path to the CA chain file to authenticate clients (required with --cert)",
+            help="Path to the CA chain file to authenticate clients (required with --cert, "
+            "unless --client-auth is none)",
+        )
+        group.add_argument(
+            "--client-auth",
+            choices=tuple(CLIENT_AUTH_MODES),
+            default="required",
+            help="Client certificates: required, optional (else a password login) or none "
+            "(password logins only). Default: required",
         )
 
     # Local options
@@ -1636,6 +1679,7 @@ def main(argv: list[str] | None = None) -> int:
     # Set the initial bundles
     bundles = [
         "pelix.ipopo.core",
+        "pelix.security.core",
         "pelix.shell.core",
         "pelix.shell.ipopo",
         "pelix.shell.remote",
@@ -1662,6 +1706,7 @@ def main(argv: list[str] | None = None) -> int:
                 ca_chain = args.ca_chain
                 cert = args.cert
                 key = args.key
+                client_auth = args.client_auth
 
                 # Normalize the TLS key file password argument
                 if args.key_password == "-":
@@ -1677,6 +1722,7 @@ def main(argv: list[str] | None = None) -> int:
                 cert = None
                 key = None
                 key_password = None
+                client_auth = "required"
 
             # Setup the component
             rshell = cast(
@@ -1692,6 +1738,7 @@ def main(argv: list[str] | None = None) -> int:
                         "pelix.shell.ssl.cert": cert,
                         "pelix.shell.ssl.key": key,
                         "pelix.shell.ssl.key_password": key_password,
+                        PROP_CLIENT_AUTH: client_auth,
                     },
                 ),
             )

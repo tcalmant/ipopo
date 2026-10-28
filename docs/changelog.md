@@ -28,6 +28,46 @@ Unreleased
 * **Breaking:** the remote shell refuses to start when `pelix.shell.ssl.cert` is
   set without `pelix.shell.ssl.ca`, instead of only logging an error: any client
   certificate signed by any authority of the system trust store was accepted
+* **Breaking:** the shell commands require a permission in the sessions which
+  are not trusted, i.e. every session but the console and the clients of a
+  remote shell Unix socket run by the same user: `pelix.shell.read` for the
+  listings, `pelix.shell.admin` for everything else, including the commands
+  which declare nothing. Without `pelix.security.core` and an authorizer, such
+  a session can run nothing. Command providers declare the permission of a
+  command with the new `pelix.shell.CommandPermission` decorator. In those
+  sessions, a refused command looks unknown, `help` only lists the commands
+  which can be run, `$name` no longer gives the framework properties, and the
+  details of an error need `pelix.shell.debug`
+* **Breaking:** `ShellService.execute()` called without a session checks the
+  permissions, as the line may come from anywhere: give a
+  `ShellSession(..., trusted=True)` to run commands as the local user
+* **Breaking:** a TCP client of the remote shell must always log in: the
+  `pelix.shell.auth.required` property is removed. Without TLS, the remote shell
+  refuses to listen on another address than a loopback one. The new
+  `pelix.shell.ssl.client_auth` property (`--client-auth` argument) makes the
+  client certificate `required` (default), `optional` or not asked (`none`),
+  the others logging in with a password over TLS. A valid certificate mapped to
+  no user no longer counts as a failure of its address for the brute-force
+  throttle. `python -m pelix.shell.remote` starts `pelix.security.core`
+* **Breaking:** the XMPP shell only answers the JIDs listed in the new
+  `shell.xmpp.users` property (`--user JID=NAME` argument), as the user name
+  they are associated with, and ignores the messages delivered late. It
+  answered anyone who could send a message to its account, and accepted every
+  presence subscription: only its users may now subscribe to its presence, and
+  the subscription of a removed user is revoked
+* XMPP shell: each session runs its commands in its own thread, so that a
+  command waiting for an answer no longer blocks the other users. An answer
+  waits at most `shell.xmpp.idle_timeout` seconds (3600), which also ends the
+  idle sessions, and `shell.xmpp.max_sessions` (4) limits the number of
+  sessions of each JID
+* `pelix.security.core` logs a warning, once per class, about an
+  `Authenticator` which gives groups or roles itself: they are lost when the
+  subject is restored by an HTTP session or a shell, and belong to a
+  `MembershipProvider`
+* The console and the clients of a remote shell Unix socket run as the user
+  of the operating system, as `whoami` shows
+* The `redis.password` property of the Redis discovery is hidden: it was
+  shown in the details of the component
 * Added the `pelix.http.cors.enforce` property to the HTTP services: a request
   carrying an `Origin` header which is neither the origin of the server nor
   allowed by the CORS policy is answered with a 403 error code, instead of

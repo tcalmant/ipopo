@@ -30,7 +30,10 @@ This module depends on the sleekxmpp package: http://sleekxmpp.com/
 import argparse
 import collections
 import logging
+import queue
 import sys
+import threading
+import time
 from io import StringIO
 from typing import Any, cast
 
@@ -41,9 +44,9 @@ import pelix.misc.xmpp
 import pelix.shell
 from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import ComponentFactory, HiddenProperty, Invalidate, Property, Requires, Validate
+from pelix.security import Subject
 from pelix.shell import beans
 from pelix.shell.console import handle_common_arguments, make_common_parser
-from pelix.threadpool import ThreadPool
 from pelix.utilities import EventData, StreamBase, remove_duplicates
 
 # ------------------------------------------------------------------------------
@@ -55,12 +58,55 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-__all__ = ["main"]
+__all__ = [
+    "DEFAULT_IDLE_TIMEOUT",
+    "DEFAULT_MAX_SESSIONS",
+    "METHOD_JID",
+    "PROP_IDLE_TIMEOUT",
+    "PROP_MAX_SESSIONS",
+    "PROP_USERS",
+    "STOP_TIMEOUT",
+    "TRANSPORT",
+    "main",
+]
 
 # ------------------------------------------------------------------------------
 
 # Logger
 _logger = logging.getLogger(__name__)
+
+PROP_USERS = "shell.xmpp.users"
+"""
+Component property: who may use the shell, as a dictionary associating a bare JID to a user
+name of the security layer. Default: nobody
+"""
+
+PROP_IDLE_TIMEOUT = "shell.xmpp.idle_timeout"
+"""
+Component property: seconds a session waits for a command, or for the answer to a command
+asking for input, before it ends. Default: 3600. 0: never
+"""
+
+PROP_MAX_SESSIONS = "shell.xmpp.max_sessions"
+"""
+Component property: maximum number of simultaneous sessions of a JID, one per resource, so that a
+user can't take the sessions of the others. Default: 4. 0: no limit
+"""
+
+DEFAULT_IDLE_TIMEOUT = 3600
+DEFAULT_MAX_SESSIONS = 4
+
+STOP_TIMEOUT = 2.0
+""" Seconds the stop of the shell waits for the commands of the sessions to end """
+
+TRANSPORT = "xmpp"
+""" Transport name of the subjects of the XMPP shell """
+
+METHOD_JID = "jid"
+""" Authentication method of the XMPP shell: the XMPP server authenticated the sender """
+
+_NS_DELAY = "{urn:xmpp:delay}delay"
+""" Element of a message the server delivers late (XEP-0203): kept offline, or forwarded """
 
 # ------------------------------------------------------------------------------
 
@@ -173,6 +219,18 @@ class _XmppInStream(StreamBase[str]):
 # ------------------------------------------------------------------------------
 
 
+class _XmppSession:
+    """
+    The shell session of a full JID, and the commands its thread runs in order
+    """
+
+    def __init__(self, shell_session: beans.ShellSession) -> None:
+        self.shell_session = shell_session
+        # None: the end of the session
+        self.commands: queue.SimpleQueue[str | None] = queue.SimpleQueue()
+        self.thread: threading.Thread | None = None
+
+
 @ComponentFactory(pelix.shell.FACTORY_XMPP_SHELL)
 @Requires("_shell", pelix.shell.ShellService)
 @Property("_host", "shell.xmpp.server", "localhost")
@@ -182,6 +240,9 @@ class _XmppInStream(StreamBase[str]):
 @Property("_use_tls", "shell.xmpp.tls", "1")
 @Property("_use_ssl", "shell.xmpp.ssl", "0")
 @Property("_tls_verify", "shell.xmpp.tls.verify", "1")
+@Property("_users", PROP_USERS, None)
+@Property("_idle_timeout", PROP_IDLE_TIMEOUT, DEFAULT_IDLE_TIMEOUT)
+@Property("_max_sessions", PROP_MAX_SESSIONS, DEFAULT_MAX_SESSIONS)
 class IPopoXMPPShell:
     """
     The iPOPO XMPP Shell, based on the Pelix Shell
@@ -201,18 +262,26 @@ class IPopoXMPPShell:
         self._use_tls: bool = True
         self._use_ssl: bool = False
         self._tls_verify: bool = True
+        self._users: Any = None
+        self._idle_timeout: Any = DEFAULT_IDLE_TIMEOUT
+        self._max_sessions: Any = DEFAULT_MAX_SESSIONS
+
+        # Normalized limits (None: no limit)
+        self.__idle_timeout: int | None = DEFAULT_IDLE_TIMEOUT
+        self.__max_sessions: int | None = DEFAULT_MAX_SESSIONS
 
         # XMPP Bot
         self.__bot: pelix.misc.xmpp.BasicBot | None = None
 
-        # Shell sessions: JID -> ShellSession
-        self.__sessions: dict[JID, beans.ShellSession] = {}
+        # Shell sessions, each with its own thread: a command waiting for input only
+        # blocks its own session
+        self.__sessions: dict[JID, _XmppSession] = {}
 
         # Waiting for a message from the given JID
         self.__waiting: dict[JID, collections.deque[EventData[str]]] = {}
 
-        # Task queue thread
-        self.__pool: ThreadPool = ThreadPool(1, logname="XMPPShell")
+        # Protects the sessions and the waits, shared by the XMPP and session threads
+        self.__lock = threading.Lock()
 
     @staticmethod
     def __normalize_int(value: Any, default: int = 0) -> int:
@@ -234,6 +303,9 @@ class IPopoXMPPShell:
         self._use_tls = bool(self.__normalize_int(self._use_tls, 1))
         self._use_ssl = bool(self.__normalize_int(self._use_ssl, 0))
         self._tls_verify = bool(self.__normalize_int(self._tls_verify, 1))
+        # 0 or less: no limit
+        self.__idle_timeout = max(0, self.__normalize_int(self._idle_timeout, DEFAULT_IDLE_TIMEOUT)) or None
+        self.__max_sessions = max(0, self.__normalize_int(self._max_sessions, DEFAULT_MAX_SESSIONS)) or None
 
         # Check other values
         if not self._host:
@@ -244,8 +316,13 @@ class IPopoXMPPShell:
             _logger.error("No JID or password given. Abandon.")
             raise ValueError("No JID or password given")
 
-        # Start the thread pool
-        self.__pool.start()
+        users = self.__get_users()
+        if JID(self._jid).bare in users:
+            # Anyone with the password of the bot could then use the shell as that user
+            raise ValueError(f"The JID of the bot can't be a user of the shell: {self._jid}")
+
+        if not users:
+            _logger.warning("No user given in %s: the XMPP shell will answer nobody", PROP_USERS)
 
         _logger.info(
             """XMPP shell:
@@ -259,7 +336,8 @@ class IPopoXMPPShell:
 
         # Create the bot. Negative priority avoids listening to human messages
         self.__bot = pelix.misc.xmpp.BasicBot(self._jid, self._password, ssl_verify=self._tls_verify)
-        self.__bot.auto_authorize = True
+        # Handled by __on_subscription_request: only the users see the presence of the bot
+        self.__bot.auto_authorize = None
 
         # Register to events
         self.__bot.add_event_handler("message", self.__on_message)
@@ -267,6 +345,9 @@ class IPopoXMPPShell:
         self.__bot.add_event_handler("session_end", self.__on_end)
         self.__bot.add_event_handler("socket_error", self.__on_error)
         self.__bot.add_event_handler("got_offline", self.__on_offline)
+        self.__bot.add_event_handler("roster_subscription_request", self.__on_subscription_request)
+        self.__bot.add_event_handler("roster_update", self.__revoke_former_users)
+        self.__bot.add_event_handler("presence_available", self.__revoke_former_users)
 
         # Connect to the server
         self.__bot.connect(self._host, self._port, self._use_tls, self._use_ssl)
@@ -276,16 +357,32 @@ class IPopoXMPPShell:
         """
         Component invalidated
         """
-        # Stop the thread pool
-        self.__pool.stop()
+        with self.__lock:
+            sessions = list(self.__sessions.values())
+            waiting = [event for events in self.__waiting.values() for event in events]
+            self.__sessions.clear()
+            self.__waiting.clear()
+
+        # The threads end after their current command, which gets no more input
+        for session in sessions:
+            session.commands.put(None)
+        for event in waiting:
+            event.set(None)
+
+        # Waited for before the bot goes, so that a command can still send its output
+        deadline = time.monotonic() + STOP_TIMEOUT
+        for session in sessions:
+            thread = session.thread
+            if thread is not None and thread is not threading.current_thread():
+                # Not the session of a command stopping the shell: it can't wait for itself
+                thread.join(max(0.0, deadline - time.monotonic()))
+                if thread.is_alive():
+                    _logger.warning("A command of the XMPP shell is still running: %s", thread.name)
 
         if self.__bot is not None:
             # Disconnect the bot
             self.__bot.disconnect()
             self.__bot = None
-
-        # Clean up
-        self.__sessions.clear()
 
     @staticmethod
     def __on_error(error: str) -> None:
@@ -318,23 +415,66 @@ class IPopoXMPPShell:
 
     def __on_offline(self, data: dict[str, Any]) -> None:
         """
-        XMPP client got offline
+        XMPP client got offline: its session ends
         :param data: Message stanza
         """
         source_jid = data["from"]
+        with self.__lock:
+            session = self.__sessions.pop(source_jid, None)
+            waiting = self.__waiting.pop(source_jid, None)
 
-        try:
-            # Delete the corresponding session
-            del self.__sessions[source_jid]
-        except KeyError:
+        if session is None:
             # Ignore unknown JID
-            pass
+            return
+
+        session.commands.put(None)
+        for event in waiting or ():
+            event.set(None)
+
+        if self.__bot is not None:
+            # Unsubscribe to presence events
+            self.__bot.send_presence(pto=source_jid, ptype="unsubscribe")
         else:
-            if self.__bot is not None:
-                # Unsubscribe to presence events
-                self.__bot.send_presence(pto=source_jid, ptype="unsubscribe")
-            else:
-                _logger.debug("No XMPP bot: cannot unsubscribe %s", source_jid)
+            _logger.debug("No XMPP bot: cannot unsubscribe %s", source_jid)
+
+    def __on_subscription_request(self, presence: Any) -> None:
+        """
+        A JID asks to see the presence of the bot: only granted to the users of the shell,
+        which still gives no access, as the users are checked on each message.
+
+        Called in the thread of the XMPP client, which owns the roster.
+
+        :param presence: The subscription request
+        """
+        sender = cast(JID, presence["from"])
+        item = presence.stream.roster[presence["to"]][sender]
+        if sender.bare != JID(self._jid).bare and sender.bare in self.__get_users():
+            item.authorize()
+        else:
+            _logger.info("Refusing the presence subscription of %s, which is not a user of the shell", sender)
+            item.unauthorize()
+
+    def __revoke_former_users(self, stanza: Any) -> None:
+        """
+        Revokes the presence subscriptions of the JIDs which are no longer users of the
+        shell. No property change reaches the component, so this is checked when the
+        roster arrives, and at each presence and each message of another JID.
+
+        Called in the thread of the XMPP client, which owns the roster.
+
+        :param stanza: The stanza which triggered the check
+        """
+        roster = stanza.stream.client_roster
+        users = self.__get_users()
+        bot = JID(self._jid).bare
+        for jid in list(roster):
+            bare = JID(jid).bare
+            item = roster[jid]
+            if item["from"] and (bare == bot or bare not in users):
+                _logger.info(
+                    "Revoking the presence subscription of %s, which is not a user of the shell", jid
+                )
+                item.unauthorize()
 
     def __on_message(self, data: dict[str, Any]) -> None:
         """
@@ -349,62 +489,167 @@ class IPopoXMPPShell:
         if data["type"] in ("normal", "chat"):
             # Got a message
             body = cast(str, data["body"]).strip()
-            if body:
-                # Valid content, check the sender
-                sender = cast(JID, data["from"])
-                try:
-                    # Are we listening to this JID ?
-                    event = self.__waiting[sender].popleft()
-                except (KeyError, IndexError):
-                    # Not waiting for a message from this JID,
-                    # treat the message in a the task thread
-                    self.__pool.enqueue(self.handle_message, sender, body)
-                else:
-                    # Set the event, with the content of the message as data
-                    event.set(body)
+            sender = cast(JID, data["from"])
+            user = self.__get_user(sender, data) if body else None
+            if user is None:
+                self.__revoke_former_users(data)
+                return
 
-    def handle_message(self, source_jid: JID, content: str) -> None:
-        """
-        Handles an XMPP message and reply to the source
+            with self.__lock:
+                session = self.__sessions.get(sender)
+                waiting = self.__waiting.get(sender)
+                if waiting and session is not None and session.shell_session.subject.name == user:
+                    # The answer to a command waiting for input
+                    waiting.popleft().set(body)
+                    if not waiting:
+                        del self.__waiting[sender]
+                    return
 
-        :param source_jid: JID of the message sender
-        :param content: Content of the message
+                self.__enqueue(sender, user, body)
+
+    def __get_user(self, sender: JID, data: Any) -> str | None:
         """
-        try:
-            # Use the existing session
-            session = self.__sessions[source_jid]
-        except KeyError:
+        Finds the user of the shell who sent a message. Checked before anything else,
+        including the answer to a command waiting for input.
+
+        The XMPP server, and the servers it federates with, authenticate the sender.
+
+        :param sender: The JID of the sender
+        :param data: The message stanza
+        :return: The user name, or None to ignore the message
+        """
+        user = self.__get_users().get(sender.bare) if sender.bare != JID(self._jid).bare else None
+        if user is None:
+            _logger.info(
+                "Ignoring a message from %s, which is not a user of the shell", sender.bare or "nobody"
+            )
+        elif data.xml.find(_NS_DELAY) is not None:
+            # A command sent long ago, maybe by someone who is no longer allowed to
+            _logger.warning("Ignoring a delayed message from %s", sender)
+            return None
+
+        return user
+
+    def __get_users(self) -> dict[str, str]:
+        """
+        Reads the users of the shell, at each use: a user removed by a reconfiguration of
+        the component loses the shell at once
+
+        :return: The user names, by bare JID, normalized as the server writes the senders
+        """
+        return {JID(jid).bare: str(name) for jid, name in dict(self._users or {}).items()}
+
+    def __enqueue(self, sender: JID, user: str, content: str) -> None:
+        """
+        Gives a command to the session of its sender, started if necessary. Call it
+        with the lock held
+
+        :param sender: The full JID of the sender
+        :param user: Its user name
+        :param content: The command line
+        """
+        session = self.__sessions.get(sender)
+        if session is not None and session.shell_session.subject.name != user:
+            # Associated to another user since: start again, the new user mustn't answer
+            # what the previous one was asked
+            self.__sessions.pop(sender).commands.put(None)
+            for event in self.__waiting.pop(sender, ()):
+                event.set(None)
+            session = None
+
+        if session is None:
             if self.__bot is None:
                 _logger.error("No XMPP bot: cannot handle message")
                 return
 
-            # Subscribe to presence messages
-            self.__bot.send_presence(pto=source_jid, ptype="subscribe")
+            count = sum(1 for jid in self.__sessions if jid.bare == sender.bare)
+            if self.__max_sessions is not None and count >= self.__max_sessions:
+                _logger.warning(
+                    "Ignoring a command of %s: already %d sessions for %s", sender, count, sender.bare
+                )
+                return
 
-            # Create and store the session
-            session = self.__sessions[source_jid] = beans.ShellSession(
-                beans.IOHandler(
-                    _XmppInStream(self, source_jid),
-                    _XmppOutStream(self.__bot, source_jid),
-                ),
-                {"xmpp.jid": source_jid},
+            # Subscribe to presence messages, to end the session when the client goes offline
+            self.__bot.send_presence(pto=sender, ptype="subscribe")
+
+            session = self.__sessions[sender] = _XmppSession(
+                beans.ShellSession(
+                    beans.IOHandler(_XmppInStream(self, sender), _XmppOutStream(self.__bot, sender)),
+                    {"xmpp.jid": sender},
+                    Subject(user, authenticated=True, method=METHOD_JID, transport=TRANSPORT),
+                )
             )
+            session.thread = threading.Thread(
+                target=self.__run_session, args=(sender, session), name=f"XMPPShell-{sender}", daemon=True
+            )
+            session.thread.start()
 
-        self._shell.execute(content, session)
+        session.commands.put(content)
+
+    def __run_session(self, jid: JID, session: _XmppSession) -> None:
+        """
+        Runs the commands of a session in order, until it ends or stays idle too long
+
+        :param jid: The full JID of the session
+        :param session: The session
+        """
+        while True:
+            try:
+                content = session.commands.get(timeout=self.__idle_timeout)
+            except queue.Empty:
+                with self.__lock:
+                    if not session.commands.empty():
+                        # Given while the wait ended
+                        continue
+
+                    if self.__sessions.get(jid) is session:
+                        del self.__sessions[jid]
+
+                _logger.info("Closing the idle XMPP shell session of %s", jid)
+                return
+
+            if content is None:
+                return
+
+            if self.__get_users().get(jid.bare) != session.shell_session.subject.name:
+                # Removed, or associated to another user, since the message came
+                continue
+
+            try:
+                self._shell.execute(content, session.shell_session)
+            except KeyboardInterrupt:
+                # The "exit" and "quit" commands
+                with self.__lock:
+                    if self.__sessions.get(jid) is session:
+                        del self.__sessions[jid]
+                return
+            except Exception:
+                _logger.exception("Error running a command of %s", jid)
 
     def read_from(self, jid: JID) -> str | None:
         """
         Returns the next message read from the given JID
 
         :param jid: Source JID
-        :return: The next content send by this JID
+        :return: The next content sent by this JID, or None if it sent nothing in time
         """
         # Prepare an event
         event = EventData[str]()
-        self.__waiting.setdefault(jid, collections.deque()).append(event)
+        with self.__lock:
+            self.__waiting.setdefault(jid, collections.deque()).append(event)
 
-        # Wait for the event to be set...
-        event.wait()
+        if not event.wait(self.__idle_timeout):
+            with self.__lock:
+                waiting = self.__waiting.get(jid)
+                if waiting is not None and event in waiting:
+                    waiting.remove(event)
+                    if not waiting:
+                        del self.__waiting[jid]
+
+            if not event.is_set():
+                # A removed user, or one who left: the command reads an end of input
+                _logger.info("No answer from %s in time: ending its input", jid)
+                return None
 
         # Return the message content
         return event.data
@@ -453,6 +698,14 @@ def main(argv: list[str] | None = None) -> int:
         help="Use an SSL connection",
     )
     group.add_argument(
+        "-u",
+        "--user",
+        dest="users",
+        action="append",
+        metavar="JID=NAME",
+        help="Allow this JID to use the shell, as this user of the security layer (repeatable)",
+    )
+    group.add_argument(
         "--tls-verify",
         dest="tls_verify",
         action=argparse.BooleanOptionalAction,
@@ -462,6 +715,12 @@ def main(argv: list[str] | None = None) -> int:
 
     # Parse them
     args = parser.parse_args(argv)
+    users: dict[str, str] = {}
+    for user in args.users or ():
+        jid, sep, name = user.partition("=")
+        if not sep or not jid or not name:
+            parser.error(f"Invalid --user {user!r}: expected JID=NAME")
+        users[jid] = name
 
     # Handle common arguments
     init = handle_common_arguments(args)
@@ -495,6 +754,7 @@ def main(argv: list[str] | None = None) -> int:
     # Set the initial bundles
     bundles = [
         "pelix.ipopo.core",
+        "pelix.security.core",
         "pelix.shell.core",
         "pelix.shell.ipopo",
         "pelix.shell.console",
@@ -519,6 +779,7 @@ def main(argv: list[str] | None = None) -> int:
                 "shell.xmpp.tls": args.use_tls,
                 "shell.xmpp.ssl": args.use_ssl,
                 "shell.xmpp.tls.verify": args.tls_verify,
+                PROP_USERS: users,
             },
         )
 

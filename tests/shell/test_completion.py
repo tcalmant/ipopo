@@ -91,7 +91,7 @@ class CompletionTest(unittest.TestCase):
 
         # Prepare a shell session writing to a string
         self.output = StringIO()
-        self.session = beans.ShellSession(beans.IOHandler(StringIO(), self.output))
+        self.session = beans.ShellSession(beans.IOHandler(StringIO(), self.output), trusted=True)
 
     def _get_completer(self, completer_id: str) -> Completer:
         """
@@ -265,7 +265,7 @@ class CompletionHintsTest(unittest.TestCase):
         self.context = self.framework.get_bundle_context()
         self.context.install_bundle("pelix.shell.completion.pelix").start()
 
-        self.session = beans.ShellSession(beans.IOHandler(StringIO(), StringIO()))
+        self.session = beans.ShellSession(beans.IOHandler(StringIO(), StringIO()), trusted=True)
 
     def _hints(self, config: CompletionInfo, current: str, arguments: list[str]) -> list[str]:
         """

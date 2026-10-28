@@ -42,7 +42,7 @@ from pelix.constants import ActivatorProto, BundleActivator
 from pelix.internals.events import ServiceEvent
 from pelix.misc.init_handler import InitFileHandler
 from pelix.shell import SERVICE_SHELL, ShellService
-from pelix.shell.beans import IOHandler, ShellSession
+from pelix.shell.beans import IOHandler, ShellSession, make_local_subject
 from pelix.shell.completion.core import completion_hints
 from pelix.utilities import remove_duplicates
 
@@ -62,6 +62,7 @@ __docformat__ = "restructuredtext en"
 __all__ = [
     "PROP_INIT_FILE",
     "PROP_RUN_FILE",
+    "TRANSPORT",
     "InteractiveShell",
     "handle_common_arguments",
     "main",
@@ -75,6 +76,9 @@ PROP_INIT_FILE = "pelix.shell.console.init_file"
 
 PROP_RUN_FILE = "pelix.shell.console.script_file"
 """ Script to run as shell input """
+
+TRANSPORT = "console"
+""" Transport name of the subject of the console """
 
 # ------------------------------------------------------------------------------
 
@@ -110,7 +114,10 @@ class InteractiveShell:
         self._shell: ShellService | None = None
 
         # Single session
-        self.__session = ShellSession(IOHandler(sys.stdin, sys.stdout), {})
+        # Trusted: whoever types here already runs as the user of the process
+        self.__session = ShellSession(
+            IOHandler(sys.stdin, sys.stdout), {}, make_local_subject(TRANSPORT), trusted=True
+        )
 
         # Read line cache
         self._readline_matches: list[str] = []

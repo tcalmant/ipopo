@@ -29,6 +29,7 @@ from pelix.shell.remote import (
     PROP_MAX_LINE_LENGTH,
     IPopoRemoteShell,
 )
+from tests.shell.test_remote import ADMIN, SECURITY_BUNDLES, start_security
 from tests.shell.test_remote_auth import PS1, Client
 from tests.shell.test_remote_tls import make_certs
 
@@ -79,9 +80,14 @@ class RemoteShellLimitsTest(unittest.TestCase):
         shutil.rmtree(cls.certs, ignore_errors=True)
 
     def setUp(self) -> None:
-        self.framework = create_framework(("pelix.ipopo.core", "pelix.shell.core", "pelix.shell.remote"))
+        self.framework = create_framework(
+            ("pelix.ipopo.core", "pelix.shell.core", "pelix.shell.remote", *SECURITY_BUNDLES)
+        )
         self.framework.start()
         self.context = self.framework.get_bundle_context()
+        folder = pathlib.Path(tempfile.mkdtemp(prefix="ipopo-tests-shell-limits-conf"))
+        self.addCleanup(shutil.rmtree, folder, ignore_errors=True)
+        start_security(self.context, folder)
 
         reference = self.context.get_service_reference(ShellService)
         assert reference is not None
@@ -131,7 +137,7 @@ class RemoteShellLimitsTest(unittest.TestCase):
     def connect(self, access: tuple[str, int], tls: bool = False) -> Client:
         client = Client(access, self.certs if tls else None)
         self.addCleanup(client.close)
-        client.read_until(PS1)
+        client.login(*ADMIN)
         return client
 
     def raw_socket(self, access: tuple[str, int]) -> socket.socket:
@@ -196,7 +202,7 @@ class RemoteShellLimitsTest(unittest.TestCase):
         self.assertLess(time.monotonic() - start, 5)
 
         # Half a line doesn't keep the session alive
-        sock = self.raw_socket(access)
+        sock = self.connect(access)._socket
         sock.sendall(b"echo no end of line")
         self.assertIn(b"Timeout", wait_closed(sock))
 
@@ -204,7 +210,7 @@ class RemoteShellLimitsTest(unittest.TestCase):
         """
         A client which doesn't log in is disconnected
         """
-        access = self.start_shell({"pelix.shell.auth.required": True, PROP_LOGIN_TIMEOUT: 1})
+        access = self.start_shell({PROP_LOGIN_TIMEOUT: 1})
         sock = self.raw_socket(access)
         self.assertIn(b"Timeout", wait_closed(sock))
 

@@ -249,6 +249,12 @@ policy file grant a role from a group a *different* provider asserted. With a si
 pass the policy would look at a subject whose groups are still empty and answer
 nothing.
 
+An :class:`Authenticator` tells *who* the subject is, and nothing more: groups and
+roles come from the :class:`MembershipProvider` services. Those an authenticator puts
+in the subject it returns are kept for that authentication, with a warning, but
+``restore_subject()`` only asks the providers: they are lost from the next request of an
+HTTP session, or the next command of a shell.
+
 The three-state authenticator contract
 --------------------------------------
 

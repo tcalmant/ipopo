@@ -26,6 +26,8 @@ Definition of classes used by the Pelix shell service and its consumers
     limitations under the License.
 """
 
+import getpass
+import os
 import sys
 import threading
 from collections.abc import Callable
@@ -44,12 +46,38 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-__all__ = ["RESULT_VAR_NAME", "IOHandler", "ShellSession"]
+__all__ = ["METHOD_LOCAL", "RESULT_VAR_NAME", "IOHandler", "ShellSession", "make_local_subject"]
 
 # ------------------------------------------------------------------------------
 
 RESULT_VAR_NAME = "?"
 """ Name of the result variable """
+
+METHOD_LOCAL = "local"
+""" Authentication method of a user the operating system identified: the console, a Unix socket """
+
+
+def make_local_subject(transport: str, uid: int | None = None) -> Subject:
+    """
+    Makes the subject of a local user, named after its operating system account.
+
+    The name comes from the account database rather than from ``getpass.getuser()``,
+    which trusts the ``USER`` environment variable.
+
+    :param transport: Name of the shell front end
+    :param uid: The user ID, None for the effective user of the process
+    :return: The authenticated subject
+    """
+    try:
+        import pwd
+
+        name = pwd.getpwuid(os.geteuid() if uid is None else uid).pw_name
+    except (ImportError, KeyError):
+        # No account database (Windows), or a user without an entry (containers)
+        name = getpass.getuser() if uid is None else f"uid:{uid}"
+
+    return Subject(name, authenticated=True, method=METHOD_LOCAL, transport=transport)
+
 
 # ------------------------------------------------------------------------------
 
@@ -65,6 +93,7 @@ class ShellSession:
         io_handler: "IOHandler",
         initial_vars: dict[str, Any] | None = None,
         subject: Subject | None = None,
+        trusted: bool = False,
     ) -> None:
         """
         Sets up the shell session
@@ -72,12 +101,16 @@ class ShellSession:
         :param io_handler:  The I/O handler associated to the session
         :param initial_vars: Initial variables
         :param subject: Who the front end authenticated, None for the anonymous subject
+        :param trusted: A local session, run by the user of the process: no permission is
+                        checked. Only for the console and the like, never for input coming
+                        from the network
         """
         # Store parameters
         self._io_handler = io_handler
 
         # Not a session variable: those can be changed by the "set" command
         self.__subject = subject if subject is not None else ANONYMOUS
+        self.__trusted = trusted
 
         if not isinstance(initial_vars, dict):
             initial_vars = {}
@@ -126,6 +159,13 @@ class ShellSession:
         when it authenticated nobody
         """
         return self.__subject
+
+    @property
+    def trusted(self) -> bool:
+        """
+        Tells whether this is a local session, where no permission is checked
+        """
+        return self.__trusted
 
     @property
     def variables(self) -> dict[str, Any]:

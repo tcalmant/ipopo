@@ -34,6 +34,7 @@ import pelix.ipopo.constants
 import pelix.shell
 from pelix.ipopo.constants import IPopoService
 from pelix.ipopo.decorators import ComponentFactory, Instantiate, Provides, Requires
+from pelix.shell import PERMISSION_READ, CommandPermission
 from pelix.shell.completion import COMPONENT, DUMMY, FACTORY, FACTORY_PROPERTY
 from pelix.shell.completion.decorators import Completion
 
@@ -130,6 +131,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
             ("retry", self.retry_erroneous),
         ]
 
+    @CommandPermission(PERMISSION_READ)
     def list_factories(self, session: "ShellSession", name: str | None = None) -> None:
         """
         Lists the available iPOPO component factories
@@ -149,6 +151,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         else:
             session.write_line("{0} filtered factories", len(lines))
 
+    @CommandPermission(PERMISSION_READ)
     def list_instances(self, session: "ShellSession", name: str | None = None) -> None:
         """
         Lists the active iPOPO component instances
@@ -169,6 +172,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         else:
             session.write_line("{0} filtered components", len(instances))
 
+    @CommandPermission(PERMISSION_READ)
     def list_waitings(self, session: "ShellSession", name: str | None = None) -> None:
         """
         Lists the components waiting to be instantiated
@@ -190,6 +194,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
             session.write_line("{0} filtered components", len(components))
 
     @Completion(FACTORY)
+    @CommandPermission(PERMISSION_READ)
     def factory_details(self, session: "ShellSession", name: str) -> Any:
         """
         Prints the details of the given component factory
@@ -252,6 +257,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         return None
 
     @Completion(COMPONENT)
+    @CommandPermission(PERMISSION_READ)
     def instance_details(self, session: "ShellSession", name: str) -> Any:
         """
         Prints the details of the given component instance

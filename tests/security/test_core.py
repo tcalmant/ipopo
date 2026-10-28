@@ -162,6 +162,7 @@ class CoreTestCase(unittest.TestCase):
         # not depend on which tests ran before it
         self.core._warned_kinds.clear()
         self.core._warned_no_authorizer = False
+        self.core._warned_authenticators.clear()
 
     def register(self, specification: Any, service: Any, ranking: int = 0, **properties: Any) -> Any:
         """
@@ -355,6 +356,34 @@ class MembershipTest(CoreTestCase):
 
         self.assertEqual(subject.groups, frozenset())
         self.assertEqual(subject.roles, frozenset())
+
+
+class AuthenticatorMembershipTest(CoreTestCase):
+    """
+    Tests the groups and roles an authenticator gives itself
+    """
+
+    def test_kept_at_login_lost_when_restored(self) -> None:
+        """
+        Kept for compatibility, but restore_subject() only asks the membership providers:
+        reported once, so that the store moves them to a MembershipProvider
+        """
+
+        class GivingAuthenticator(FakeAuthenticator):
+            def authenticate(self, credentials: Credentials) -> Subject | None:
+                subject = super().authenticate(credentials)
+                return Subject(subject.name, frozenset({"ops"})) if subject is not None else None
+
+        self.register(
+            Authenticator, GivingAuthenticator({"alice": "good"}), 0, **{PROP_CREDENTIAL_KINDS: ("password",)}
+        )
+        with self.assertLogs(self.core.__name__, "WARNING") as logs:
+            for _ in range(2):
+                self.assertEqual(self.core.authenticate(UsernamePassword("alice", "good")).groups, {"ops"})
+
+        self.assertEqual(len(logs.output), 1)
+        self.assertIn("GivingAuthenticator", logs.output[0])
+        self.assertEqual(self.core.restore_subject("alice").groups, frozenset())
 
 
 class AuthorizationTest(CoreTestCase):

@@ -85,11 +85,14 @@ console UI, multiple users can connect the framework at the same time,
 each with his own shell session (variables, ...).
 
 By default, the remote shell starts a TCP server listening the local
-interface (*localhost*) on port 9000. It is possible to enforce the
-server by setting up OpenSSL certificates. The server will have its own
-certificate, which should be checked by the clients, and each client
-will have to connect with its own certificate, signed by an authority
-recognized by the server.
+interface (*localhost*) on port 9000. Every TCP client must log in (see
+[](#remote-shell-authentication)), and a server without TLS only accepts to listen
+on a loopback address, so that no password crosses the network in clear text.
+
+To listen on another address, set up OpenSSL certificates. The server will have its
+own certificate, which should be checked by the clients, and by default each client
+will have to connect with its own certificate, signed by an authority recognized by
+the server.
 See [](#how-to-prepare-certificates-for-the-remote-shell) for more information
 on how to setup this kind of certificates.
 
@@ -114,7 +117,8 @@ ones:
 | `-a ADDR`, `--address ADDR` | localhost | Server binding address |
 | `-p PORT`, `--port PORT` | 9000 | Server binding port |
 | `--unix PATH` | `None` | Listen on a Unix socket instead of an address and port (see [](#remote-shell-unix-socket)). Refused with the TLS arguments |
-| `--ca-chain FILE` | `None` | Path to the certificate authority chain file (to authenticate clients), required with `--cert` |
+| `--ca-chain FILE` | `None` | Path to the certificate authority chain file (to authenticate clients), required with `--cert` unless `--client-auth` is `none` |
+| `--client-auth MODE` | `required` | Client certificates: `required`, `optional` or `none` (see `pelix.shell.ssl.client_auth`) |
 | `--cert FILE` | `None` | Path to the server certificate file |
 | `--key FILE` | `None` | Path to the server private key file |
 | `--key-password PASSWORD` | `None` | Password of the server private key |
@@ -138,7 +142,7 @@ This factory accepts the following properties:
 | `pelix.shell.ssl.cert` | `None` | Path to the server's SSL certificate file |
 | `pelix.shell.ssl.key` | `None` | Path to the server's private key |
 | `pelix.shell.ssl.key_password` | `None` | Password of the server's private key |
-| `pelix.shell.auth.required` | `False` | Refuse every command until the client is authenticated (see [](#remote-shell-authentication)) |
+| `pelix.shell.ssl.client_auth` | `required` | Client certificates: `required` (refused without one), `optional` (verified if presented, else a password login) or `none` (never asked: password logins only) |
 | `pelix.shell.max_line_length` | 65536 | Longest line, in bytes, a client can send. `0` removes the limit |
 | `pelix.shell.idle_timeout` | 3600 | Seconds without input before a session is closed. `0` removes the limit |
 | `pelix.shell.login_timeout` | 60 | Seconds a client gets to finish the TLS handshake and to log in. `0` removes the limit |
@@ -159,13 +163,22 @@ block every new connection by never finishing its TLS handshake.
 :::
 
 :::{warning}
-`pelix.shell.ssl.ca` is not optional when `pelix.shell.ssl.cert` is set.
+`pelix.shell.ssl.ca` is not optional when `pelix.shell.ssl.cert` is set, unless
+`pelix.shell.ssl.client_auth` is `none`.
 
 Without an authority chain, the client certificates would be validated against
 the **system trust store**: any certificate signed by any publicly trusted
 authority would be accepted, by a shell which can install and start arbitrary
 bundles. Since iPOPO 3.3.0, the remote shell refuses to start in that case
-(iPOPO 3.2.2 only logged an error).
+(iPOPO 3.2.2 only logged an error). It also refuses an authority chain with the
+`none` mode, where it would never be used.
+:::
+
+:::{versionchanged} 3.3.0
+The `pelix.shell.auth.required` property is removed: a TCP client must always log
+in. The `pelix.shell.ssl.client_auth` property and the `--client-auth` argument are
+added, and a server without TLS refuses to listen on another address than a
+loopback one.
 :::
 
 #### Remote shell Unix socket
@@ -221,7 +234,12 @@ The server protects the socket as follows:
   `pelix.shell.unix.check_peer` is false.
 * The TLS properties are refused rather than ignored, so that nobody believes
   that clients are authenticated by certificate.
-* The password authentication works as on TCP, without the clear text warning.
+
+A client of the socket runs as the user the system tells (see
+[](#authentication-and-authorization)): it is trusted like the console, with no
+login and no permission check, as it could run the framework itself. Where the
+system can't tell, or when `pelix.shell.unix.check_peer` is false, the client must
+log in with a password, as on TCP.
 
 Unix sockets are only supported on Linux and macOS.
 
@@ -232,25 +250,24 @@ the `--unix` argument.
 
 #### Remote shell authentication
 
-The remote shell can identify its users through the security layer described in
-{doc}`security`. It needs the `pelix.security.core` bundle, plus at least one
-credential store: typically `pelix.security.htpasswd` for passwords and
-`pelix.security.policy` for certificates, groups, roles and permissions.
+The remote shell identifies its users through the security layer described in
+{doc}`security`. It needs the `pelix.security.core` bundle (started by the
+`pelix.shell.remote` script), plus at least one credential store: typically
+`pelix.security.htpasswd` for passwords and `pelix.security.policy` for certificates,
+groups, roles and permissions. Without them, nobody can log in over TCP.
 
-A client is authenticated when it connects, before it can run anything:
+A TCP client is authenticated when it connects, before it can run anything:
 
 1. **With its TLS client certificate.** On a TLS connection, the certificate the
    client presented, already verified against `pelix.shell.ssl.ca`, is mapped to a
    user by the `[certificates]` tables of the policy file. A mapped certificate opens
    the session as that user, without any prompt.
-2. **With a login and a password**, only when `pelix.shell.auth.required` is set and
-   the certificate, if any, is not mapped to a user. The shell prompts `Login:` and
-   `Password:`, and closes the connection after 3 failed attempts.
-3. **Anonymously**, when `pelix.shell.auth.required` is not set (the default) and no
-   certificate is mapped: this is the behaviour of the previous versions.
+2. **With a login and a password** otherwise, including with a valid certificate
+   mapped to no user. The shell prompts `Login:` and `Password:`, and closes the
+   connection after 3 failed attempts.
 
-When authentication is required, nothing runs before a successful login: not even
-`help`. Whatever is written at the `Login:` prompt is a user name, never a command.
+Nothing runs before a successful login: not even `help`. Whatever is written at the
+`Login:` prompt is a user name, never a command.
 
 ```toml
 # The policy file: certificates mapped to users, and what those users may do
@@ -261,33 +278,38 @@ When authentication is required, nothing runs before a successful login: not eve
 users = ["thomas"]
 
 [permissions]
-admin = ["pelix.shell.debug"]
+admin = ["pelix.shell.admin", "pelix.shell.debug"]
 ```
+
+The `pelix.shell.ssl.client_auth` property sets what a certificate is for:
+
+* `required` (default): every client presents a certificate signed by
+  `pelix.shell.ssl.ca`, mapped or not. The others fail the TLS handshake.
+* `optional`: a certificate a client presents must be signed by
+  `pelix.shell.ssl.ca`, but a client may present none, and then logs in with a
+  password over TLS.
+* `none`: no certificate is asked, and every client logs in with a password over TLS.
+  `pelix.shell.ssl.ca` must not be set.
 
 :::{warning}
 **Certificates are the recommended way to log in.** A password typed in a basic client
-like `nc` or `telnet` is **echoed** on the screen, like any other input. And on a
-connection without TLS, it travels **in clear text** over the network: the remote shell
-logs a warning when it starts in that configuration, and each time it prompts for a
-password over such a connection.
+like `nc` or `telnet` is **echoed** on the screen, like any other input. With the
+`optional` and `none` modes, TLS only protects a password if the client verifies the
+certificate of the server, which the server can't enforce: use a client which does,
+like `openssl s_client -verify_return_error -CAfile ca.crt -connect host:9000` or
+`socat - OPENSSL:host:9000,cafile=ca.crt,verify=1`.
 :::
 
-The client address is given to the security layer as the source of the attempt, so
-that its brute-force throttling (see {doc}`security`) locks out both an account and a
-client address which fail too often. A locked-out account gets the same `Login
-incorrect` answer as a wrong password.
+The client address is given to the security layer as the source of a password attempt,
+so that its brute-force throttling (see {doc}`security`) locks out both an account and
+a client address which fail too often. A locked-out account gets the same `Login
+incorrect` answer as a wrong password. A certificate mapped to no user only counts
+against itself, not against its address: the TLS layer verified it, so it is no guess.
 
-Each command then runs as the subject of the session (see
-{func}`pelix.security.run_as`), the anonymous one when nobody logged in, so that the
-security decorators of the command providers apply to shell users. The `whoami`
-command prints that subject: its name, whether it is authenticated, the method which
-authenticated it (`certificate` or `password`), the transport (`shell`), its groups and
-its roles. The same method and transport are given to the audit events of the security
-layer.
-
-Each command is logged at the `INFO` level with the user, the client address and the
-command name, as in `User thomas from 10.0.0.1 ran ipopo.instances`, but without its
-arguments, which may hold secrets. The full line is only logged at the `DEBUG` level.
+Each command line is logged at the `INFO` level with the user, the client address and
+the command name, as in `User thomas from 10.0.0.1 requested ipopo.instances`, but
+without its arguments, which may hold secrets. The full line is only logged at the
+`DEBUG` level. A refused command is logged at the `WARNING` level.
 
 When an error happens outside of a command, its stack trace is sent to the client only
 if the subject of the session is granted the `pelix.shell.debug` permission. Other
@@ -325,6 +347,7 @@ In addition to the common parameters, the script accepts the following ones:
 | `--no-tls` | *not set* | If set, don't use a STARTTLS connection |
 | `--ssl` | *not set* | If set, use an SSL connection |
 | `--no-tls-verify` | *not set* | If set, don't verify the certificate of the XMPP server |
+| `-u JID=NAME`, `--user JID=NAME` | *none* | Allow this JID to use the shell, as this user of the security layer (repeatable) |
 
 #### Programmatic startup
 
@@ -351,12 +374,102 @@ This factory accepts the following properties:
 | `shell.xmpp.tls`      | 1         | Use a STARTTLS connection |
 | `shell.xmpp.ssl`      | 0         | Use an SSL connection     |
 | `shell.xmpp.tls.verify` | 1       | Verify the certificate of the XMPP server |
+| `shell.xmpp.users`    | `None`    | Who may use the shell: a dictionary associating a bare JID to a user name of the security layer |
+| `shell.xmpp.idle_timeout` | 3600  | Seconds a session waits for a command, or for the answer to a command asking for input, before it ends. `0` removes the limit |
+| `shell.xmpp.max_sessions` | 4     | Maximum number of simultaneous sessions of a JID (one per resource), so that a user can't take the sessions of the others. `0` removes the limit |
+
+The shell answers only the JIDs of `shell.xmpp.users`, whatever their resource: any
+other message is ignored, as are the messages of the bot account itself, those of a
+group chat, and those the server delivers late (kept while the bot was offline, or
+forwarded), which may come from someone who has since lost the right to send them. The
+XMPP server authenticates the sender: the shell trusts it, and the servers it federates
+with, to tell who sent a message. Each command runs as the user name of its sender,
+with the groups and roles the security layer gives it, and only if that user holds the
+permission of the command (see [](#authentication-and-authorization)). Only the users
+of the shell can subscribe to the presence of the bot, which gives them no other access.
+The subscription of a JID removed from `shell.xmpp.users` is revoked when the bot
+connects, at the next presence it receives, or at the next message of a JID which is
+not a user.
+
+Each session (one per full JID) runs its commands in its own thread, in the order they
+were sent: a command waiting for an answer only blocks its own session. Without an
+answer within `shell.xmpp.idle_timeout`, the command reads an end of input, and a
+session without commands for that long ends. When a user accepts the subscription of
+the bot to its presence, its session also ends as soon as its client goes offline.
+
+:::{versionchanged} 3.3.0
+The `shell.xmpp.users`, `shell.xmpp.idle_timeout` and `shell.xmpp.max_sessions`
+properties and the `--user` argument. Before, the XMPP shell answered anyone who could
+send a message to its account, and ran all the commands in a single thread.
+:::
 
 :::{warning}
 `shell.xmpp.tls.verify` defaults to `1` since iPOPO 3.3.0 (it was `0` before).
 Setting it to `0` disables the verification of the certificate of the XMPP
 server: an attacker able to intercept the connection can then impersonate the
 server and capture the credentials of the shell account.
+:::
+
+## Authentication and authorization
+
+A shell session is either **trusted** or not:
+
+* The console and the clients of a remote shell Unix socket (where the system tells
+  who they are) are trusted. They run as the user of the operating system, read from
+  the account database (never from the `USER` environment variable), and no permission
+  is checked: they could run the framework with the same rights anyway.
+* Every other session, a TCP or XMPP client, or a line given to
+  `ShellService.execute()` without a session, needs the permission of each command it
+  runs, from the security layer (see {doc}`security`). Without the `pelix.security.core`
+  bundle, or without an authorizer, such a session can run nothing but `exit`.
+
+Each command declares the permission it requires:
+
+| Permission | Commands |
+|----|----|
+| `pelix.shell.read` | The listings and details of bundles, services and components (`bl`, `bd`, `sl`, `sd`, `ipopo.factories`, `ipopo.instances`, ...), `help`, `echo`, `set`, `unset`, `pwd`, `whoami` |
+| `pelix.shell.admin` | Every command, including all those which declare nothing, such as the commands of third-party bundles |
+
+`pelix.shell.admin` is not a finer level than full control: installing a bundle,
+instantiating a component, running a script or changing a configuration all execute
+arbitrary code as the user of the process. The `pelix.shell.read` level excludes the
+commands which show secrets, like the framework properties, the environment variables,
+the stacks of the threads (with their local variables), the configurations and the
+reports.
+It does show the properties of services and components (`sd`, `ipopo.instance`):
+a component must declare a secret with `@HiddenProperty`, never with `@Property`.
+
+In a session which is not trusted:
+
+* the permission is checked for each command, including those of a script run by
+  `run`, with the groups and roles of the user read again, so that a removal applies at
+  once;
+* a refused command gets the same answer as an unknown one, and `help` only lists the
+  commands the session can run;
+* `$name` is replaced by the session variables only, never by the framework properties,
+  which may hold secrets;
+* the error of a command only shows its details with the `pelix.shell.debug`
+  permission; otherwise the client gets an error ID, which the log associates with the
+  stack trace.
+
+A command provider declares the permission of a command with the
+`pelix.shell.CommandPermission` decorator, on the command method:
+
+```python
+from pelix.shell import PERMISSION_READ, CommandPermission
+
+
+@CommandPermission(PERMISSION_READ)
+def list_jobs(self, session: ShellSession) -> None: ...
+```
+
+Any {class}`~pelix.security.Permission` can be declared: `pelix.shell.admin` always
+suffices. `CommandPermission(None)` makes a command anyone can run, which only makes
+sense for a command like `exit`.
+
+:::{versionadded} 3.3.0
+The permissions of the shell commands and the trusted sessions. Before, a remote
+client could run any command once logged in, or anonymously.
 :::
 
 ## Provided command bundles

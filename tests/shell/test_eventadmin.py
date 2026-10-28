@@ -6,6 +6,7 @@ Tests the EventAdmin shell commands
 :author: Thomas Calmant
 """
 
+import sys
 import threading
 import unittest
 from typing import Any
@@ -15,6 +16,7 @@ import pelix.services
 import pelix.shell
 from pelix.internals.registry import ServiceRegistration
 from pelix.ipopo.constants import use_ipopo
+from pelix.shell.beans import IOHandler, ShellSession
 
 # ------------------------------------------------------------------------------
 
@@ -126,7 +128,7 @@ class EventAdminShellTest(unittest.TestCase):
             command = command.format(*args)
 
         # Run command
-        self.shell.execute(command)
+        self.shell.execute(command, ShellSession(IOHandler(sys.stdin, sys.stdout), trusted=True))
 
     def tearDown(self) -> None:
         """

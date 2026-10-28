@@ -41,7 +41,15 @@ import redis.client
 import pelix.constants
 import pelix.remote
 from pelix.framework import BundleContext
-from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    HiddenProperty,
+    Invalidate,
+    Property,
+    Provides,
+    Requires,
+    Validate,
+)
 from pelix.remote import beans
 from pelix.remote.edef_io import EDEFReader, EDEFWriter
 from pelix.utilities import to_str
@@ -84,7 +92,7 @@ Pattern of endpoints keys, with the following format entries:
 @Property("_redis_host", "redis.host", "localhost")
 @Property("_redis_port", "redis.port", 6379)
 @Property("_redis_db", "redis.db", 0)
-@Property("_redis_password", "redis.password")
+@HiddenProperty("_redis_password", "redis.password")
 @Property("_heart_delay", "heartbeat.delay", 10)
 class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
     """

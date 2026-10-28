@@ -11,12 +11,23 @@ import sys
 import unittest
 from io import StringIO
 from typing import Any, cast
+from unittest import mock
 
 from pelix import constants
 from pelix.framework import Bundle, BundleContext, Framework, FrameworkFactory, create_framework
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
-from pelix.shell import ShellCommandMethod, ShellCommandsProvider, ShellService, ShellUtils, beans
+from pelix.shell import (
+    PERMISSION_ADMIN,
+    PERMISSION_READ,
+    CommandPermission,
+    ShellCommandMethod,
+    ShellCommandsProvider,
+    ShellService,
+    ShellUtils,
+    beans,
+    parser,
+)
 
 # ------------------------------------------------------------------------------
 
@@ -27,6 +38,13 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 
 # ------------------------------------------------------------------------------
+
+
+def local_session() -> beans.ShellSession:
+    """
+    Makes a session of the console kind, where no permission is checked
+    """
+    return beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout), trusted=True)
 
 
 class ShellUtilsTest(unittest.TestCase):
@@ -221,12 +239,14 @@ class ShellCoreTest(unittest.TestCase):
         self.assertFalse(self._flag, "Bad flag value")
 
         # Call it (complete name)
-        self.assertTrue(self.shell.execute("test.command"), "Error in executing 'test.command'")
+        self.assertTrue(
+            self.shell.execute("test.command", local_session()), "Error in executing 'test.command'"
+        )
         self.assertTrue(self._flag, "Command not called")
 
         # Call it (simple name)
         self._flag = False
-        self.assertTrue(self.shell.execute("command"), "Error in executing 'command'")
+        self.assertTrue(self.shell.execute("command", local_session()), "Error in executing 'command'")
         self.assertTrue(self._flag, "Command not called")
 
     def testExecuteInvalid(self) -> None:
@@ -235,11 +255,13 @@ class ShellCoreTest(unittest.TestCase):
         """
         # Empty line
         for empty in (None, "", "   "):
-            self.assertFalse(self.shell.execute(empty), f"No error executing '{empty}'")
+            self.assertFalse(self.shell.execute(empty, local_session()), f"No error executing '{empty}'")
 
         # Unknown command
         for unknown in ("unknown", "test.unknown", "unknown.unknown"):
-            self.assertFalse(self.shell.execute(unknown), "No error executing unknown command")
+            self.assertFalse(
+                self.shell.execute(unknown, local_session()), "No error executing unknown command"
+            )
 
     def testUnregister(self) -> None:
         """
@@ -250,7 +272,9 @@ class ShellCoreTest(unittest.TestCase):
         self.assertFalse(self._flag, "Bad flag value")
 
         # Call it (complete name)
-        self.assertTrue(self.shell.execute("test.command"), "Error in executing 'test.command'")
+        self.assertTrue(
+            self.shell.execute("test.command", local_session()), "Error in executing 'test.command'"
+        )
         self.assertTrue(self._flag, "Command not called")
 
         # Unregister the command
@@ -259,7 +283,9 @@ class ShellCoreTest(unittest.TestCase):
         self.assertFalse(self.shell.unregister("test", "command"), "Unregistered twice")
 
         # Check next call
-        self.assertFalse(self.shell.execute("test.command"), "Succeeded executing 'test.command'")
+        self.assertFalse(
+            self.shell.execute("test.command", local_session()), "Succeeded executing 'test.command'"
+        )
         self.assertFalse(self._flag, "Command called")
 
     def testGetters(self) -> None:
@@ -290,16 +316,40 @@ class ShellCoreTest(unittest.TestCase):
         # Call them (complete name)
         for name in ("test.command", "test2.command"):
             self._flag = False
-            self.assertTrue(self.shell.execute(name), f"Error in executing '{name}'")
+            self.assertTrue(self.shell.execute(name, local_session()), f"Error in executing '{name}'")
             self.assertTrue(self._flag, "Command not called")
 
         # Simple name must fail
         self._flag = False
-        self.assertFalse(self.shell.execute("command"), "Error in executing 'command'")
+        self.assertFalse(self.shell.execute("command", local_session()), "Error in executing 'command'")
         self.assertFalse(self._flag, "Command called")
 
 
 # ------------------------------------------------------------------------------
+
+
+class CommandPermissionTest(unittest.TestCase):
+    """
+    Tests the permission a command declares
+    """
+
+    def test_required_permission(self) -> None:
+        """
+        Only an explicit declaration lowers the default admin permission
+        """
+
+        def undeclared(session: beans.ShellSession) -> None:
+            pass
+
+        for method, expected in (
+            (CommandPermission(PERMISSION_READ)(lambda session: None), PERMISSION_READ),
+            (CommandPermission(None)(lambda session: None), None),
+            (undeclared, PERMISSION_ADMIN),
+            # A proxy answering any attribute declares nothing
+            (mock.Mock(), PERMISSION_ADMIN),
+        ):
+            with self.subTest(method=method):
+                self.assertEqual(parser._required_permission(method), expected)
 
 
 class ShellCommandTest(unittest.TestCase):
@@ -354,7 +404,7 @@ class ShellCommandTest(unittest.TestCase):
         self.shell.register_command("test", "command", command)
 
         # Valid execution
-        session = beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout))
+        session = beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout), trusted=True)
         self.assertTrue(self.shell.execute("test.command a 2", session))
         result = session.last_result
         self.assertEqual(result, ("a", "2"))
@@ -362,7 +412,9 @@ class ShellCommandTest(unittest.TestCase):
         # Invalid call
         for invalid in ([1], (1, 2, 3)):
             args = " ".join(str(arg) for arg in invalid)
-            self.assertFalse(self.shell.execute(f"test.command {args}"), "Invalid call passed")
+            self.assertFalse(
+                self.shell.execute(f"test.command {args}", local_session()), "Invalid call passed"
+            )
 
     def testKeywords(self) -> None:
         """
@@ -379,7 +431,7 @@ class ShellCommandTest(unittest.TestCase):
         self.shell.register_command("test", "command", command)
 
         # Prepare the session
-        session = beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout))
+        session = beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout), trusted=True)
 
         # Valid execution
         self.shell.execute("test.command arg1=12 a=2 b=abc", session)
@@ -401,7 +453,7 @@ class ShellCommandTest(unittest.TestCase):
         self.assertEqual(result, ("15", {"a": "a=b", "b": "a=b"}), f"Invalid result: {result}")
 
         # Invalid call (2 arguments)
-        self.assertFalse(self.shell.execute("test.command 1 2"), "Invalid call passed")
+        self.assertFalse(self.shell.execute("test.command 1 2", local_session()), "Invalid call passed")
 
     def testWhiteboard(self) -> None:
         """
@@ -429,14 +481,16 @@ class ShellCommandTest(unittest.TestCase):
         service = CommandService()
 
         # Check state
-        self.assertFalse(self.shell.execute("test.command"), "'test.command' can be called")
+        self.assertFalse(self.shell.execute("test.command", local_session()), "'test.command' can be called")
         self.assertFalse(service.flag, "Bad flag value")
 
         # Register the service
         svc_reg = self.context.register_service(ShellCommandsProvider, service, {})
 
         # Test execution
-        self.assertTrue(self.shell.execute("test.command"), "Error in executing 'test.command'")
+        self.assertTrue(
+            self.shell.execute("test.command", local_session()), "Error in executing 'test.command'"
+        )
         self.assertTrue(service.flag, "Command not called")
         service.flag = False
 
@@ -445,7 +499,9 @@ class ShellCommandTest(unittest.TestCase):
         svc_reg = None
 
         # Check state
-        self.assertFalse(self.shell.execute("test.command"), "'test.command' can still be called")
+        self.assertFalse(
+            self.shell.execute("test.command", local_session()), "'test.command' can still be called"
+        )
         self.assertFalse(service.flag, "Bad flag value")
 
 
@@ -492,7 +548,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         str_output = StringIO()
 
         # Session bean
-        session = beans.ShellSession(beans.IOHandler(None, str_output))
+        session = beans.ShellSession(beans.IOHandler(None, str_output), trusted=True)
         return session, str_output
 
     def _run_command(self, command: str, *args: Any, **kwargs: Any) -> str:
@@ -513,7 +569,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         except KeyError:
             # No session given
             str_output = StringIO()
-            session = beans.ShellSession(beans.IOHandler(None, str_output))
+            session = beans.ShellSession(beans.IOHandler(None, str_output), trusted=True)
 
         # Run command
         self.shell.execute(command, session)
@@ -608,7 +664,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         Tests the run shell command
         """
         # Check bad file error
-        self.assertFalse(self.shell.execute("run __fake_file__"))
+        self.assertFalse(self.shell.execute("run __fake_file__", local_session()))
 
         # Compute test file name
         filename = os.path.join(os.path.dirname(__file__), "rshell_starter.pelix")
@@ -618,7 +674,7 @@ class ShellCoreCommandsTest(unittest.TestCase):
         self.context.install_bundle("pelix.shell.ipopo").start()
 
         # Prepare a session
-        session = beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout), {"port": 0})
+        session = beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout), {"port": 0}, trusted=True)
 
         # Run the file a first time
         self.assertTrue(self.shell.execute(f"run '{filename}'", session))
