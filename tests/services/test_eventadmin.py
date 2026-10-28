@@ -16,10 +16,11 @@ import pelix.framework
 import pelix.services
 from pelix.internals.registry import ServiceRegistration
 from pelix.ipopo.constants import use_ipopo
+from pelix.services.eventdelivery import EventDeliveryError, EventProperties
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 4)
+__version_info__ = (3, 3, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -205,13 +206,15 @@ class EventAdminTest(unittest.TestCase):
         handler_2, handler_2_reg = self._register_handler("/titi/*")
         handler_3, _ = self._register_handler("/titi/*")
 
-        # Let the first handler sleep
+        # Let the first two handlers sleep
         handler.sleep = 1
+        handler_2.sleep = 1
 
-        # Post a message
+        # Post two messages: the second one waits behind the first one, for each handler
         self.eventadmin.post(topic)
+        self.eventadmin.post(topic + "/2")
 
-        # Wait a little (so that the list of handlers is prepared)
+        # Wait a little (so that the first event is being handled)
         time.sleep(0.2)
 
         # Unregister the second handler
@@ -221,12 +224,11 @@ class EventAdminTest(unittest.TestCase):
         handler_4, _ = self._register_handler("/titi/*")
 
         # Wait a little: only handlers present during the call to 'post'
-        # and still present during the notification loop must be notified
-        handler.wait(2)
-        handler_3.wait(2)
-        self.assertEqual(handler.pop_event(), topic)
-        self.assertEqual(handler_2.pop_event(), None)
-        self.assertEqual(handler_3.pop_event(), topic)
+        # and still present when their turn comes must be notified
+        time.sleep(2.5)
+        self.assertEqual(handler.pop_event(), topic + "/2")
+        self.assertEqual(handler_2.pop_event(), topic)
+        self.assertEqual(handler_3.pop_event(), topic + "/2")
         self.assertEqual(handler_4.pop_event(), None)
 
     def testProperties(self) -> None:
@@ -251,3 +253,135 @@ class EventAdminTest(unittest.TestCase):
 
             # Check that the handler value has been stored
             self.assertEqual(handler.last_props["change"], handler.change_props)
+
+    def testPostOrdering(self) -> None:
+        """
+        Posted events reach a handler in posting order (OSGi 113.7.3), even when
+        the handler is slow for some of them, unless it asked for unordered delivery
+        """
+        received: list[int] = []
+
+        class SlowHandler:
+            def handle_event(self, topic: str, properties: dict[str, Any]) -> None:
+                number = properties["n"]
+                if number % 3 == 0:
+                    time.sleep(0.01)
+                received.append(number)
+
+        context = self.framework.get_bundle_context()
+        context.register_service(
+            pelix.services.ServiceEventHandler,
+            cast(pelix.services.ServiceEventHandler, SlowHandler()),
+            {pelix.services.PROP_EVENT_TOPICS: "order/*"},
+        )
+
+        count = 60
+        for number in range(count):
+            self.eventadmin.post("order/event", {"n": number})
+
+        deadline = time.time() + 10
+        while len(received) < count and time.time() < deadline:
+            time.sleep(0.01)
+
+        self.assertEqual(received, list(range(count)))
+
+        # A handler asking for async.unordered delivery is still notified of every event
+        received = []
+        context.register_service(
+            pelix.services.ServiceEventHandler,
+            cast(
+                pelix.services.ServiceEventHandler,
+                type("H", (), {"handle_event": lambda self, topic, props: received.append(props["n"])})(),
+            ),
+            {
+                pelix.services.PROP_EVENT_TOPICS: "/titi/*",
+                pelix.services.PROP_EVENT_DELIVERY: pelix.services.DELIVERY_ASYNC_UNORDERED,
+            },
+        )
+        for number in range(20):
+            self.eventadmin.post("/titi/x", {"n": number})
+
+        deadline = time.time() + 5
+        while len(received) < 20 and time.time() < deadline:
+            time.sleep(0.01)
+        self.assertEqual(sorted(received), list(range(20)))
+
+    def testInvalidFilterAndTopic(self) -> None:
+        """
+        An invalid event.filter disables its handler only (OSGi 113.4), send() doesn't
+        fail; the topic is a property filters can test
+        """
+        broken, _ = self._register_handler("/titi/*", "(answer=")
+        good, _ = self._register_handler("/titi/*", "(answer=42)")
+
+        self.eventadmin.send("/titi/x", {"answer": 42})
+        self.assertEqual(broken.pop_event(), None)
+        self.assertEqual(good.pop_event(), "/titi/x")
+
+        # The topic can be tested as the event.topics property (OSGi 113.3.2)
+        handler, _ = self._register_handler(None, "(event.topics=/titi/x)")
+        self.eventadmin.send("/titi/x")
+        self.assertEqual(handler.pop_event(), "/titi/x")
+
+        # Counter-example: another topic
+        self.eventadmin.send("/titi/y")
+        self.assertEqual(handler.pop_event(), None)
+
+    def testRaiseErrors(self) -> None:
+        """
+        send(raise_errors=True) reports failures once every handler was notified
+        """
+
+        class Failing:
+            def handle_event(self, topic: str, properties: dict[str, Any]) -> None:
+                raise RuntimeError("refused")
+
+        context = self.framework.get_bundle_context()
+        context.register_service(
+            pelix.services.ServiceEventHandler,
+            cast(pelix.services.ServiceEventHandler, Failing()),
+            {pelix.services.PROP_EVENT_TOPICS: "/titi/*"},
+        )
+        good, _ = self._register_handler("/titi/*")
+
+        # Default: swallowed
+        self.eventadmin.send("/titi/x")
+        self.assertEqual(good.pop_event(), "/titi/x")
+
+        with self.assertRaises(EventDeliveryError) as ctx:
+            self.eventadmin.send("/titi/x", raise_errors=True)
+
+        self.assertIsInstance(ctx.exception.__cause__, RuntimeError)
+        self.assertEqual(len(ctx.exception.errors), 1)
+        # The other handler was notified
+        self.assertEqual(good.pop_event(), "/titi/x")
+
+        # Counter-example: no failure, no exception
+        self.eventadmin.send("/other/x", raise_errors=True)
+
+    def testCopy(self) -> None:
+        """
+        A value that can't be copied is reported with raise_errors, and can travel
+        with copy=False, as the same object in one immutable mapping
+        """
+        lock = threading.Lock()
+        handler, _ = self._register_handler("/titi/*")
+
+        with self.assertRaises(EventDeliveryError):
+            self.eventadmin.send("/titi/x", {"lock": lock}, raise_errors=True)
+        self.assertEqual(handler.pop_event(), None)
+
+        self.eventadmin.send("/titi/x", {"lock": lock}, copy=False, raise_errors=True)
+        self.assertEqual(handler.pop_event(), "/titi/x")
+        self.assertIs(handler.last_props["lock"], lock)
+
+        # Handlers share one immutable mapping
+        first = handler
+        second, _ = self._register_handler("/titi/*")
+        self.eventadmin.send("/titi/x", {"answer": 42}, copy=False)
+
+        self.assertIsInstance(first.last_props, EventProperties)
+        self.assertIs(first.last_props, second.last_props)
+        self.assertEqual(first.last_props["answer"], 42)
+        with self.assertRaises(TypeError):
+            first.last_props["answer"] = 0  # type: ignore[index]

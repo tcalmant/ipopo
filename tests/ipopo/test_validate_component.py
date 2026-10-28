@@ -9,7 +9,8 @@ Tests the component life cycle callbacks decorators
 import itertools
 import unittest
 
-from pelix.framework import BundleContext, FrameworkFactory
+from pelix.constants import FrameworkException
+from pelix.framework import Bundle, BundleContext, FrameworkFactory
 from pelix.ipopo import constants, decorators
 from pelix.ipopo.contexts import ComponentContext
 from pelix.ipopo.instance import StoredInstance
@@ -17,7 +18,7 @@ from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 4)
+__version_info__ = (3, 3, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -145,6 +146,26 @@ class ValidateComponentTest(unittest.TestCase):
         del instance.calls[:]
         self.ipopo.kill(instance_name)
         self.assertListEqual(["Invalidate"], instance.calls)
+
+    def test_fatal_error(self):
+        """
+        A FrameworkException in @Validate kills the component without raising to
+        the caller, and stops the framework if asked to
+        """
+        for needs_stop, state in ((False, Bundle.ACTIVE), (True, Bundle.RESOLVED)):
+
+            @decorators.ComponentFactory(f"fatal-{needs_stop}")
+            class Fatal:
+                stop = needs_stop
+
+                @decorators.Validate
+                def validate(self, _context):
+                    raise FrameworkException("fatal", self.stop)
+
+            self.ipopo.register_factory(self.framework.get_bundle_context(), Fatal)
+            self.ipopo.instantiate(f"fatal-{needs_stop}", "fatal")
+            self.assertFalse(self.ipopo.is_registered_instance("fatal"))
+            self.assertEqual(self.framework.get_state(), state)
 
 
 # ------------------------------------------------------------------------------

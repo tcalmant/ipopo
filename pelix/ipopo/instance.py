@@ -6,7 +6,7 @@ Instance manager class definition
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.4
+:version: 3.3.0
 
 ..
 
@@ -55,7 +55,7 @@ T = TypeVar("T")
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 4)
+__version_info__ = (3, 3, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -589,6 +589,10 @@ class StoredInstance:
 
                 # Call @ValidateComponent first, then @Validate
                 if not self.__safe_validation_callback(constants.IPOPO_CALLBACK_VALIDATE):
+                    if self._ipopo_service is None:
+                        # Killed by a FrameworkException: nothing left to invalidate
+                        return False
+
                     # Stop there if the callback failed
                     self.state = StoredInstance.VALID
                     self.invalidate(True)

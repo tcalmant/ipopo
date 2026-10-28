@@ -24,5 +24,6 @@ shell_report
 configadmin
 fileinstall
 eventadmin
+typedevent
 mqtt
 ```

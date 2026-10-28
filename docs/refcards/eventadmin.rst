@@ -101,6 +101,36 @@ as second parameter, which can be ``None``.
 When sending an event, each handler is notified with a different copy of the
 property dictionary, avoiding to propagate changes done by a handler.
 
+Both methods accept ``copy=False``: the handlers then share one immutable
+:class:`~pelix.services.eventdelivery.EventProperties` mapping (the OSGi
+``EventProperties``), which is not copied. This is the way to make a value that
+can't be copied travel with an event, or to keep its identity: the mapping is
+immutable, the values it holds are not.
+
+Errors
+^^^^^^
+
+As in OSGi (113.8.1), an exception raised by a handler is logged and the other
+handlers are notified anyway. ``send(..., raise_errors=True)`` raises an
+:class:`~pelix.services.eventdelivery.EventDeliveryError` once all the handlers
+were notified, if some of them failed: its ``errors`` attribute lists the
+(handler service ID, exception) tuples and the first exception is its
+``__cause__``. ``post()`` can only log, as it returns before the delivery.
+
+Ordering
+^^^^^^^^
+
+``send()`` runs the handlers in the calling thread, so the events sent by a
+thread are processed serially and in order (OSGi 113.7.3).
+
+The events given to ``post()`` are delivered by a thread pool. For each
+handler, they are delivered one at a time and in posting order. The handlers are
+independent: a slow handler delays only its own events. A handler can ask for
+concurrent, unordered delivery with the ``event.delivery`` property set to
+``async.unordered``.
+
+Events still queued when the component is invalidated are lost.
+
 
 EventHandler service
 ^^^^^^^^^^^^^^^^^^^^
@@ -127,12 +157,24 @@ specification, which defines by the following method:
 An event handler must associate at least one the following properties to its
 service:
 
-============ =========== ======================================================
-Property     Type        Description
-============ =========== ======================================================
-event.topics List of str A list of strings that indicates the topics the topics this handler expects. EventAdmin supports "file name" filters, i.e. with  ``*`` or ``?`` jokers.
-event.filter str         A LDAP filter string that will be tested on the event properties
-============ =========== ======================================================
+============== =========== ======================================================
+Property       Type        Description
+============== =========== ======================================================
+event.topics   List of str A list of strings that indicates the topics this handler expects. EventAdmin supports "file name" filters, i.e. with  ``*`` or ``?`` jokers.
+event.filter   str         A LDAP filter string that will be tested on the event properties and on the topic of the event, as the ``event.topics`` property. A handler with an invalid filter is ignored and a warning is logged
+event.delivery str         ``async.ordered`` (default) or ``async.unordered``: delivery guarantee of the events given to ``post()``
+============== =========== ======================================================
+
+Differences with the OSGi Event Admin
+-------------------------------------
+
+* Topics are matched like file names (``fnmatch``), a superset of the OSGi scopes
+  (``a/b``, ``a/b/*``, ``*``): ``?``, ``[...]`` and a ``*`` inside a topic are
+  accepted. Topics are not validated.
+* A handler without ``event.topics`` receives every event whose properties match its filter,
+  where OSGi delivers nothing.
+* Handlers are never black-listed, and the time they take is not limited.
+* There is no ``Event`` class: the topic and the properties are given separately.
 
 
 Example

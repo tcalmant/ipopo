@@ -7,18 +7,34 @@ Tests the code shared by the HTTP service implementations.
 """
 
 import importlib.util
+import time
+import types
 import unittest
-from typing import Any
+from email.message import Message
+from typing import Any, cast
+from unittest import mock
 
 from pelix import http
 from pelix.framework import Framework, FrameworkFactory
-from pelix.http._base import AbstractHttpService, compute_sub_path, normalize_request_path
-from pelix.http.basic import HttpServiceImpl
+from pelix.http import _base
+from pelix.http._base import (
+    SESSION_USER,
+    AbstractHttpService,
+    SessionContext,
+    SessionManager,
+    compute_sub_path,
+    normalize_allowed_hosts,
+    normalize_request_path,
+    normalize_trusted_proxies,
+    split_host_port,
+)
+from pelix.http.basic import HttpServiceImpl, _HTTPServletResponse
+from pelix.security import ATTRIBUTE_SESSION_ID, Subject
 from tests.http.utils import DEFAULT_HOST, get_http_code, get_http_page, install_ipopo, instantiate_server
 
 # ------------------------------------------------------------------------------
 
-__version_info__ = (3, 2, 4)
+__version_info__ = (3, 3, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # ------------------------------------------------------------------------------
@@ -211,6 +227,390 @@ class ComputeSubPathTest(unittest.TestCase):
 
 
 # ------------------------------------------------------------------------------
+
+
+class HostTest(unittest.TestCase):
+    """
+    Tests the parsing of the Host header and of its whitelist
+    """
+
+    def test_split_host_port(self) -> None:
+        for value, expected in (
+            ("LocalHost", ("localhost", None)),
+            ("localhost:8080", ("localhost", "8080")),
+            ("example.com.:80", ("example.com", "80")),
+            ("[::1]", ("[::1]", None)),
+            ("[::1]:8080", ("[::1]", "8080")),
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(split_host_port(value), expected)
+
+    def test_normalize_allowed_hosts(self) -> None:
+        for value, expected in (
+            (None, None),
+            ("", None),
+            ([], None),
+            ("a, B:1,", [("a", None), ("b", "1")]),
+            (["a"], [("a", None)]),
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(normalize_allowed_hosts(value), expected)
+
+
+class ProxyTest(unittest.TestCase):
+    """
+    Tests the resolution of the client behind trusted proxies
+    """
+
+    def test_normalize_trusted_proxies(self) -> None:
+        self.assertEqual(normalize_trusted_proxies(None), [])
+        self.assertEqual(len(normalize_trusted_proxies("10.0.0.0/8, ::1,")), 2)
+        with self.assertRaises(ValueError):
+            normalize_trusted_proxies(["not an address"])
+
+    def test_resolve_client(self) -> None:
+        forged = {"X-Forwarded-For": ["6.6.6.6"], "X-Forwarded-Proto": ["https"]}
+        proxy = ("10.0.0.2", 1234)
+        cases: list[tuple[str | None, str, dict[str, list[str]], bool, Any]] = [
+            # Headers are ignored by default, and from untrusted peers
+            (None, "10.0.0.2", forged, False, (proxy, False)),
+            ("10.0.0.1", "10.0.0.2", forged, False, (proxy, False)),
+            # The left of the chain is forged by the client: the first untrusted hop from the right is used
+            (
+                "10.0.0.0/8",
+                "10.0.0.2",
+                {"X-Forwarded-For": ["6.6.6.6, 1.2.3.4", "10.0.0.3"]},
+                False,
+                (("1.2.3.4", 0), False),
+            ),
+            (
+                "::1, 127.0.0.1",
+                "::ffff:127.0.0.1",
+                {"X-Forwarded-For": ["2001:db8::1"]},
+                False,
+                (("2001:db8::1", 0), False),
+            ),
+            (None, "::ffff:1.2.3.4", {}, False, (("1.2.3.4", 1234), False)),
+            ("10.0.0.0/8", "10.0.0.2", {"X-Forwarded-For": ["10.0.0.5, 10.0.0.3"]}, False, (proxy, False)),
+            ("10.0.0.0/8", "10.0.0.2", {"X-Forwarded-For": ["1.2.3.4, nonsense"]}, False, (proxy, False)),
+            # One clear text hop makes the request insecure; unknown values are ignored
+            ("10.0.0.2", "10.0.0.2", {"X-Forwarded-Proto": ["https"]}, False, (proxy, True)),
+            ("10.0.0.2", "10.0.0.2", {"X-Forwarded-Proto": ["https, HTTPS"]}, False, (proxy, True)),
+            ("10.0.0.2", "10.0.0.2", {"X-Forwarded-Proto": ["https", "http"]}, True, (proxy, False)),
+            ("10.0.0.2", "10.0.0.2", {"X-Forwarded-Proto": ["javascript"]}, False, (proxy, False)),
+            ("10.0.0.2", "10.0.0.2", {"X-Forwarded-Proto": ["javascript"]}, True, (proxy, True)),
+        ]
+        for trusted, peer, values, uses_ssl, expected in cases:
+            with self.subTest(trusted=trusted, peer=peer, headers=values, uses_ssl=uses_ssl):
+                service = types.SimpleNamespace(
+                    _uses_ssl=uses_ssl, _proxy_trusted=normalize_trusted_proxies(trusted)
+                )
+                headers = Message()
+                for name, items in values.items():
+                    for item in items:
+                        headers[name] = item
+                result = AbstractHttpService.resolve_client(cast(Any, service), (peer, 1234), headers)
+                self.assertEqual(result, expected)
+
+
+class CookieTest(unittest.TestCase):
+    """
+    Tests the cookie helpers and the headers of the responses
+    """
+
+    def test_parse(self) -> None:
+        self.assertEqual(http.parse_cookies(None), {})
+        self.assertEqual(http.parse_cookies('a=1; b="2"; broken; a=other; =x'), {"a": "1", "b": "2"})
+
+    def test_format(self) -> None:
+        self.assertEqual(http.format_cookie("sid", "abc"), "sid=abc; Path=/; SameSite=Lax; HttpOnly")
+        self.assertEqual(
+            http.format_cookie("sid", "abc", max_age=0, secure=True, http_only=False, same_site="None"),
+            "sid=abc; Path=/; SameSite=None; Max-Age=0; Secure",
+        )
+
+        # Nothing can split the header
+        kwargs: dict[str, Any]
+        for kwargs in (
+            {"name": "a b", "value": "x"},
+            {"name": "a", "value": "x\r\nSet-Cookie: b=1"},
+            {"name": "a", "value": "x;y"},
+            {"name": "a", "value": "x", "path": "/;Domain=evil"},
+            {"name": "a", "value": "x", "same_site": "Wide"},
+            {"name": "a", "value": "x", "same_site": "None"},
+        ):
+            with self.subTest(**kwargs), self.assertRaises(ValueError):
+                cast(Any, http.format_cookie)(**kwargs)
+
+    def test_basic_response_headers(self) -> None:
+        response = _HTTPServletResponse(cast(Any, None))
+        response.add_header("X-A", "1")
+        response.add_header("X-A", "2")
+        self.assertEqual(response._headers["x-a"], ["1", "2"])
+        response.set_header("X-A", "3")
+        self.assertEqual(response._headers["x-a"], ["3"])
+        response.set_header("X-A", None)
+        self.assertFalse(response.is_header_set("X-A"))
+        for method in (response.set_header, response.add_header):
+            with self.assertRaises(ValueError):
+                method("X-B", "a\r\nSet-Cookie: b=1")
+
+        # Once the headers are sent, changes are ignored, as they always were
+        response._sent = True
+        response.set_header("X-C", "1")
+        response.add_header("X-C", "1")
+        self.assertFalse(response.is_header_set("X-C"))
+
+    def test_legacy_request_classes(self) -> None:
+        """
+        A request class written before get_peer_address() can still be instantiated
+        """
+        for cls in (http.AbstractHTTPServletRequest, http.AbstractAsyncHTTPServletRequest):
+            with self.subTest(cls=cls):
+                self.assertNotIn("get_peer_address", cls.__abstractmethods__)
+                self.assertNotIn("get_client_address", cls.__abstractmethods__)
+
+
+class SessionTest(unittest.TestCase):
+    """
+    Tests the sessions kept by the services, without any server
+    """
+
+    def setUp(self) -> None:
+        self.manager = SessionManager(10)
+
+    def context(self, cookie: str | None = None) -> SessionContext:
+        return SessionContext(self.manager, "SID", cookie, False)
+
+    def test_find_and_rename(self) -> None:
+        self.assertIsNone(self.manager.find("never given"))
+        session = self.manager.create()
+        old_id = session.get_id()
+        self.assertTrue(session.is_new())
+        self.assertIs(self.manager.find(old_id), session)
+        self.assertFalse(session.is_new())
+
+        new_id = self.manager.rename(session)
+        self.assertNotEqual(new_id, old_id)
+        self.assertIsNone(self.manager.find(old_id))
+        self.assertIs(self.manager.find(new_id), session)
+
+    def test_expiration(self) -> None:
+        session = self.manager.create()
+        now = time.monotonic()
+        for delay, alive in ((5, True), (14, True), (30, False)):
+            # Using the session keeps it alive
+            with (
+                self.subTest(delay=delay),
+                mock.patch.object(_base.time, "monotonic", return_value=now + delay),
+            ):
+                self.assertEqual(self.manager.find(session.get_id()) is session, alive)
+
+        # Expired sessions nobody asks for are dropped when another one starts
+        self.manager.create()
+        with mock.patch.object(_base.time, "monotonic", return_value=now + 30):
+            self.manager.create()
+        self.assertEqual(len(self.manager._sessions), 1)
+
+    def test_capacity(self) -> None:
+        """
+        The oldest anonymous session gives way first: anonymous requests can't log users out
+        """
+        with mock.patch.object(_base, "MAX_SESSIONS", 2):
+            anonymous = self.manager.create()
+            user = self.manager.create()
+            user.set_attribute(SESSION_USER, "alice")
+            other = self.manager.create()
+            # find() keeps a session alive: only look for the evicted one
+            self.assertEqual(len(self.manager._sessions), 2)
+            self.assertIsNone(self.manager.find(anonymous.get_id()))
+
+            # All logged in: the oldest overall gives way
+            other.set_attribute(SESSION_USER, "bob")
+            self.manager.create()
+        self.assertIsNone(self.manager.find(user.get_id()))
+        self.assertIs(self.manager.find(other.get_id()), other)
+
+    def test_context(self) -> None:
+        # An unknown cookie is left alone: a parallel request may carry the one of before a login
+        context = self.context("unknown")
+        self.assertIsNone(context.get(False))
+        self.assertIsNone(context.cookie)
+        with self.assertRaises(RuntimeError):
+            context.change_id()
+
+        session = cast(http.HttpSession, context.get(True))
+        session.set_attribute(SESSION_USER, "alice")
+        with (
+            mock.patch.object(_base.auth, "restore", side_effect=OSError("LDAP is down")),
+            self.assertLogs("pelix.http._base", "ERROR"),
+        ):
+            # A failing membership provider makes an anonymous request
+            self.assertIsNone(context.restore())
+
+        # Dropped by another request: can't be renamed
+        session.invalidate()
+        session.invalidate()
+        with self.assertRaises(RuntimeError):
+            context.change_id()
+
+        # Once the headers are out, the cookie can't change
+        context = self.context()
+        context.sent = True
+        for method in (context.change_id, lambda: context.get(True)):
+            with self.assertRaises(RuntimeError):
+                method()
+        self.assertEqual(self.manager._sessions, {})
+
+    def test_login(self) -> None:
+        """
+        The session gets a new identifier and keeps its attributes, unless another user logs in
+        """
+        context = self.context()
+        cast(http.HttpSession, context.get(True)).set_attribute("cart", 3)
+        old_cookie = context.cookie
+        alice = Subject("alice", attributes={"mail": "a@b.c"}, authenticated=True)
+        with mock.patch.object(_base.auth, "login", return_value=alice):
+            result = context.login("alice", "abc", None)
+        self.assertEqual(result.attributes["mail"], "a@b.c")
+        self.assertIn(ATTRIBUTE_SESSION_ID, result.attributes)
+        self.assertNotEqual(context.cookie, old_cookie)
+        self.assertEqual(cast(http.HttpSession, context.get(False)).get_attribute("cart"), 3)
+
+        with mock.patch.object(_base.auth, "login", return_value=Subject("bob", authenticated=True)):
+            context.login("bob", "abc", None)
+        session = cast(http.HttpSession, context.get(False))
+        self.assertEqual(session.get_attribute(SESSION_USER), "bob")
+        self.assertIsNone(session.get_attribute("cart"))
+
+        context.sent = True
+        with self.assertRaises(RuntimeError):
+            context.logout()
+
+    def test_cookie_name(self) -> None:
+        """
+        A cookie name which isn't a token is replaced by the default one
+        """
+        for name, service in get_services():
+            with self.subTest(service=name):
+                service._session_cookie = "a b"
+                with self.assertLogs(level="WARNING"):
+                    service._normalize_configuration()
+                self.assertEqual(service._session_cookie, "PELIXSESSIONID")
+
+
+BOUNDARY = "xX-boundary-Xx"
+MULTIPART = f"multipart/form-data; boundary={BOUNDARY}"
+
+
+def make_form(*fields: tuple[str, str | None, bytes]) -> bytes:
+    """
+    Prepares a multipart body, as a browser does: (name, file name or None, data) fields
+    """
+    body = b""
+    for name, filename, data in fields:
+        disposition = f'form-data; name="{name}"' + (f'; filename="{filename}"' if filename else "")
+        content_type = "Content-Type: image/gif\r\n" if filename else ""
+        body += f"--{BOUNDARY}\r\nContent-Disposition: {disposition}\r\n{content_type}\r\n".encode()
+        body += data + b"\r\n"
+    return body + f"--{BOUNDARY}--\r\n".encode()
+
+
+class MultipartTest(unittest.TestCase):
+    """
+    Tests the multipart/form-data parser
+    """
+
+    def test_parse(self) -> None:
+        # The data holds what looks like a boundary and CRLF
+        data = b"GIF89a\r\n--" + BOUNDARY.encode()[:5] + b"\r\n\x00\xff"
+        fields = make_form(
+            ("title", None, "Élodie".encode()), ("file", "../a b.gif", data), ("empty", None, b"")
+        )
+        awkward = "'()+_,./:=? -x"
+        cases: list[tuple[str, bytes, list[tuple[str, str | None, str | None, bytes]]]] = [
+            # The file name is given as is: the caller must not trust it
+            (
+                MULTIPART,
+                fields,
+                [
+                    ("title", None, None, "Élodie".encode()),
+                    ("file", "../a b.gif", "image/gif", data),
+                    ("empty", None, None, b""),
+                ],
+            ),
+            # Preamble and epilogue are ignored
+            (
+                MULTIPART,
+                b"preamble\r\n" + make_form(("a", None, b"1")) + b"epilogue",
+                [("a", None, None, b"1")],
+            ),
+            (
+                f'multipart/form-data; boundary="{BOUNDARY}"',
+                make_form(("f", "été.gif", b"x")),
+                [("f", "été.gif", "image/gif", b"x")],
+            ),
+            # Special characters, padding, folded headers, RFC 5987 names, repeated names
+            (
+                f'multipart/form-data; boundary="{awkward}"',
+                (
+                    f"--{awkward} \t\r\nContent-Disposition: form-data; name=a;\r\n  filename*=UTF-8''%C3%A9t%C3%A9.gif\r\n\r\n1\r\n"
+                    f"--{awkward}\r\nContent-Disposition: form-data; name=a\r\n\r\n2\r\n--{awkward}--"
+                ).encode(),
+                [("a", "été.gif", None, b"1"), ("a", None, None, b"2")],
+            ),
+        ]
+        for content_type, body, expected in cases:
+            with self.subTest(content_type=content_type, body=body[:40]):
+                parts = http.parse_multipart(content_type, body)
+                self.assertEqual([(p.name, p.filename, p.content_type, p.data) for p in parts], expected)
+
+    def test_refused(self) -> None:
+        good = make_form(("a", None, b"1"))
+        cases: list[tuple[str | None, bytes]] = [
+            (None, good),
+            ("text/plain", good),
+            ("multipart/form-data", good),
+            (f"multipart/form-data; boundary={'b' * 71}", good),
+            (f"{MULTIPART}\u00e9", good),
+            ("multipart/form-data; boundary=b ", good),
+            (MULTIPART, b""),
+            # No closing delimiter
+            (MULTIPART, good[: -len(BOUNDARY) - 6]),
+            (MULTIPART, f"--{BOUNDARY}\r\nContent-Disposition: form-data; name=a\r\n".encode()),
+            (
+                MULTIPART,
+                f"--{BOUNDARY}\r\nContent-Disposition: attachment; name=a\r\n\r\n1\r\n--{BOUNDARY}--".encode(),
+            ),
+            (
+                MULTIPART,
+                f"--{BOUNDARY}\r\nContent-Disposition: form-database; name=a\r\n\r\n1\r\n--{BOUNDARY}--".encode(),
+            ),
+            (
+                MULTIPART,
+                f"--{BOUNDARY}\r\nContent-Disposition: form-data\r\n\r\n1\r\n--{BOUNDARY}--".encode(),
+            ),
+            (
+                MULTIPART,
+                f"--{BOUNDARY}\r\nContent-Disposition: form-data; name*=UTF-8''a\r\n\r\n1\r\n--{BOUNDARY}--".encode(),
+            ),
+            (MULTIPART, f"--{BOUNDARY}\r\n{'X-Pad: ' + 'a' * 9000}\r\n\r\n1\r\n--{BOUNDARY}--".encode()),
+            (MULTIPART, f"--{BOUNDARY}\r\nno header end--{BOUNDARY}--".encode()),
+            # A body of delimiters costs nothing
+            (MULTIPART, (f"\r\n--{BOUNDARY}" * 100_000).encode()),
+        ]
+        for content_type, body in cases:
+            with (
+                self.subTest(content_type=content_type, body=body[:40]),
+                self.assertRaises(http.MultipartError),
+            ):
+                http.parse_multipart(content_type, body)
+
+    def test_max_parts(self) -> None:
+        body = make_form(*[(f"f{i}", None, b"") for i in range(5)])
+        self.assertEqual(len(http.parse_multipart(MULTIPART, body, 5)), 5)
+        with self.assertRaises(http.MultipartError):
+            http.parse_multipart(MULTIPART, body, 4)
 
 
 class ResolveRequestTest(unittest.TestCase):

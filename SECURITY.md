@@ -58,7 +58,7 @@ If you wish to encrypt your report, request the maintainer's public key at that 
 
 The more of this you can provide, the faster the fix:
 
-- **Affected version and branch** (e.g. `3.2.4`, `v3`), and the Python version
+- **Affected version and branch** (e.g. `3.3.0`, `v3`), and the Python version
 - **Affected component** (e.g. `pelix.remote.discovery.mdns`, `pelix.http.basic`, `pelix.shell.remote`)
 - **Type of issue**: remote code execution, path traversal, information disclosure, denial of service, authentication bypass, etc.
 - **Reproduction steps**, ideally a minimal script or bundle. A failing test case is ideal
@@ -147,6 +147,12 @@ If you are deploying iPOPO in production, and particularly on a network you do n
 
 - **Bind the HTTP service to loopback.**
   Set `pelix.http.address` to `127.0.0.1` and put an authenticating reverse proxy in front of it if it must be reachable
+- **Put a web application with logins behind a TLS reverse proxy, and tell the HTTP service about it.**
+  Set `pelix.http.proxy.trusted` to the proxy address, so that the client address (used by the login throttle) and the scheme (used by the `Origin` check and the `Secure` flag of cookies) are the ones of the client.
+  The proxy must keep the `Host` header and overwrite, not forward, the `X-Forwarded-*` headers of its clients.
+  Enable `pelix.http.cors.enforce` and `pelix.http.allowed_hosts`: both are off by default for compatibility.
+  With the session cookie (`SameSite=Lax`), `pelix.http.cors.enforce` is the protection against cross-site request forgery: there is no CSRF token, and a servlet changing data on a `GET` request is not protected.
+  Sessions have a sliding expiration only (`pelix.http.session.max_inactive_interval` without request), and an account removed from the identity store keeps its sessions until they expire
 - **Do not expose the remote shell.**
   It allows installing, starting and stopping arbitrary bundles, which is equivalent to remote code execution.
   It binds to `localhost` by default, keep it that way.

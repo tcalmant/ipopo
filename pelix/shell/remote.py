@@ -14,7 +14,7 @@ subject, or as the anonymous one when authentication is not required.
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
 :license: Apache License 2.0
-:version: 3.2.4
+:version: 3.3.0
 
 ..
 
@@ -34,11 +34,15 @@ subject, or as the anonymous one when authentication is not required.
 """
 
 import argparse
+import errno
 import importlib
 import logging
+import os
 import shlex
 import socket
 import socketserver
+import stat
+import struct
 import sys
 import threading
 import time
@@ -95,7 +99,7 @@ else:
 # ------------------------------------------------------------------------------
 
 # Module version
-__version_info__ = (3, 2, 4)
+__version_info__ = (3, 3, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
 # Documentation strings format
@@ -115,10 +119,15 @@ __all__ = [
     "PROP_LOGIN_TIMEOUT",
     "PROP_MAX_CLIENTS",
     "PROP_MAX_LINE_LENGTH",
+    "PROP_UNIX_CHECK_PEER",
+    "PROP_UNIX_PATH",
+    "STOP_TIMEOUT",
     "TRANSPORT",
+    "UNIX_SOCKET_MODE",
     "RemoteConsole",
     "SharedBoolean",
     "ThreadingTCPServerFamily",
+    "ThreadingUnixServer",
     "main",
 ]
 
@@ -161,6 +170,21 @@ Default: 60. 0: no limit
 PROP_MAX_CLIENTS = "pelix.shell.max_clients"
 """ Component property: maximum number of simultaneous clients. Default: 32. 0: no limit """
 
+PROP_UNIX_PATH = "pelix.shell.unix.path"
+"""
+Component property: path of a Unix domain socket to listen on, instead of the TCP address and port.
+Linux and macOS only. Incompatible with the TLS properties. Default: None (TCP)
+"""
+
+PROP_UNIX_CHECK_PEER = "pelix.shell.unix.check_peer"
+"""
+Component property: refuse the clients of a Unix socket which run as another user than the server
+(root excepted), where the system tells the user of a client (Linux). Default: True
+"""
+
+UNIX_SOCKET_MODE = 0o600
+""" File mode of the Unix socket: only its owner can connect """
+
 DEFAULT_MAX_LINE_LENGTH = 64 * 1024
 DEFAULT_IDLE_TIMEOUT = 3600.0
 DEFAULT_LOGIN_TIMEOUT = 60.0
@@ -168,6 +192,9 @@ DEFAULT_MAX_CLIENTS = 32
 
 POLL_INTERVAL = 0.5
 """ Seconds between two checks of the server state while waiting for a client """
+
+STOP_TIMEOUT = 2.0
+""" Seconds the stop of the shell waits for the sessions to end """
 
 # ------------------------------------------------------------------------------
 
@@ -495,7 +522,7 @@ class RemoteConsole(socketserver.StreamRequestHandler):
         if not self._shell.is_auth_required():
             return ANONYMOUS
 
-        if not self._is_tls():
+        if not self._is_tls() and not self._shell.is_unix():
             _logger.warning(
                 "Password login prompted to %s over a clear-text connection: "
                 "the password will travel unencrypted",
@@ -633,8 +660,9 @@ class RemoteConsole(socketserver.StreamRequestHandler):
                         with run_as(session.subject):
                             self._shell.handle_line(line, session)
                     except KeyboardInterrupt:
-                        # Stop there on interruption
-                        self.send("\nInterruption received.")
+                        # The "exit" and "quit" commands: a signal never reaches the thread of a
+                        # client, so this is the client asking to leave, not an interruption
+                        _logger.debug("Client %s left the session", client_ip)
                         return
                     except OSError:
                         # I/O errors are fatal
@@ -663,7 +691,128 @@ class RemoteConsole(socketserver.StreamRequestHandler):
 # ------------------------------------------------------------------------------
 
 
-class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
+class _ClientLimitMixin(socketserver.ThreadingMixIn):
+    """
+    Refuses the connections past a maximum number of simultaneous clients, and names
+    the thread of each client. To be put before the ``socketserver`` class.
+    """
+
+    # Provided by the socketserver classes this is mixed with
+    server_address: Any
+
+    def _init_limits(self, max_clients: int | None) -> None:
+        """
+        Prepares the client counter
+
+        :param max_clients: Maximum number of simultaneous clients, or None
+        """
+        # Clients being handled, to refuse new ones past the limit
+        self.max_clients = max_clients
+        self._clients = 0
+        self._clients_lock = threading.Lock()
+
+        # Threads of the clients: daemon threads, which socketserver doesn't track,
+        # waited for at stop so that a session ends before the process does
+        self._client_threads: set[threading.Thread] = set()
+
+    def _get_server_tag(self) -> str:
+        """
+        Returns what tells this server from the others in the names of its threads
+        """
+        return str(self.server_address[1])
+
+    def process_request_thread(
+        self, request: socket.socket | tuple[bytes, socket.socket], client_address: tuple[str, int]
+    ) -> None:
+        """
+        Handles the request in its own thread, named after the client address.
+
+        The thread itself is started by ``ThreadingMixIn.process_request()``.
+        Overriding that method to name the thread would bypass this
+        bookkeeping.
+        """
+        thread = threading.current_thread()
+        thread.name = f"RemoteShell-{self._get_server_tag()}-Client-{client_address[:2]}"
+        with self._clients_lock:
+            self._client_threads.add(thread)
+
+        try:
+            super().process_request_thread(request, client_address)
+        finally:
+            with self._clients_lock:
+                self._client_threads.discard(thread)
+
+            self._release_client()
+
+    def wait_for_clients(self, timeout: float | None = None) -> int:
+        """
+        Waits for the threads of the clients to end.
+
+        Call it after the clients were told to stop: a client which is waiting for
+        input notices it within :data:`POLL_INTERVAL`, but a client running a command
+        only ends when the command does.
+
+        :param timeout: Seconds to wait for all of them, or None to wait forever
+        :return: The number of clients still running when the wait ended
+        """
+        deadline = time.monotonic() + timeout if timeout is not None else None
+        with self._clients_lock:
+            threads = list(self._client_threads)
+
+        for thread in threads:
+            if thread is threading.current_thread():
+                # A command of this client is stopping the shell: it can't wait for itself
+                continue
+
+            thread.join(max(0.0, deadline - time.monotonic()) if deadline is not None else None)
+
+        with self._clients_lock:
+            return sum(
+                1
+                for thread in self._client_threads
+                if thread.is_alive() and thread is not threading.current_thread()
+            )
+
+    def verify_request(
+        self, request: socket.socket | tuple[bytes, socket.socket], client_address: Any
+    ) -> bool:
+        """
+        Refuses a new client when the maximum number of clients is reached.
+
+        The slot is reserved here, in the thread accepting the connections, and
+        released when the thread of the client ends.
+        """
+        with self._clients_lock:
+            if self.max_clients is not None and self._clients >= self.max_clients:
+                _logger.warning(
+                    "Refusing the connection of %s: already %d clients", client_address, self._clients
+                )
+                return False
+
+            self._clients += 1
+            return True
+
+    def process_request(
+        self, request: socket.socket | tuple[bytes, socket.socket], client_address: Any
+    ) -> None:
+        """
+        Starts the thread of a client, releasing its slot if that fails
+        """
+        try:
+            super().process_request(request, client_address)
+        except BaseException:
+            self._release_client()
+            raise
+
+    def _release_client(self) -> None:
+        """
+        Frees the slot of a client which is gone
+        """
+        with self._clients_lock:
+            self._clients = max(0, self._clients - 1)
+
+
+class ThreadingTCPServerFamily(_ClientLimitMixin, socketserver.ThreadingTCPServer):
     """
     Threaded TCP Server handling different address families
     """
@@ -689,10 +838,7 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
         :param ca_file: Path to Certificate Authority to authenticate clients
         :param max_clients: Maximum number of simultaneous clients, or None
         """
-        # Clients being handled, to refuse new ones past the limit
-        self.max_clients = max_clients
-        self._clients = 0
-        self._clients_lock = threading.Lock()
+        self._init_limits(max_clients)
 
         # Determine the address family
         addr_info = socket.getaddrinfo(server_address[0], server_address[1], 0, 0, socket.SOL_TCP)
@@ -789,59 +935,203 @@ class ThreadingTCPServerFamily(socketserver.ThreadingTCPServer):
 
         return client_stream, client_address
 
-    def process_request_thread(
-        self, request: socket.socket | tuple[bytes, socket.socket], client_address: tuple[str, int]
-    ) -> None:
-        """
-        Handles the request in its own thread, named after the client address.
 
-        The thread itself is started by ``ThreadingMixIn.process_request()``.
-        Overriding that method to name the thread would bypass this
-        bookkeeping.
+def _check_socket_directory(directory: str) -> None:
+    """
+    Checks that only the user of the server (or root) can add, remove or replace the
+    files of the folder of the socket: another user could otherwise swap the socket
+    for its own between our checks and the use of the path.
+
+    :param directory: The folder of the socket
+    :raise FileNotFoundError: The folder doesn't exist
+    :raise NotADirectoryError: The path is not a folder
+    :raise PermissionError: The folder is not controlled by the user of the server
+    """
+    info = os.stat(directory)
+    if not stat.S_ISDIR(info.st_mode):
+        raise NotADirectoryError(errno.ENOTDIR, "Not a folder", directory)
+
+    if info.st_uid not in (os.geteuid(), 0):
+        raise PermissionError(
+            f"Refusing to create the shell socket in {directory}: the folder belongs to another user"
+        )
+
+    # Writable by others is fine with the sticky bit (like /tmp): they can't touch our files
+    if info.st_mode & (stat.S_IWGRP | stat.S_IWOTH) and not info.st_mode & stat.S_ISVTX:
+        raise PermissionError(
+            f"Refusing to create the shell socket in {directory}: the folder is writable by other users"
+        )
+
+
+def _remove_stale_socket(path: str) -> None:
+    """
+    Removes the socket file left by a server which was not stopped properly.
+
+    Only a socket owned by the user of the server, which nobody listens on, is removed:
+    anything else (regular file, symbolic link, socket of a running server) is refused.
+
+    :param path: Path of the socket
+    :raise FileExistsError: The path is not a socket
+    :raise PermissionError: The socket belongs to another user
+    :raise OSError: A server is already listening on the socket
+    """
+    try:
+        info = os.lstat(path)
+    except FileNotFoundError:
+        return
+
+    if not stat.S_ISSOCK(info.st_mode):
+        raise FileExistsError(errno.EEXIST, "Not a socket: refusing to remove it", path)
+
+    if info.st_uid != os.geteuid():
+        raise PermissionError(f"Refusing to remove {path}: the socket belongs to another user")
+
+    # A refused connection tells that nobody listens: the file is stale
+    probe = socket.socket(socket.AF_UNIX, socket.SOCK_STREAM)
+    try:
+        probe.settimeout(2)
+        probe.connect(path)
+    except (ConnectionRefusedError, FileNotFoundError):
+        pass
+    except OSError as ex:
+        raise OSError(errno.EADDRINUSE, f"Cannot tell if the socket is stale ({ex})", path) from ex
+    else:
+        raise OSError(errno.EADDRINUSE, "A server is already listening on this socket", path)
+    finally:
+        probe.close()
+
+    try:
+        os.unlink(path)
+    except FileNotFoundError:
+        pass
+
+
+def _get_peer_uid(connection: socket.socket) -> tuple[int, int] | None:
+    """
+    Asks the system who runs the other end of a Unix socket
+
+    :param connection: A connected Unix socket
+    :return: A (user ID, process ID) tuple, or None if the system can't tell
+    :raise OSError: The system could tell but failed to
+    """
+    option = getattr(socket, "SO_PEERCRED", None)
+    if option is None:
+        return None
+
+    size = struct.calcsize("3i")
+    pid, uid, _gid = struct.unpack("3i", connection.getsockopt(socket.SOL_SOCKET, option, size))
+    return uid, pid
+
+
+# Missing on Windows, where the server refuses to be created
+_UnixStreamServer: Any = getattr(socketserver, "ThreadingUnixStreamServer", object)
+
+
+class ThreadingUnixServer(_ClientLimitMixin, _UnixStreamServer):
+    """
+    Threaded server on a Unix domain socket, usable only by the user running it
+    """
+
+    def __init__(
+        self,
+        path: str,
+        request_handler_class: type[socketserver.BaseRequestHandler],
+        max_clients: int | None = None,
+        check_peer: bool = True,
+    ):
         """
-        threading.current_thread().name = f"RemoteShell-{self.server_address[1]}-Client-{client_address[:2]}"
+        Sets up the server. Doesn't bind nor activate it.
+
+        :param path: Path of the socket
+        :param request_handler_class: Class to instantiate for each client
+        :param max_clients: Maximum number of simultaneous clients, or None
+        :param check_peer: Refuse the clients of another user (root excepted), if the system tells
+                           who they are
+        :raise OSError: Unix sockets are not supported on this platform
+        """
+        if sys.platform == "win32" or not hasattr(socket, "AF_UNIX"):
+            raise OSError(
+                errno.EAFNOSUPPORT, f"Unix sockets are only supported on Linux and macOS, not {sys.platform}"
+            )
+
+        self._init_limits(max_clients)
+        self.socket_path = path
+        self.check_peer = check_peer
+        self._socket_id: tuple[int, int] | None = None
+        _UnixStreamServer.__init__(self, path, request_handler_class, False)
+
+    def _get_server_tag(self) -> str:
+        return os.path.basename(self.socket_path)
+
+    def server_bind(self) -> None:
+        """
+        Creates the socket file, for its owner only.
+
+        The mode is set with the umask at creation, so that there is no moment where
+        another user could connect, then fixed explicitly.
+        """
+        _check_socket_directory(os.path.dirname(self.socket_path) or ".")
+        _remove_stale_socket(self.socket_path)
+
+        old_umask = os.umask(0o777 & ~UNIX_SOCKET_MODE)
         try:
-            super().process_request_thread(request, client_address)
+            self.socket.bind(self.socket_path)
         finally:
-            self._release_client()
+            os.umask(old_umask)
 
-    def verify_request(
-        self, request: socket.socket | tuple[bytes, socket.socket], client_address: Any
-    ) -> bool:
-        """
-        Refuses a new client when the maximum number of clients is reached.
+        # Identified first, so that the file is removed at close even if chmod fails
+        info = os.lstat(self.socket_path)
+        self._socket_id = (info.st_dev, info.st_ino)
+        os.chmod(self.socket_path, UNIX_SOCKET_MODE)
+        self.server_address = self.socket.getsockname()
 
-        The slot is reserved here, in the thread accepting the connections, and
-        released when the thread of the client ends.
+    def server_close(self) -> None:
         """
-        with self._clients_lock:
-            if self.max_clients is not None and self._clients >= self.max_clients:
-                _logger.warning(
-                    "Refusing the connection of %s: already %d clients", client_address, self._clients
-                )
-                return False
+        Closes the socket and removes its file, unless another server replaced it
+        """
+        super().server_close()
 
-            self._clients += 1
-            return True
+        if self._socket_id is None:
+            return
 
-    def process_request(
-        self, request: socket.socket | tuple[bytes, socket.socket], client_address: Any
-    ) -> None:
-        """
-        Starts the thread of a client, releasing its slot if that fails
-        """
         try:
-            super().process_request(request, client_address)
-        except BaseException:
-            self._release_client()
-            raise
+            info = os.lstat(self.socket_path)
+            if (info.st_dev, info.st_ino) == self._socket_id:
+                os.unlink(self.socket_path)
+        except FileNotFoundError:
+            pass
+        except OSError as ex:
+            _logger.warning("Cannot remove the socket file %s: %s", self.socket_path, ex)
+        finally:
+            self._socket_id = None
 
-    def _release_client(self) -> None:
+    def get_request(self) -> tuple[socket.socket, tuple[str, int]]:
         """
-        Frees the slot of a client which is gone
+        Accepts a new client, after checking who it is
+
+        :return: A tuple: (client socket, ("unix:uid=<user ID>", process ID))
+        :raise OSError: The client is refused
         """
-        with self._clients_lock:
-            self._clients = max(0, self._clients - 1)
+        client_socket, _ = self.socket.accept()
+        uid: int | None = None
+        pid = 0
+        if self.check_peer:
+            try:
+                peer = _get_peer_uid(client_socket)
+                if peer is not None:
+                    uid, pid = peer
+            except OSError as ex:
+                # Unable to tell who this is: deny, like any doubt
+                _logger.warning("Refusing a client of the shell socket: cannot get its user (%s)", ex)
+                client_socket.close()
+                raise
+
+            if uid is not None and uid not in (os.geteuid(), 0):
+                _logger.warning("Refusing a client of the shell socket run by user %d (process %d)", uid, pid)
+                client_socket.close()
+                raise PermissionError(errno.EACCES, "Client of another user", uid)
+
+        return client_socket, (f"unix:uid={uid}" if uid is not None else "unix", pid)
 
 
 def _create_server(
@@ -853,9 +1143,11 @@ def _create_server(
     key_password: str | None = None,
     ca_file: str | None = None,
     max_clients: int | None = None,
+    unix_path: str | None = None,
+    check_peer: bool = True,
 ) -> tuple[threading.Thread, socketserver.TCPServer, SharedBoolean]:
     """
-    Creates the TCP console on the given address and port
+    Creates the console on the given address and port, or on a Unix socket
 
     :param shell: The remote shell handler
     :param server_address: Server bound address
@@ -865,7 +1157,9 @@ def _create_server(
     :param key_password: Password for the key file
     :param ca_file: Path to Certificate Authority to authenticate clients
     :param max_clients: Maximum number of simultaneous clients, or None
-    :return: A tuple: Server thread, TCP server object, Server active flag
+    :param unix_path: Path of a Unix socket to use instead of the address and port
+    :param check_peer: Refuse the clients of another user on a Unix socket
+    :return: A tuple: Server thread, server object, Server active flag
     """
     # Set up the request handler creator
     active_flag = SharedBoolean(True)
@@ -876,27 +1170,42 @@ def _create_server(
         """
         return RemoteConsole(shell, active_flag, *rh_args)
 
-    # Set up the server
-    server = ThreadingTCPServerFamily(
-        (server_address, port),
-        cast(type[socketserver.BaseRequestHandler], request_handler),
-        cert_file,
-        key_file,
-        key_password,
-        ca_file,
-        max_clients,
-    )
+    server: socketserver.TCPServer
+    if unix_path:
+        server = ThreadingUnixServer(
+            unix_path,
+            cast(type[socketserver.BaseRequestHandler], request_handler),
+            max_clients,
+            check_peer,
+        )
+        name = f"RemoteShell-{os.path.basename(unix_path)}"
+    else:
+        server = ThreadingTCPServerFamily(
+            (server_address, port),
+            cast(type[socketserver.BaseRequestHandler], request_handler),
+            cert_file,
+            key_file,
+            key_password,
+            ca_file,
+            max_clients,
+        )
+        # Reuse the address of a server just stopped
+        server.allow_reuse_address = True
+        name = f"RemoteShell-{port}"
 
-    # Set flags
     server.daemon_threads = True
-    server.allow_reuse_address = True
 
     # Activate the server
-    server.server_bind()
-    server.server_activate()
+    try:
+        server.server_bind()
+        server.server_activate()
+    except BaseException:
+        # Don't leak the socket (nor the socket file) of a server which can't start
+        server.server_close()
+        raise
 
     # Serve clients
-    server_thread = threading.Thread(target=server.serve_forever, name=f"RemoteShell-{port}")
+    server_thread = threading.Thread(target=server.serve_forever, name=name)
     server_thread.daemon = True
     server_thread.start()
 
@@ -918,6 +1227,8 @@ def _create_server(
 @Property("_address", "pelix.shell.address", "localhost")
 @Property("_port", "pelix.shell.port", 9000)
 @Property("_encoding", "pelix.shell.encoding", "utf-8")
+@Property("_unix_path", PROP_UNIX_PATH, None)
+@Property("_unix_check_peer", PROP_UNIX_CHECK_PEER, True)
 @Property("_ca_file", "pelix.shell.ssl.ca", None)
 @Property("_cert_file", "pelix.shell.ssl.cert", None)
 @Property("_key_file", "pelix.shell.ssl.key", None)
@@ -953,6 +1264,10 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         self._port: int | None = 0
         self._encoding: str = "utf-8"
 
+        # Unix socket configuration
+        self._unix_path: str | None = None
+        self._unix_check_peer: Any = True
+
         # SSL configuration
         self._ca_file: str | None = None
         self._cert_file: str | None = None
@@ -968,9 +1283,18 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         """
         Returns the access to this remote shell
 
-        :return: A (host, port) tuple
+        :return: A (host, port) tuple, or (socket path, None) if the shell listens on a Unix socket
         """
+        if self._unix_path:
+            return self._unix_path, None
+
         return self._address, self._port
+
+    def is_unix(self) -> bool:
+        """
+        Tells whether the shell listens on a Unix socket rather than on TCP
+        """
+        return bool(self._unix_path)
 
     def get_encoding(self) -> str:
         """
@@ -1095,12 +1419,29 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         """
         return self._shell.execute(line, session)
 
+    def _check_unix_configuration(self) -> str:
+        """
+        Checks the properties of a shell listening on a Unix socket
+
+        :return: The absolute path of the socket
+        :raise ValueError: A TLS property is set: it can't apply to a Unix socket
+        """
+        # Refused rather than ignored: the owner would believe the connection is
+        # encrypted and the clients authenticated by certificate
+        if self._ca_file or self._cert_file or self._key_file or self._key_password:
+            raise ValueError(f"The TLS properties cannot be used with {PROP_UNIX_PATH}")
+
+        return os.path.abspath(os.fspath(cast(Any, self._unix_path)))
+
     @Validate
     def validate(self, _: pelix.framework.BundleContext) -> None:
         """
         Component validation
         """
-        if not self._address:
+        if self._unix_path:
+            self._unix_path = self._check_unix_configuration()
+            # Not used: the address and port properties keep what was configured
+        elif not self._address:
             # Local host by default
             self._address = "localhost"
 
@@ -1125,13 +1466,13 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         self.__max_clients = int(max_clients) if max_clients is not None else None
 
         self._auth_required = _to_bool(self._auth_required)
-        if self._auth_required and not self._cert_file:
+        if self._auth_required and not self._cert_file and not self._unix_path:
             _logger.warning(
                 "The remote shell requires authentication without TLS: passwords will travel "
                 "in clear text. Set pelix.shell.ssl.cert and pelix.shell.ssl.ca"
             )
 
-        if self._cert_file and not self._ca_file:
+        if self._cert_file and not self._ca_file and not self._unix_path:
             # Without an explicit authority chain, any client certificate signed
             # by any CA of the system trust store would be accepted
             _logger.error(
@@ -1141,21 +1482,26 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
                 "This configuration will be refused in iPOPO 3.3.0."
             )
 
-        # Start the TCP server
+        # Start the server
         self._thread, self._server, self._server_flag = _create_server(
             self,
-            self._address,
-            self._port,
+            self._address or "localhost",
+            self._port or 0,
             self._cert_file,
             self._key_file,
             self._key_password,
             self._ca_file,
             self.__max_clients,
+            self._unix_path,
+            _to_bool(self._unix_check_peer),
         )
 
-        # Property update (if port was 0)
-        self._port = self._server.socket.getsockname()[1]
-        _logger.info("RemoteShell validated on port: %d", self._port)
+        if self._unix_path:
+            _logger.info("RemoteShell validated on Unix socket: %s", self._unix_path)
+        else:
+            # Property update (if port was 0)
+            self._port = self._server.socket.getsockname()[1]
+            _logger.info("RemoteShell validated on port: %d", self._port)
 
     @Invalidate
     def invalidate(self, _: pelix.framework.BundleContext) -> None:
@@ -1172,9 +1518,18 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
             if self._thread is not None:
                 self._thread.join(2)
 
+            # Let the sessions say good bye and log their end, rather than being cut by
+            # the end of the process
+            remaining = cast(_ClientLimitMixin, self._server).wait_for_clients(STOP_TIMEOUT)
+            if remaining:
+                _logger.warning("RemoteShell stopped with %d session(s) still running a command", remaining)
+
             # Close the server socket (ignore errors)
             self._server.server_close()
-            _logger.info("RemoteShell gone from port: %d", self._port)
+            if self._unix_path:
+                _logger.info("RemoteShell gone from Unix socket: %s", self._unix_path)
+            else:
+                _logger.info("RemoteShell gone from port: %d", self._port)
 
         # Clean up
         self._thread = None
@@ -1238,6 +1593,12 @@ def main(argv: list[str] | None = None) -> int:
         default=9000,
         help="The remote shell binding port",
     )
+    group.add_argument(
+        "--unix",
+        metavar="PATH",
+        help="Listen on this Unix socket (Linux and macOS) instead of an address and port: "
+        "usable by the current user only, incompatible with the TLS options",
+    )
 
     if HAS_SSL:
         # Remote Shell TLS options
@@ -1266,6 +1627,8 @@ def main(argv: list[str] | None = None) -> int:
 
     # Parse them
     args = parser.parse_args(argv)
+    if args.unix and HAS_SSL and any((args.cert, args.key, args.key_password, args.ca_chain)):
+        parser.error("--unix cannot be used with the TLS options: TLS is not available on a Unix socket")
 
     # Handle arguments
     init = handle_common_arguments(args)
@@ -1324,6 +1687,7 @@ def main(argv: list[str] | None = None) -> int:
                     {
                         "pelix.shell.address": args.address,
                         "pelix.shell.port": args.port,
+                        PROP_UNIX_PATH: args.unix,
                         "pelix.shell.ssl.ca": ca_chain,
                         "pelix.shell.ssl.cert": cert,
                         "pelix.shell.ssl.key": key,
@@ -1343,10 +1707,14 @@ def main(argv: list[str] | None = None) -> int:
 
     # Prepare a banner
     host, port = rshell.get_access()
+    where = f"Unix socket {host}" if port is None else f"{host}:{port}"
     try:
         if args.no_input:
             # No input required: just print the access to the shell
-            print("Remote shell bound to:", host, "- port:", port, file=sys.stderr)
+            if port is None:
+                print("Remote shell bound to:", where, file=sys.stderr)
+            else:
+                print("Remote shell bound to:", host, "- port:", port, file=sys.stderr)
 
             try:
                 while not framework.wait_for_stop(1):
@@ -1370,7 +1738,7 @@ def main(argv: list[str] | None = None) -> int:
             lines = "-" * 80
             banner = (
                 f"{lines}\nPython interpreter with Pelix Remote Shell\n"
-                f"Remote shell bound to: {host}:{port}\n{lines}\n"
+                f"Remote shell bound to: {where}\n{lines}\n"
                 f"Python version: {sys.version}\n"
             )
 

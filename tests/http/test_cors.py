@@ -9,6 +9,7 @@ Tests the Cross-Origin Resource Sharing (CORS) support of the HTTP services
 import base64
 import http.client as httplib
 import importlib.util
+import json
 import os
 import socket
 import unittest
@@ -250,6 +251,37 @@ class AsyncServlet:
         await response.send_content(200, "Options", "text/plain")
 
 
+class EchoServlet:
+    """
+    Tells who the client is, sets cookies and a header twice
+    """
+
+    @staticmethod
+    def describe(request: Any, cookies: dict[str, str]) -> str:
+        return json.dumps([request.get_client_address()[0], request.is_secure(), cookies])
+
+    @staticmethod
+    def prepare(response: Any) -> None:
+        response.add_cookie("a", "1")
+        response.add_cookie("b", "2", secure=True)
+        response.set_header("X-Once", "1")
+        response.set_header("X-Once", "2")
+
+    def do_GET(self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse):
+        self.prepare(response)
+        response.send_content(200, self.describe(request, request.get_cookies()), "application/json")
+
+
+class AsyncEchoServlet(EchoServlet):
+    async def do_async_GET(
+        self, request: http.AbstractAsyncHTTPServletRequest, response: http.AbstractAsyncHTTPServletResponse
+    ):
+        self.prepare(response)
+        await response.send_content(
+            200, self.describe(request, await request.get_cookies()), "application/json"
+        )
+
+
 class WebSocketHandler(http.WebSocketHandler):
     """
     Accepts all WebSocket connections
@@ -297,6 +329,7 @@ class _CorsServerTests:
     assertEqual: Any
     assertIn: Any
     assertIsNone: Any
+    assertNotIn: Any
     assertTrue: Any
     assertFalse: Any
     assertLogs: Any
@@ -307,16 +340,26 @@ class _CorsServerTests:
         self.ipopo = install_ipopo(self.framework)
         self.framework.install_bundle(self.http_bundle).start()
         self.framework.install_bundle("pelix.http.cors").start()
+        self.start_server()
+
+    def tearDown(self) -> None:
+        FrameworkFactory.delete_framework()
+
+    def start_server(self, **properties: Any) -> None:
+        """
+        (Re)starts the HTTP service
+
+        :param properties: Extra properties of the HTTP service
+        """
+        if self.ipopo.is_registered_instance(SERVER_NAME):
+            self.ipopo.kill(SERVER_NAME)
 
         svc = self.ipopo.instantiate(
             self.http_factory,
             SERVER_NAME,
-            {http.HTTP_SERVICE_ADDRESS: DEFAULT_HOST, http.HTTP_SERVICE_PORT: 0},
+            {http.HTTP_SERVICE_ADDRESS: DEFAULT_HOST, http.HTTP_SERVICE_PORT: 0, **properties},
         )
         self.port = svc.get_access()[1]
-
-    def tearDown(self) -> None:
-        FrameworkFactory.delete_framework()
 
     def register_servlet(self, properties: dict[str, Any] | None = None) -> None:
         """
@@ -359,6 +402,12 @@ class _CorsServerTests:
             return response.status, response.msg, response.read()
         finally:
             conn.close()
+
+    def check_statuses(self, cases: list[tuple[str, dict[str, str]]], expected: list[int]) -> None:
+        """
+        Sends (method, headers) requests on /test and compares their status codes
+        """
+        self.assertEqual([self.request(method, headers=headers)[0] for method, headers in cases], expected)
 
     def preflight(
         self, uri: str = "/test", origin: str = ORIGIN, method: str = "PUT", headers: str | None = None
@@ -558,6 +607,111 @@ class _CorsServerTests:
 
         _, headers, _ = self.request(headers={"Origin": OTHER_ORIGIN})
         self.assertEqual(headers["Access-Control-Allow-Origin"], OTHER_ORIGIN)
+
+    def test_origin_enforced(self) -> None:
+        """
+        With pelix.http.cors.enforce, the servlet doesn't run for a foreign origin
+        """
+        self.start_server(**{http.HTTP_CORS_ENFORCE: "true"})
+        self.register_servlet()
+        self.add_handler(**{http.HTTP_CORS_ORIGINS: [ORIGIN]})
+        own = f"http://{DEFAULT_HOST}:{self.port}"
+        preflight = {"Access-Control-Request-Method": "PUT"}
+        self.check_statuses(
+            [
+                ("GET", {"Origin": OTHER_ORIGIN}),
+                ("POST", {"Origin": OTHER_ORIGIN}),
+                # Sandboxed pages and redirects
+                ("POST", {"Origin": "null"}),
+                ("GET", {"Origin": ORIGIN}),
+                # Not a browser
+                ("GET", {}),
+                # Browsers send Origin on same-origin POST too
+                ("GET", {"Origin": own}),
+                ("GET", {"Origin": f"http://{DEFAULT_HOST}:{self.port + 1}"}),
+                ("OPTIONS", {"Origin": ORIGIN, **preflight}),
+                ("OPTIONS", {"Origin": OTHER_ORIGIN, **preflight}),
+            ],
+            [403, 403, 403, 200, 200, 200, 403, 204, 403],
+        )
+
+    def test_cookies_and_proxies(self) -> None:
+        """
+        Cookies, repeated headers, and the client told by the trusted proxies only
+        """
+        self.register_servlet()
+        context = self.framework.get_bundle_context()
+        if self.async_servlet:
+            context.register_service(
+                http.HTTP_SERVLET_ASYNC, AsyncEchoServlet(), {http.HTTP_SERVLET_ASYNC_PATH: "/echo"}
+            )
+        else:
+            context.register_service(http.HTTP_SERVLET, EchoServlet(), {http.HTTP_SERVLET_PATH: "/echo"})
+
+        self.start_server(**{http.HTTP_CORS_ENFORCE: True})
+        status, headers, body = self.request(uri="/echo", headers={"Cookie": "x=1; y=2"})
+        self.assertEqual(status, 200)
+        self.assertEqual(json.loads(body)[2], {"x": "1", "y": "2"})
+        self.assertEqual(
+            headers.get_all("Set-Cookie"),
+            ["a=1; Path=/; SameSite=Lax; HttpOnly", "b=2; Path=/; SameSite=Lax; Secure; HttpOnly"],
+        )
+        # set_header replaces, whatever the service
+        self.assertEqual(headers.get_all("X-Once"), ["2"])
+
+        proxied = {"X-Forwarded-For": "6.6.6.6, 1.2.3.4", "X-Forwarded-Proto": "https"}
+        behind_tls = {"Host": "meme.example.com", "Origin": "https://meme.example.com", **proxied}
+        # Ignored from an untrusted peer
+        client, secure, _ = json.loads(self.request(uri="/echo", headers=proxied)[2])
+        self.assertNotIn(client, ("6.6.6.6", "1.2.3.4"))
+        self.assertFalse(secure)
+        self.assertEqual(self.request(headers=behind_tls)[0], 403)
+
+        self.start_server(**{http.HTTP_CORS_ENFORCE: True, http.HTTP_PROXY_TRUSTED: "127.0.0.0/8, ::1"})
+        self.assertEqual(json.loads(self.request(uri="/echo", headers=proxied)[2])[:2], ["1.2.3.4", True])
+        # The browser sends an https Origin, while the service only sees clear text
+        self.assertEqual(self.request(headers=behind_tls)[0], 200)
+        self.assertEqual(self.request(headers={**behind_tls, "Origin": "https://evil.example.com"})[0], 403)
+
+    def test_allowed_hosts(self) -> None:
+        """
+        pelix.http.allowed_hosts refuses the other Host headers, on any path
+        """
+        self.register_servlet()
+        rebound = [("GET", {"Host": "rebound.example"})]
+        # Not checked by default, nor when empty
+        self.check_statuses(rebound, [200])
+        self.start_server(**{http.HTTP_ALLOWED_HOSTS: ""})
+        self.check_statuses(rebound, [200])
+
+        self.start_server(**{http.HTTP_ALLOWED_HOSTS: f"Example.com, {DEFAULT_HOST}, other.example:8080"})
+        self.check_statuses(
+            [
+                *rebound,
+                ("GET", {"Host": f"rebound.example:{self.port}"}),
+                ("GET", {"Host": f"{DEFAULT_HOST}:{self.port}"}),
+                ("GET", {"Host": "example.COM"}),
+                ("GET", {"Host": "example.com:1234"}),
+                # An entry with a port only matches this port
+                ("GET", {"Host": "other.example:8080"}),
+                ("GET", {"Host": "other.example:9090"}),
+                ("GET", {"Host": "other.example"}),
+            ],
+            [403, 403, 200, 200, 200, 200, 403, 403],
+        )
+        self.assertEqual(self.request(uri="/unknown", headers={"Host": "rebound.example"})[0], 403)
+
+        # An HTTP/1.0 request without Host can't be checked
+        conn = httplib.HTTPConnection(DEFAULT_HOST, self.port, timeout=5)
+        try:
+            conn.putrequest("GET", "/test", skip_host=True)
+            conn.endheaders()
+            response = conn.getresponse()
+            response.read()
+            # aiohttp refuses it by itself, with a 400
+            self.assertIn(response.status, (400, 403))
+        finally:
+            conn.close()
 
 
 class BasicCorsTest(_CorsServerTests, unittest.TestCase):
