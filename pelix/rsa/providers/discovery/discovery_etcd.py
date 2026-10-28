@@ -281,7 +281,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
         return int(self._session_ttl - (self._session_ttl / 10))
 
     def _handle_add_dir(self, dir_node: etcd.EtcdResult) -> None:
-        sessionid = dir_node.key[len(self._top_path) + 1 :]  # type: ignore # ty: ignore[unresolved-attribute]
+        sessionid = dir_node.key[len(self._top_path) + 1 :]  # ty: ignore[unresolved-attribute]
         _logger.debug("_handle_add_dir sessionid=%s", sessionid)
         self._handle_add_nodes(
             sessionid,
@@ -296,7 +296,7 @@ class EtcdEndpointDiscovery(EndpointAdvertiser, EndpointSubscriber):
     def _handle_add_nodes(self, sessionid: str, nodes: list[etcd.EtcdResult]) -> None:
         for node in nodes:
             # we only care about properties
-            node_val = node.value  # type: ignore # ty: ignore[unresolved-attribute]
+            node_val = node.value  # ty: ignore[unresolved-attribute]
             if node_val:
                 json_obj = json.loads(node_val)
                 if isinstance(json_obj, dict):

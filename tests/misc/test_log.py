@@ -136,7 +136,7 @@ class LogServiceTest(unittest.TestCase):
             # Check stored info
             self.assertEqual(latest.level, level, "Wrong log level")
             self.assertEqual(latest.osgi_level, osgi_level, "Wrong OSGi log level")
-            self.assertIn(logging.getLevelName(level), latest.message, "Wrong log message")  # type: ignore
+            self.assertIn(logging.getLevelName(level), latest.message, "Wrong log message")
             self.assertIsNone(latest.bundle, "Unexpected bundle info")
             self.assertIsNone(latest.exception, "Unexpected exception data")
             self.assertIsNone(latest.reference, "Unexpected reference data")
@@ -182,7 +182,7 @@ class LogServiceTest(unittest.TestCase):
                     try:
                         latest = self.reader.get_log()[-1]
                         if level >= filter_level:
-                            self.assertIn(logging.getLevelName(level), latest.message)  # type: ignore
+                            self.assertIn(logging.getLevelName(level), latest.message)
                     except IndexError:
                         if level >= filter_level:
                             self.fail("Missing a log matching the filter")
@@ -209,7 +209,7 @@ class LogServiceTest(unittest.TestCase):
                 try:
                     latest = self.reader.get_log()[-1]
                     if level >= filter_level:
-                        self.assertIn(logging.getLevelName(level), latest.message)  # type: ignore
+                        self.assertIn(logging.getLevelName(level), latest.message)
                 except IndexError:
                     if level >= filter_level:
                         self.fail("Missing a log matching the filter")
@@ -232,7 +232,7 @@ class LogServiceTest(unittest.TestCase):
         self.reader.add_log_listener(listener)
 
         # Also, check with a null log listener
-        self.reader.add_log_listener(None)  # type: ignore
+        self.reader.add_log_listener(None)
 
         # Log something
         self.logger.log(logging.WARNING, "Some log")
@@ -257,7 +257,7 @@ class LogServiceTest(unittest.TestCase):
 
         # Nothing must happen if we unregister the listener twice
         self.reader.remove_log_listener(listener)
-        self.reader.remove_log_listener(None)  # type: ignore
+        self.reader.remove_log_listener(None)
 
     def test_bad_listener(self):
         """
@@ -316,7 +316,7 @@ class LogServiceTest(unittest.TestCase):
 
         # Log with wrong references
         for wrong_ref in (None, object(), svc_reg):
-            self.logger.log(logging.WARNING, "Some text", reference=wrong_ref)  # type: ignore
+            self.logger.log(logging.WARNING, "Some text", reference=wrong_ref)
 
             latest = self.reader.get_log()[-1]
             self.assertIsNone(latest.reference, "Non-None service reference")

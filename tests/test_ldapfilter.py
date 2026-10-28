@@ -76,7 +76,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
             )
 
         # Invalid comparators
-        for comparator in (None, str, "", 0):  # type: ignore
+        for comparator in (None, str, "", 0):
             str_comparator = pelix.ldapfilter.comparator2str(comparator)  # type: ignore
             self.assertEqual(
                 str_comparator,
@@ -98,7 +98,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
                 f"Invalid operator conversion '{str_operator}': '{conv_operator}'",
             )
 
-        for operator in (None, str, int, "", "AND", "OR", "NOT", 42):  # type: ignore
+        for operator in (None, str, int, "", "AND", "OR", "NOT", 42):
             conv_operator = pelix.ldapfilter.operator2str(operator)  # type: ignore
             self.assertEqual(
                 "<unknown>",
@@ -241,10 +241,10 @@ class LDAPUtilitiesTest(unittest.TestCase):
                 self.assertIn(criteria, ldap_filter.subfilters, "A criteria is missing in the result")
 
         # No filter given
-        for empty in (None, [], (), (None, None, None)):  # type: ignore
+        for empty in (None, [], (), (None, None, None)):
             self.assertIsNone(
-                pelix.ldapfilter.combine_filters(empty),  # type: ignore
-                "Can't combine an empty list of filters",  # type: ignore
+                pelix.ldapfilter.combine_filters(empty),
+                "Can't combine an empty list of filters",
             )
 
         # Invalid types
@@ -281,7 +281,7 @@ class LDAPUtilitiesTest(unittest.TestCase):
 
             self.assertEqual(str(ldap_filter), str_filter, "Invalid parsing")
             self.assertIs(
-                get_ldap_filter(ldap_filter),  # type: ignore
+                get_ldap_filter(ldap_filter),
                 ldap_filter,
                 "get_ldap_filter should return the given object.",
             )
@@ -742,7 +742,7 @@ class LDAPFilterTest(unittest.TestCase):
         Tests __init__() behavior on invalid values
         """
         # WARNING: don't test True, as True == 1 in Python
-        for value in (None, "", -1, {}, lambda x: True):  # type: ignore
+        for value in (None, "", -1, {}, lambda x: True):
             self.assertRaises(ValueError, pelix.ldapfilter.LDAPFilter, value)
 
         for operator in (pelix.ldapfilter.AND, pelix.ldapfilter.OR, pelix.ldapfilter.NOT):

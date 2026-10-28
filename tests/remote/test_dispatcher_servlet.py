@@ -180,7 +180,7 @@ class DispatcherTest(unittest.TestCase):
         pelix.framework.FrameworkFactory.delete_framework()
 
         self.framework = None  # type: ignore
-        self.dispatcher = None  # type: ignore
+        self.dispatcher = None
 
     def _http_get(self, path: str) -> tuple[int, str]:
         """

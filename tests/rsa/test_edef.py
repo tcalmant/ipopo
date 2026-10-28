@@ -56,8 +56,8 @@ class EdefIOTest(unittest.TestCase):
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework()
 
-        self.framework = None  # type: ignore
-        self.svc_ref = None  # type: ignore
+        self.framework = None
+        self.svc_ref = None
 
     def testEdefStringReload(self) -> None:
         """
@@ -210,8 +210,8 @@ class BeansTest(unittest.TestCase):
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework()
 
-        self.framework = None  # type: ignore
-        self.svc_ref = None  # type: ignore
+        self.framework = None
+        self.svc_ref = None
 
     def testConstructor(self) -> None:
         """

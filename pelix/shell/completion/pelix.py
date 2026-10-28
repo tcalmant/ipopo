@@ -38,7 +38,7 @@ from .core import AbstractCompleter
 try:
     import readline
 except ImportError:
-    readline = None  # type: ignore
+    readline = None
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
@@ -98,8 +98,8 @@ class BundleCompleter(AbstractCompleter):
 
         # Print the prompt, then current line
         session.write(prompt)
-        session.write_line_no_feed(readline.get_line_buffer())  # type: ignore
-        readline.redisplay()  # type: ignore
+        session.write_line_no_feed(readline.get_line_buffer())
+        readline.redisplay()
 
     def complete(
         self,

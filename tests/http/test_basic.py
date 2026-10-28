@@ -634,7 +634,7 @@ class BasicHTTPServiceMethodsTest(unittest.TestCase):
 
         # Try to unregister an unknown servlet
         self.assertFalse(
-            self.http_svc.unregister(None, object()),  # type: ignore
+            self.http_svc.unregister(None, object()),
             "An unknown servlet can't be unregistered.",
         )
 

@@ -71,8 +71,8 @@ class ShellReportTest(unittest.TestCase):
         if os.path.exists(self.out_file):
             os.remove(self.out_file)
 
-        self.report = None  # type: ignore
-        self.shell = None  # type: ignore
+        self.report = None
+        self.shell = None
         self.context = None  # type: ignore
         self.framework = None  # type: ignore
 

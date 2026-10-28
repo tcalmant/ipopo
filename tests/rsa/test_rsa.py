@@ -268,7 +268,7 @@ class RSABasicFeatures(unittest.TestCase):
 
         # Write & load it
         # Export & import the EDEF XML
-        edef_2 = EDEFWriter().to_string([export_endpoint_2])  # type: ignore
+        edef_2 = EDEFWriter().to_string([export_endpoint_2])
         parsed_endpoint_2 = EDEFReader().parse(edef_2)[0]
 
         # Check parsed file

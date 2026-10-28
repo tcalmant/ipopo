@@ -77,7 +77,7 @@ class ShrinkableList(MutableSequence[T]):
     @overload
     def __getitem__(self, index: slice) -> MutableSequence[T]: ...
 
-    def __getitem__(self, index):  # type: ignore
+    def __getitem__(self, index):
         return self._delegate[index]
 
     def __delitem__(self, index: int | slice) -> None:
@@ -89,7 +89,7 @@ class ShrinkableList(MutableSequence[T]):
     @overload
     def __setitem__(self, index: slice, values: Iterable[T]) -> None: ...
 
-    def __setitem__(self, index, value) -> None:  # type: ignore
+    def __setitem__(self, index, value) -> None:
         raise IndexError
 
     def insert(self, index: int, value: T) -> None:

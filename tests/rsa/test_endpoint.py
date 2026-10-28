@@ -76,7 +76,7 @@ class EndpointDescriptionTests(unittest.TestCase):
         """
         # Encode
         for empty in (None, [], {}, ()):
-            self.assertEqual({}, rsa_ed.encode_list("toto", empty))  # type: ignore
+            self.assertEqual({}, rsa_ed.encode_list("toto", empty))
 
         list_ = [1, 2, 3, 4]
         res = rsa_ed.encode_list("toto", list_)

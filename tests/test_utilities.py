@@ -260,12 +260,12 @@ class UtilitiesTest(unittest.TestCase):
         Tests the is_string() method
         """
         valid = ["", "aaa", str(42)]
-        invalid = [42, None, [], {}, (), b"", b"aaa"]  # type: ignore
+        invalid = [42, None, [], {}, (), b"", b"aaa"]
 
         for value in valid:
             self.assertTrue(utilities.is_string(value), f"'{value}' is a string")
 
-        for value in invalid:  # type: ignore
+        for value in invalid:
             self.assertFalse(utilities.is_string(value), f"'{value}' is not a string")
 
     def testAddRemoveListener(self) -> None:
@@ -336,7 +336,7 @@ class UtilitiesTest(unittest.TestCase):
 
                 # Clean up the test usage
                 context.unget_service(svc_ref)
-                got_service = None  # type: ignore
+                got_service = None
 
                 # Re-test the usage information
                 self.assertIn(
@@ -387,7 +387,7 @@ class UtilitiesTest(unittest.TestCase):
             self.assertListEqual(
                 utilities.to_iterable(value),  # type: ignore
                 [value],
-                "to_iterable() didn't returned a list",  # type: ignore
+                "to_iterable() didn't returned a list",
             )
 
 

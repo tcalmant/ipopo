@@ -61,7 +61,7 @@ class EventAdminPrinterTest(unittest.TestCase):
 
         # Stop the framework
         pelix.framework.FrameworkFactory.delete_framework(self.framework)
-        self.framework = None  # type: ignore
+        self.framework = None
 
     def testPrinter(self) -> None:
         """

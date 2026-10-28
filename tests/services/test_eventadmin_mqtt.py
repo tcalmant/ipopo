@@ -52,9 +52,9 @@ class MQTTListener:
 
         # Prepare a Mqtt Client
         self._client = MqttClient()
-        self._client.on_connect = self.on_connect  # type: ignore
-        self._client.on_disconnect = self.on_disconnect  # type: ignore
-        self._client.on_message = self.on_message  # type: ignore
+        self._client.on_connect = self.on_connect
+        self._client.on_disconnect = self.on_disconnect
+        self._client.on_message = self.on_message
 
         # Received messages
         self.messages: list[MqttMessage] = []

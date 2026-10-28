@@ -260,8 +260,8 @@ class RemoteShellTest(unittest.TestCase):
         """
         self.framework.stop()
         FrameworkFactory.delete_framework()
-        self.remote = None  # type: ignore
-        self.shell = None  # type: ignore
+        self.remote = None
+        self.shell = None
         self.framework = None  # type: ignore
 
     def _run_local_command(self, command: str, *args: Any) -> str:
@@ -285,12 +285,12 @@ class RemoteShellTest(unittest.TestCase):
         The thread handling a client must be named after it and be a daemon,
         both being applied by ThreadingMixIn.process_request()
         """
-        port = self.remote.get_access()[1]  # type: ignore
+        port = self.remote.get_access()[1]
         prefix = f"RemoteShell-{port}-Client-"
 
         client = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
         try:
-            client.connect(self.remote.get_access())  # type: ignore
+            client.connect(self.remote.get_access())
 
             # Run a command to be sure the client is being handled
             client.run_command("bl")
@@ -312,7 +312,7 @@ class RemoteShellTest(unittest.TestCase):
         # Create a client
         client = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
         try:
-            client.connect(self.remote.get_access())  # type: ignore
+            client.connect(self.remote.get_access())
             for command in ("bl", "bd 0", "sl", "sd 1"):
                 # Get local & remote outputs
                 local_output = self._run_local_command(command)
@@ -334,8 +334,8 @@ class RemoteShellTest(unittest.TestCase):
 
         try:
             # Connect them to the remote shell
-            client_1.connect(self.remote.get_access())  # type: ignore
-            client_2.connect(self.remote.get_access())  # type: ignore
+            client_1.connect(self.remote.get_access())
+            client_2.connect(self.remote.get_access())
 
             for command in ("bl", "bd 0", "sl", "sd 1"):
                 # Get clients outputs
@@ -370,7 +370,7 @@ class RemoteShellTest(unittest.TestCase):
 
         try:
             # Connect them to the remote shell
-            client_1.connect(self.remote.get_access())  # type: ignore
+            client_1.connect(self.remote.get_access())
             client_2.connect(remote_2.get_access())
 
             for command in ("bl", "bd 0", "sl", "sd 1"):
@@ -428,8 +428,8 @@ class RemoteShellTest(unittest.TestCase):
 
         try:
             # Connect them to the remote shell
-            client_1.connect(self.remote.get_access())  # type: ignore
-            client_2.connect(self.remote.get_access())  # type: ignore
+            client_1.connect(self.remote.get_access())
+            client_2.connect(self.remote.get_access())
 
             # Run commands
             client_1.run_command("bl")
@@ -453,7 +453,7 @@ class RemoteShellTest(unittest.TestCase):
         # Create a client
         client = ShellClient(self.remote.get_banner(), self.remote.get_ps1(), self.fail)
         try:
-            client.connect(self.remote.get_access())  # type: ignore
+            client.connect(self.remote.get_access())
 
             # Wait a little (server poll time is 0.5s)
             time.sleep(1)

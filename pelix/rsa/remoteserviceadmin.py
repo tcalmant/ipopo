@@ -707,10 +707,10 @@ class _ExportEndpoint:
                 self.__rsa._remove_exported_service(export_reg)
 
                 # Clean up
-                self.__ed = None  # type: ignore
-                self.__export_container = None  # type: ignore
-                self.__svc_ref = None  # type: ignore
-                self.__rsa = None  # type: ignore
+                self.__ed = None
+                self.__export_container = None
+                self.__svc_ref = None
+                self.__rsa = None
                 return True
 
         return False

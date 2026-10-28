@@ -48,7 +48,7 @@ from typing import assert_never
 try:
     import bcrypt
 except ImportError:
-    bcrypt = None  # type: ignore
+    bcrypt = None
 
 # Module version
 __version_info__ = (3, 3, 0)
