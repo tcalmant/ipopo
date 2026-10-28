@@ -29,7 +29,7 @@ Remote Service Admin API
 import logging
 import sys
 import threading
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from traceback import print_exception
 from typing import IO, Any, Optional, Protocol, cast
 
@@ -1554,7 +1554,7 @@ class DebugRemoteServiceAdminListener(RemoteServiceAdminListener):
         self._output.write("---End Exception Stack---\n")
 
     def write_type(self, event_type: int) -> None:
-        (dt, micro) = datetime.now(tz=timezone.utc).strftime("%H:%M:%S.%f").split(".")
+        (dt, micro) = datetime.now(tz=UTC).strftime("%H:%M:%S.%f").split(".")
         dt = f"{dt}.{int(micro) // 1000:03d}"
         self._output.write(dt + ";" + self._eventtypestr.get(event_type, "UNKNOWN") + ";")
 

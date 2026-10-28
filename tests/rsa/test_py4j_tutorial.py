@@ -6,6 +6,7 @@ Tests the RSA Py4J provider, using the tutorial
 :author: Thomas Calmant
 """
 
+import contextlib
 import importlib.util
 import io
 import os
@@ -155,14 +156,11 @@ def install_karaf(folder_str: str | None = None) -> pathlib.Path:
                     # Filter out examples: paths are too long for Windows
                     filtered_members = (m for m in members or tar.getmembers() if "examples" not in m.path)
 
-                    try:
-                        os.chdir(folder)
+                    with contextlib.chdir(folder):
                         if sys.version_info < (3, 12):
                             tar.extractall(path, filtered_members, numeric_owner=numeric_owner)
                         else:
                             tar.extractall(path, filtered_members, numeric_owner=numeric_owner, filter="data")
-                    finally:
-                        os.chdir(cur_dir)
 
                 safe_extract(tar)
             return folder
