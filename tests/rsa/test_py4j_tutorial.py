@@ -160,28 +160,31 @@ def start_karaf(karaf_root: pathlib.Path) -> Generator[subprocess.Popen, None, N
             karaf = None
 
 
-def wait_for_prompt(process: subprocess.Popen, prompt: str = "karaf@root()>") -> None:
+def wait_for_prompt(process: subprocess.Popen, prompt: str = "karaf@root()>") -> str:
     """
     Reads the stdout of a process until a prompt is seen
 
     :param process: A Popen object, with decoded I/O
     :param prompt: The string to look for
+    :return: The lines read before the prompt
     """
     if process.stdout is None:
         raise OSError("Can't read from process")
 
     charset = "utf-8" if os.name != "nt" else "cp850"
 
+    lines: list[str] = []
     buffer = io.BytesIO()
     while True:
         data = process.stdout.read(1)
         if not data:
             # Process ended
-            return
+            return "\n".join(lines)
         elif data == b"\n":
             # Got a new line, reset the buffer
             try:
-                print("-", buffer.getvalue().decode(charset))
+                lines.append(buffer.getvalue().decode(charset))
+                print("-", lines[-1])
             except UnicodeDecodeError:
                 print("Error decoding line", buffer.getvalue())
 
@@ -193,7 +196,7 @@ def wait_for_prompt(process: subprocess.Popen, prompt: str = "karaf@root()>") ->
                 output = buffer.getvalue().decode(charset)
                 if prompt in output:
                     # Found the prompt
-                    return
+                    return "\n".join(lines)
             except UnicodeDecodeError:
                 # Ignore errors, we might have an incomplete character
                 pass
@@ -257,9 +260,19 @@ def use_karaf() -> Generator[subprocess.Popen, None, None]:
         print(round(time.time() - start, 3), "- ECF repository added")
 
         # Install the tutorial sample
-        karaf.stdin.write(b"feature:install -v ecf-rs-examples-python.java-hello\n")
-        karaf.stdin.flush()
-        wait_for_prompt(karaf)
+        for _ in range(3):
+            karaf.stdin.write(b"feature:install -v ecf-rs-examples-python.java-hello\n")
+            karaf.stdin.flush()
+            if "Error executing command" not in wait_for_prompt(karaf):
+                break
+
+            # download.eclipse.org sometimes serves an unusable repository: reload it
+            time.sleep(5)
+            karaf.stdin.write(b"feature:repo-refresh\n")
+            karaf.stdin.flush()
+            wait_for_prompt(karaf)
+        else:
+            raise unittest.SkipTest("Can't install the ECF features from download.eclipse.org")
         print(round(time.time() - start, 3), "- Feature installed")
 
         # Give hand to the caller
