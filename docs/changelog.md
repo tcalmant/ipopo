@@ -255,6 +255,10 @@ Unreleased
 * The `IPopoEvent.BOUND` and `IPopoEvent.UNBOUND` events, declared but never
   sent, are now fired when a service is injected in or removed from a field of a
   component. `IPopoEvent.get_field()` gives the field name
+* `Framework.stop()` called while `Framework.start()` runs (e.g. a component
+  raising a `FrameworkException` with `needs_stop` in an `@Instantiate`d
+  component) is no longer ignored: the framework stops when the start loop ends
+  and `start()` returns `False`
 * Added the `@Modified` callback decorator, the counterpart of the `modified`
   method of OSGi Declarative Services: `reconfigure()`, and thus an update of
   the Configuration Admin configuration of a component, gives it the new and
