@@ -992,6 +992,9 @@ class AbstractHTTPServletRequest(_RequestMixin):
         """
         try:
             size = int(self.get_header("content-length"))
+            if size < 0:
+                # read(-1) would read the whole stream, ignoring the limit
+                raise ValueError(size)
         except (ValueError, TypeError):
             # No (valid) content length: consider the body empty.
             # Reading until the end of the stream would block the handling

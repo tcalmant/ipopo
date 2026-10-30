@@ -82,6 +82,9 @@ Unreleased
   release which refuses to instantiate the classes named by a JSON-RPC peer
   unless they are registered. The JSON-RPC and Jabsorb-RPC transports accepted
   the older releases
+* Basic HTTP service: a negative `Content-Length` is handled as an invalid
+  one, i.e. an empty body. `read_data()` read the whole stream, ignoring
+  `pelix.http.max_body_size`
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
 
