@@ -524,7 +524,16 @@ class _IPopoService(IPopoService):
             else:
                 # Instantiate components
                 for name, properties in context.get_instances().items():
-                    self.instantiate(context.name, name, properties)
+                    try:
+                        self.instantiate(context.name, name, properties)
+                    except Exception:
+                        # One bad component must not drop the next factories
+                        _logger.exception(
+                            "Error instantiating component '%s' of factory '%s' (bundle %d)",
+                            name,
+                            context.name,
+                            bundle.get_bundle_id(),
+                        )
 
     def _register_factory(self, factory_name: str, factory: type[Any], override: bool) -> None:
         """

@@ -105,6 +105,21 @@ class IPopoServiceTest(unittest.TestCase):
         # We can do it only once
         self.assertFalse(self.ipopo.unregister_factory(FACTORY))
 
+    def test_failing_instantiate(self):
+        """
+        A failing @Instantiate must not prevent the next factories to be
+        registered and instantiated
+        """
+        log_off()
+        try:
+            install_bundle(self.framework, "tests.ipopo.instantiate_failure_bundle")
+        finally:
+            log_on()
+
+        self.assertTrue(self.ipopo.is_registered_factory("b-good-factory"))
+        self.assertTrue(self.ipopo.is_registered_instance("good-instance"))
+        self.assertFalse(self.ipopo.is_registered_instance("failing-instance"))
+
     def test_get_factory_bundle(self):
         """
         Tests the get_factory_bundle() method
