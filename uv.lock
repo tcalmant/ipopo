@@ -1016,7 +1016,7 @@ requires-dist = [
     { name = "bcrypt", marker = "extra == 'bcrypt'", specifier = ">=4.1,<6.0" },
     { name = "grpcio", marker = "extra == 'rsa'", specifier = ">=1.80,<1.85" },
     { name = "grpcio-tools", marker = "extra == 'rsa'", specifier = ">=1.80,<1.85" },
-    { name = "jsonrpclib-pelix", specifier = ">=0.4.3,<1.3.0" },
+    { name = "jsonrpclib-pelix", specifier = ">=1.2.0,<1.3.0" },
     { name = "kazoo", marker = "extra == 'zookeeper'", specifier = "~=2.11.0" },
     { name = "osgiservicebridge", marker = "extra == 'rsa'", specifier = "~=1.5.9" },
     { name = "paho-mqtt", marker = "extra == 'mqtt'", specifier = "~=2.1.0" },

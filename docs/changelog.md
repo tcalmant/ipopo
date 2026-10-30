@@ -78,6 +78,10 @@ Unreleased
 * Added the `pelix.http.allowed_hosts` property to the HTTP services, to refuse
   requests whose `Host` header is not listed (DNS rebinding). The header was
   not checked at all. Off by default
+* **Breaking:** iPOPO requires `jsonrpclib-pelix` 1.2.0 or newer, the first
+  release which refuses to instantiate the classes named by a JSON-RPC peer
+  unless they are registered. The JSON-RPC and Jabsorb-RPC transports accepted
+  the older releases
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
 
@@ -193,7 +197,6 @@ Unreleased
 
 * Added the Typed Event reference card, and updated the EventAdmin, HTTP,
   shell and initial configuration ones
-
 ## iPOPO 3.2.4
 
 :::{admonition} Release Date

@@ -24,6 +24,7 @@ Tests remote services transports based on HTTP
     limitations under the License.
 """
 
+import json
 import queue
 import threading
 import time
@@ -370,6 +371,32 @@ class HttpTransportsTest(unittest.TestCase):
         except queue.Empty:
             # Process error
             self.fail("Remote framework took to long to reply")
+
+
+class RpcServletsTest(unittest.TestCase):
+    """
+    Tests the RPC servlets against hostile requests, without network
+    """
+
+    def test_jsonclass_refused(self) -> None:
+        """
+        A JSON-RPC class hint must not instantiate anything
+        """
+        from pelix.remote.json_rpc import _JsonRpcServlet
+
+        calls: list[Any] = []
+        servlet = _JsonRpcServlet(lambda name, params: calls.append(params))
+        payload = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "svc.method",
+                "params": [{"__jsonclass__": ["collections.OrderedDict", [[["a", 1]]]]}],
+            }
+        )
+        result = json.loads(servlet._marshaled_dispatch(payload, servlet._simple_dispatch))
+        self.assertIn("error", result)
+        self.assertEqual(calls, [])
 
 
 # ------------------------------------------------------------------------------
