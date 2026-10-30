@@ -37,6 +37,15 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
+__all__ = [
+    "CONDITION_ID",
+    "CONDITION_ID_TRUE",
+    "INSTANCE",
+    "SERVICE_CONDITION",
+    "Condition",
+    "ConditionInstance",
+]
+
 # ------------------------------------------------------------------------------
 
 SERVICE_CONDITION: Final = "org.osgi.service.condition.Condition"

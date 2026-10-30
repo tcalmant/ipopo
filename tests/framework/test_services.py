@@ -13,6 +13,7 @@ from typing import Any
 
 import pelix.constants
 from pelix.framework import Bundle, BundleContext, BundleException, FrameworkFactory, ServiceReference
+from pelix.services.condition import SERVICE_CONDITION
 
 # Tests
 from tests.interfaces import IEchoService
@@ -232,7 +233,10 @@ class ServicesTest(unittest.TestCase):
                 context.register_service(invalid, object(), {})
 
         # Nothing was registered
-        self.assertListEqual(self.framework.get_registered_services(), [])
+        self.assertListEqual(
+            [ref.get_property("objectClass") for ref in self.framework.get_registered_services()],
+            [[SERVICE_CONDITION]],
+        )
 
     def testHostileSpecifications(self):
         """
@@ -271,7 +275,10 @@ class ServicesTest(unittest.TestCase):
             context.get_service_reference(HostileSpec)
 
         # Nothing was registered
-        self.assertListEqual(self.framework.get_registered_services(), [])
+        self.assertListEqual(
+            [ref.get_property("objectClass") for ref in self.framework.get_registered_services()],
+            [[SERVICE_CONDITION]],
+        )
 
     def testServiceReferencesCmp(self):
         """
@@ -458,10 +465,13 @@ class ServicesTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
         assert isinstance(context, BundleContext)
 
+        # Only the services of the framework itself (the true condition)
+        framework_services = 1
+
         # Get all references count
         all_refs = context.get_all_service_references(None, None)
         assert all_refs is not None, "All references result must not be None"
-        self.assertEqual(len(all_refs), 0, "Services list should be empty")
+        self.assertEqual(len(all_refs), framework_services, "Services list should be empty")
 
         # Install the service bundle
         bundle = context.install_bundle(self.test_bundle_name)
@@ -469,7 +479,7 @@ class ServicesTest(unittest.TestCase):
         # No services yet
         all_refs = context.get_all_service_references(None, None)
         assert all_refs is not None, "All references result must not be None"
-        self.assertEqual(len(all_refs), 0, "Services list should be empty")
+        self.assertEqual(len(all_refs), framework_services, "Services list should be empty")
 
         # Start the bundle
         bundle.start()
