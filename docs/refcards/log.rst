@@ -52,14 +52,47 @@ Log Reader Service
 The log reader provides the following methods:
 
 .. autoclass:: LogReader
-   :members: add_log_listener, remove_log_listener, get_log
+   :members: add_log_listener, remove_log_listener, get_log, stream
 
 The result of :meth:`~LogReader.get_log` and the argument to listeners
 registered with :meth:`~LogReader.add_log_listener` is a
 :class:`LogEntry` object, giving read-only access to the following properties:
 
 .. autoclass:: LogEntry
-   :members: bundle, message, exception, level, osgi_level, reference, time
+   :members: bundle, message, exception, level, osgi_level, reference, time, to_record
+
+Entries created from the records of the ``logging`` module keep their
+exception information. The traceback keeps its frames alive as long as the entry
+is stored: the memory is bounded by the size of the log reader ring, set with the
+``pelix.log.max_entries`` framework property (100 by default).
+
+:meth:`~LogEntry.to_record` gives a ``logging.LogRecord``, which can be rendered
+with any ``logging.Formatter``:
+
+.. code-block:: python
+
+   formatter = logging.Formatter("%(asctime)s %(levelname)s %(name)s: %(message)s")
+   for entry in reader.get_log():
+       print(formatter.format(entry.to_record()))
+
+Log Stream
+^^^^^^^^^^
+
+:meth:`~LogReader.stream` follows the log live, optionally starting with the
+stored history, like the ``createStream(HISTORY)`` of the OSGi Log Stream
+Provider. The stream is bounded (``max_size``): the oldest pending entries are
+discarded when the consumer is too slow. It can be used from any thread, and
+must be closed (``with`` block or :meth:`~LogStream.close`).
+
+.. code-block:: python
+
+   with reader.stream(history=True) as stream:
+       for entry in stream:        # blocks, ends when the stream is closed
+           send(entry)
+       # or: entry = stream.get(timeout=5)  (None on timeout)
+
+.. autoclass:: LogStream
+   :members: get, close
 
 
 .. note:: ``LogEntry`` is a read-only bean which can't be un-marshalled by
@@ -121,7 +154,7 @@ namespace, to interact with the log services:
 ======== ======================================================================
 Command  Description
 ======== ======================================================================
-log      Prints the last ``N`` entries with level higher than the given one (``WARNING`` by default)
+log      Prints the last ``N`` entries with level higher than the given one (``WARNING`` by default), with an optional ``logging.Formatter`` format as third argument
 debug    Logs a message at ``DEBUG`` level
 info     Logs a message at ``INFO`` level
 warning  Logs a message at ``WARNING`` level

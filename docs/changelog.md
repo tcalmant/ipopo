@@ -380,6 +380,15 @@ Unreleased
 
 ### Misc
 
+* The log service keeps the exception of the records coming from the `logging`
+  module in `LogEntry.exception`, as it already did for `LogService.log()`.
+  The traceback, and the frames it references, stay alive until the entry leaves
+  the log reader ring (`pelix.log.max_entries`, 100 by default)
+* `LogEntry.to_record()` is now part of the `LogEntry` specification: a
+  `logging.Formatter` can format any log entry (#111). The `log` shell command
+  takes a third argument, a `logging.Formatter` format
+* New `LogReader.stream(history, max_size)`: a thread-safe, bounded feed of the
+  log entries, discarding the oldest ones when the consumer is too slow
 * `InitFileHandler` takes a `search_path` argument: the folders where it looks
   for the default `.pelix.conf` file, instead of `DEFAULT_PATH` (which includes
   the current folder)
