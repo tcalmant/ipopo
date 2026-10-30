@@ -259,6 +259,9 @@ Unreleased
   raising a `FrameworkException` with `needs_stop` in an `@Instantiate`d
   component) is no longer ignored: the framework stops when the start loop ends
   and `start()` returns `False`
+* Added the `@ErrorHandler` callback decorator (discussion #167): it receives the
+  exception raised by the `@Validate` or `@Invalidate` callback of the component
+  and can return `True` to prevent iPOPO from logging the error trace
 * Added the `@Modified` callback decorator, the counterpart of the `modified`
   method of OSGi Declarative Services: `reconfigure()`, and thus an update of
   the Configuration Admin configuration of a component, gives it the new and

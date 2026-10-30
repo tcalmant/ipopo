@@ -774,6 +774,28 @@ class StoredInstance:
             )
             return False
 
+    def __error_handled(self, error: BaseException, event: str) -> bool:
+        """
+        Calls the ``@ErrorHandler`` callback of the component, if any
+
+        :param error: The exception raised by the validation callback
+        :param event: The kind of life-cycle callback which failed
+        :return: True if the handler said that the error is handled
+        """
+        if self.context is None:
+            return False
+
+        handler = self.context.get_callback(constants.IPOPO_CALLBACK_ERROR_HANDLER)
+        if not handler:
+            return False
+
+        try:
+            # safe_callback() can't be used: it turns None into True
+            return handler(self.instance, error, event) is True
+        except Exception:
+            self._logger.exception("Component '%s': error in the @ErrorHandler callback", self.name)
+            return False
+
     def __safe_validation_callback(self, event: str) -> Any:
         """
         Calls the ``@ValidateComponent`` or ``@InvalidateComponent`` callback,
@@ -808,13 +830,19 @@ class StoredInstance:
                 self.bundle_context.get_framework().stop()
             return False
         except BaseException as ex:
-            self._logger.exception(
-                "Component '%s': error calling @ValidateComponent callback",
-                self.name,
-            )
+            # Keep the trace now: the handler might raise and replace it
+            trace = traceback.format_exc()
+            if self.__error_handled(ex, event):
+                self._logger.debug(
+                    "Component '%s': @ErrorHandler handled the error of %s: %r", self.name, event, ex
+                )
+            else:
+                self._logger.error(
+                    "Component '%s': error calling @ValidateComponent callback", self.name, exc_info=ex
+                )
 
             # Store the exception as it is a validation error
-            self.error_trace = traceback.format_exc()
+            self.error_trace = trace
             self.error = ex
 
             return False

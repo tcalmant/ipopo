@@ -51,6 +51,8 @@ BindT = TypeVar("BindT", bound=Callable[[Any, Any, ServiceReference[Any]], None]
 UpdateT = TypeVar("UpdateT", bound=Callable[[Any, Any, ServiceReference[Any], dict[str, Any]], None])
 ContextCallbackT = TypeVar("ContextCallbackT", bound=Callable[[Any, BundleContext], None])
 ModifiedT = TypeVar("ModifiedT", bound=Callable[[Any, dict[str, Any], dict[str, Any]], None])
+# Keeps the exact type of the method decorated by @ErrorHandler
+ErrorHandlerT = TypeVar("ErrorHandlerT", bound=Callable[[Any, BaseException, str], bool | None])
 RegistrationT = TypeVar("RegistrationT", bound=Callable[[Any, ServiceReference[Any]], None])
 
 # ------------------------------------------------------------------------------
@@ -66,6 +68,7 @@ __all__ = [
     "Bind",
     "BindField",
     "ComponentFactory",
+    "ErrorHandler",
     "FactoryManipulationError",
     "HiddenProperty",
     "Holder",
@@ -2327,6 +2330,48 @@ def Modified(method: ModifiedT) -> ModifiedT:
     # Tests the number of parameters
     validate_method_arity(method, "properties", "old_properties")
     _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS, constants.IPOPO_CALLBACK_MODIFIED)
+    return method
+
+
+def ErrorHandler(method: ErrorHandlerT) -> ErrorHandlerT:
+    """
+    The error handler callback decorator is called when the ``@Validate`` or
+    ``@Invalidate`` callback (or their ``Component`` variants) of the component
+    raised an exception, before the component goes to the ``ERRONEOUS`` state.
+
+    The decorated method receives the exception and the kind of callback which
+    failed (``constants.IPOPO_CALLBACK_VALIDATE`` or
+    ``constants.IPOPO_CALLBACK_INVALIDATE``). If it returns ``True``, the error
+    is considered as handled and iPOPO doesn't log its trace (only a debug
+    message). Any other result, or an exception, leaves the default logging.
+    The exception and its trace stay available in the component details.
+
+    A ``FrameworkException`` is not given to the handler: it kills the
+    component or stops the framework.
+
+    :Example:
+
+    .. code-block:: python
+
+       @ComponentFactory()
+       class Foo:
+           @Validate
+           def validate(self, context):
+               raise RuntimeError("Missing configuration")
+
+           @ErrorHandler
+           def on_error(self, exception, callback):
+               print(f"Failed: {exception}")
+               return True
+
+    :param method: The decorated method
+    :raise TypeError: The decorated element is not a valid function
+    """
+    if not inspect.isroutine(method):
+        raise TypeError("@ErrorHandler can only be applied on functions")
+
+    validate_method_arity(method, "exception", "callback")
+    _append_object_entry(method, constants.IPOPO_METHOD_CALLBACKS, constants.IPOPO_CALLBACK_ERROR_HANDLER)
     return method
 
 

@@ -187,6 +187,14 @@ Exceptions raised by the decorated method are logged and ignored.
 
 .. autofunction:: Modified
 
+A component can be told that one of its validation or invalidation callbacks
+raised an exception, and silence the trace logged by iPOPO, with the following
+decorator.
+The exception is also available through
+:meth:`~pelix.ipopo.constants.IPopoService.get_instance_error`.
+
+.. autofunction:: ErrorHandler
+
 Injections
 ^^^^^^^^^^
 

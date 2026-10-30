@@ -11,6 +11,7 @@ import unittest
 from pelix.framework import FrameworkFactory
 from pelix.ipopo import decorators
 from pelix.ipopo.constants import IPopoEvent
+from pelix.ipopo.instance import StoredInstance
 from tests import log_off, log_on
 from tests.interfaces import IEchoService
 from tests.ipopo import install_bundle, install_ipopo
@@ -319,6 +320,55 @@ class IPopoServiceTest(unittest.TestCase):
             ],
             [e for e in events if e[0] in (IPopoEvent.BOUND, IPopoEvent.UNBOUND)],
         )
+
+    def test_error_handler(self):
+        """
+        Tests @ErrorHandler: it receives the exception, and True silences the
+        error log
+        """
+        assert self.ipopo is not None, "iPOPO service not found"
+        context = self.framework.get_bundle_context()
+
+        for result, logged in ((True, False), (None, True), ("raise", True)):
+            with self.subTest(result=result):
+                calls: list[tuple[BaseException, str]] = []
+
+                @decorators.ComponentFactory(f"handler-factory-{result}")
+                class Failing:
+                    # Class attributes: the loop variables are not bound in methods
+                    handler_calls = calls
+                    handler_result = result
+
+                    @decorators.Validate
+                    def validate(self, context):
+                        raise OSError("Failed on purpose")
+
+                    @decorators.ErrorHandler
+                    def on_error(self, exception, callback):
+                        self.handler_calls.append((exception, callback))
+                        if self.handler_result == "raise":
+                            raise ValueError("Handler failure")
+                        return self.handler_result
+
+                self.ipopo.register_factory(context, Failing)
+                name = f"handler-{result}"
+                logger = f"InstanceManager-{name}"
+                if logged:
+                    with self.assertLogs(logger, "ERROR"):
+                        self.ipopo.instantiate(f"handler-factory-{result}", name)
+                else:
+                    with self.assertNoLogs(logger, "ERROR"):
+                        self.ipopo.instantiate(f"handler-factory-{result}", name)
+
+                self.assertEqual(1, len(calls))
+                self.assertIsInstance(calls[0][0], OSError)
+                self.assertEqual("VALIDATE", calls[0][1])
+                self.assertIs(calls[0][0], self.ipopo.get_instance_error(name))
+                self.assertEqual(StoredInstance.ERRONEOUS, self.ipopo.get_instance_details(name)["state"])
+
+        # Invalid handler signature
+        with self.assertRaises(TypeError):
+            decorators.ErrorHandler(lambda self: None)  # type: ignore
 
     def test_ipopo_events(self):
         """

@@ -58,6 +58,7 @@ __all__ = [
     "IPOPO_AUTO_RESTART",
     "IPOPO_CALLBACK_BIND",
     "IPOPO_CALLBACK_BIND_FIELD",
+    "IPOPO_CALLBACK_ERROR_HANDLER",
     "IPOPO_CALLBACK_INVALIDATE",
     "IPOPO_CALLBACK_MODIFIED",
     "IPOPO_CALLBACK_POST_REGISTRATION",
@@ -207,6 +208,12 @@ IPOPO_CALLBACK_INVALIDATE = "INVALIDATE"
 """
 InvalidateComponent: Called when one the mandatory dependencies is unbound,
 with component-specific parameters
+"""
+
+IPOPO_CALLBACK_ERROR_HANDLER = "ERROR_HANDLER"
+"""
+Error handler: called when a validation or invalidation callback of the
+component raised an exception
 """
 
 IPOPO_CALLBACK_MODIFIED = "MODIFIED"
