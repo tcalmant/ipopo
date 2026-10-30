@@ -133,6 +133,87 @@ benefit from its typing.
    named ``activator``, is deprecated and its support will be removed in
    version 1.0.
 
+Bundle metadata
+---------------
+
+A bundle can describe itself in a TOML block, which the framework reads when
+the bundle is installed **without executing its module**: an invalid metadata
+refuses the installation before any module-level code runs.
+
+The block follows a ``.. pelix-bundle`` line in any module-level docstring (the
+top one, or a bare string placed later in the module), as the indented content
+of an RST comment, which Sphinx doesn't render:
+
+.. code-block:: python
+
+   """
+   Hello bundle.
+
+   .. pelix-bundle
+      version = "1.2.0"
+      name = "Hello"
+      description = "Greets the world"
+      vendor = "Example Inc."
+      license = "Apache-2.0"
+   """
+
+The same content can be given in a ``<module>.manifest.toml`` file placed next
+to the module (inside the package directory for a package, where it is named
+after the last part of the package name). This is the only form available to
+a module distributed without its source code, and it must be shipped with the
+package data. Both forms can be used: the same content in both gives a warning,
+different contents refuse the installation. More than one block in a module is
+refused too.
+
+The block is read with ``ast``, never from ``__doc__``, because running Python
+with ``-OO`` removes the docstrings.
+
+=============== =============================================================
+Header          Description
+=============== =============================================================
+symbolic-name   Must be the module name, when given
+version         Bundle version, used by :meth:`~pelix.framework.Bundle.get_version`
+                before ``__version__`` and ``__version_info__``
+name            Human readable name
+description     Short description
+vendor          Name of the vendor
+license         License identifier
+doc-url         URL of the documentation
+scm             URL of the source code repository
+=============== =============================================================
+
+The other headers are kept as they are. The metadata is available through
+:meth:`Bundle.get_headers() <pelix.framework.Bundle.get_headers>`, as an
+immutable mapping (empty for a bundle which declares nothing). It is read at
+installation and replaced by a successful update only, so it never changes
+otherwise. If the metadata is invalid after an update, the previous one is kept
+and an error is logged.
+
+Bundle resources
+----------------
+
+A bundle can ship files other than Python code. The
+:meth:`Bundle.get_entry() <pelix.framework.Bundle.get_entry>` and
+:meth:`Bundle.find_entries() <pelix.framework.Bundle.find_entries>` methods give
+access to them, in the spirit of the OSGi ``getEntry()`` and ``findEntries()``:
+
+* for a module, the resources are in the ``<module>.res`` directory placed next
+  to the module (the dot prevents it from being imported as a package);
+* for a package, the resources are the files of the package.
+
+``get_entry()`` returns a `Traversable
+<https://docs.python.org/3/library/importlib.resources.abc.html#importlib.resources.abc.Traversable>`_
+(a file or a directory) or ``None``, ``find_entries()`` returns the sorted paths
+of the files matching an ``fnmatch`` pattern. Both work in a directory, an
+editable install and a zip archive. Absolute paths and paths containing ``..``
+raise a ``ValueError``.
+
+.. code-block:: python
+
+   # Next to hello.py: hello.res/templates/page.html
+   page = bundle.get_entry("templates/page.html").read_text()
+   templates = bundle.find_entries("templates", "*.html", recurse=True)
+
 Bundle Context
 --------------
 
