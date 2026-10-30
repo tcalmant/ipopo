@@ -47,6 +47,10 @@ interfaces also accept the following ones:
 | `-c FILE`, `--conf FILE` | Use a configuration file, above the system configuration |
 | `-C FILE`, `--exclusive-conf FILE` | Use a configuration file, ignore the system configuration |
 | `-e`, `--empty-conf` | Don't use any initial configuration |
+| `--trusted-folder PATH` | Also look for a `.pelix.conf` file in this folder, and put it first in the Python path (repeatable) |
+
+The scripts don't load the `.pelix.conf` file of the working folder, which can
+be shared or untrusted: use `--trusted-folder .` to load it, as Pelix 3.2 did.
 
 ### Text UI
 

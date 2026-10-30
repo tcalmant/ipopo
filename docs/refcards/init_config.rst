@@ -170,7 +170,11 @@ Currently, all the Pelix Shell interfaces (local console, remote shell and
 XMPP) support the initial configuration, using the following arguments:
 
 * *no argument*: the `.pelix.conf` files are loaded as described in
-  :ref:`init_conf_lookup`.
+  :ref:`init_conf_lookup`, except the one of the current working directory.
+* ``--trusted-folder <folder>``: a `.pelix.conf` file is also looked for in
+  this folder, after the default ones, and the folder is put first in the Python
+  path. The argument can be repeated. Use ``--trusted-folder .`` to load the
+  file of the current working directory.
 * ``-e``, ``--empty-conf``: no initial configuration file will be loaded
 * ``-c <filename>``, ``--conf <filename>``: the default configuration files,
   then given one will be loaded.

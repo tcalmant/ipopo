@@ -117,6 +117,11 @@ Unreleased
   `event.topics` property (it was `*`). The messages received from the MQTT
   server are only posted as events when their topic matches `event.topics`,
   and the `pelix/security/*` events never go through the bridge, either way
+* **Breaking:** the shell scripts (`pelix.shell`, `pelix.shell.remote`,
+  `pelix.shell.xmpp`) no longer load the `.pelix.conf` file of the working
+  folder, nor put `.` first in `sys.path` when normalizing the initial
+  configuration. The new repeatable `--trusted-folder PATH` argument adds a
+  folder to both: `--trusted-folder .` restores the previous behaviour
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
 

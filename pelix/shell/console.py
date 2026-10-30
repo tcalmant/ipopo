@@ -599,6 +599,15 @@ def make_common_parser() -> argparse.ArgumentParser:
         action="store_true",
         help="Don't load any initial configuration",
     )
+    group.add_argument(
+        "--trusted-folder",
+        action="append",
+        dest="trusted_folders",
+        default=[],
+        metavar="PATH",
+        help="Folder to search for a .pelix.conf file and to put first in the Python path "
+        "(repeatable). Use '.' to trust the working folder, as Pelix 3.2 did",
+    )
 
     # Initial script
     group = parser.add_argument_group("Script execution arguments")
@@ -633,8 +642,9 @@ def handle_common_arguments(parsed_args: argparse.Namespace) -> InitFileHandler:
     # Framework properties dictionary
     props = {}
 
-    # Read the initial configuration script
-    init = InitFileHandler()
+    # The working folder can be shared or untrusted: only the given folders replace it
+    trusted_folders: list[str] = parsed_args.trusted_folders
+    init = InitFileHandler([path for path in InitFileHandler.DEFAULT_PATH if path != "."] + trusted_folders)
     if not parsed_args.init_empty:
         if not parsed_args.init_conf_exclusive:
             # Load default configuration
@@ -646,10 +656,12 @@ def handle_common_arguments(parsed_args: argparse.Namespace) -> InitFileHandler:
             init.load(conf_file)
 
         # Normalize configuration
-        init.normalize()
+        init.normalize(cwd_first=False)
 
         # Set initial framework properties
         props.update(init.properties)
+
+    sys.path = remove_duplicates([*trusted_folders, *sys.path])
 
     # Compute framework properties
     for prop_def in parsed_args.properties or []:
