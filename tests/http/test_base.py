@@ -252,9 +252,29 @@ class HostTest(unittest.TestCase):
             ([], None),
             ("a, B:1,", [("a", None), ("b", "1")]),
             (["a"], [("a", None)]),
+            # Already normalized, when the service is validated again
+            ([("a", None), "b:1"], [("a", None), ("b", "1")]),
         ):
             with self.subTest(value=value):
                 self.assertEqual(normalize_allowed_hosts(value), expected)
+
+    def test_default_allowed_hosts(self) -> None:
+        loopback = [("localhost", None), ("127.0.0.1", None), ("[::1]", None)]
+        for address, expected in (
+            ("127.0.0.1", loopback),
+            ("127.0.0.2", loopback),
+            ("::1", loopback),
+            ("LocalHost", loopback),
+            ("0.0.0.0", None),
+            ("::", None),
+            ("192.0.2.1", None),
+            ("example.com", None),
+        ):
+            with self.subTest(address=address):
+                service = HttpServiceImpl()
+                service._address = address
+                service._normalize_configuration()
+                self.assertEqual(service._allowed_hosts, expected)
 
 
 class ProxyTest(unittest.TestCase):

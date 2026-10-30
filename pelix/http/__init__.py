@@ -91,12 +91,14 @@ __all__ = [
     "HTTP_USES_SSL",
     "HTTP_WEBSOCKET_HANDLER",
     "HTTP_WEBSOCKET_PATH",
+    "JSON_CONTENT_TYPES",
     "PARAM_ADDRESS",
     "PARAM_ASYNC",
     "PARAM_EXTRA",
     "PARAM_HTTPS",
     "PARAM_NAME",
     "PARAM_PORT",
+    "XML_CONTENT_TYPES",
     "AbstractAsyncHTTPServletRequest",
     "AbstractAsyncHTTPServletResponse",
     "AbstractAsyncWriter",
@@ -117,6 +119,7 @@ __all__ = [
     "ServletType",
     "WebSocketHandler",
     "WebSocketSession",
+    "check_content_type",
     "format_cookie",
     "make_html_list",
     "parse_cookies",
@@ -189,7 +192,9 @@ lesser than or equal to 0 removes the timeout.
 HTTP_ALLOWED_HOSTS = "pelix.http.allowed_hosts"
 """
 Host names the server accepts in the ``Host`` header of the requests (string,
-comma-separated string or list of strings, not set by default).
+comma-separated string or list of strings). By default, a server bound to a
+loopback address accepts ``localhost``, ``127.0.0.1`` and ``[::1]``, and a
+server bound to another address doesn't check the header.
 
 A request whose ``Host`` header is missing or not listed is answered with a 403
 error code, before any servlet is looked for. This protects the server against
@@ -199,10 +204,12 @@ same-origin.
 
 An entry without port matches any port (``localhost``), an entry with a port
 only matches this port (``localhost:8080``). IPv6 literals are given in
-brackets (``[::1]``). The comparison is case-insensitive. If not set or
-empty, the ``Host`` header is not checked.
+brackets (``[::1]``). The comparison is case-insensitive. If empty, the
+``Host`` header is not checked.
 
 .. versionadded:: 3.3.0
+.. versionchanged:: 3.3.0
+   Checked by default on a loopback address.
 """
 
 # ... case sensitivity of the servlet paths
@@ -326,7 +333,7 @@ HTTP_CORS_ENFORCE = "pelix.http.cors.enforce"
 """
 HTTP service property: if set, a request carrying an ``Origin`` header which is
 neither the origin of the server nor allowed by the CORS policy is answered
-with a 403 error code, and no servlet is called (boolean, False by default).
+with a 403 error code, and no servlet is called (boolean, True by default).
 
 Without it, the CORS policy only decides which ``Access-Control-*`` headers are
 sent: a "simple" cross-site request, like a form posted by a page of another
@@ -441,6 +448,37 @@ def make_html_list(items: Iterable[Any], tag: str = "ul") -> str:
     """
     html_list = "\n".join(f'<li><a href="{item}">{item}</a></li>' for item in items)
     return f"<{tag}>\n{html_list}\n</{tag}>"
+
+
+JSON_CONTENT_TYPES = ("application/json", "application/json-rpc", "application/jsonrequest")
+""" Media types of a JSON body (see :func:`check_content_type`) """
+
+XML_CONTENT_TYPES = ("text/xml", "application/xml")
+""" Media types of an XML body (see :func:`check_content_type`) """
+
+
+def check_content_type(
+    request: "AbstractHTTPServletRequest", response: "AbstractHTTPServletResponse", accepted: Iterable[str]
+) -> bool:
+    """
+    Checks the media type of the body of a request, ignoring its parameters,
+    and answers a 415 error code if it is not accepted.
+
+    A browser can't send a cross-site request with a type which isn't allowed
+    to a form (unlike ``text/plain``) without a CORS preflight, which the CORS
+    policy of the server then answers.
+
+    :param request: The request to check
+    :param response: The response, used to send the error
+    :param accepted: The accepted media types, in lower case
+    :return: True if the type is accepted, False if the error was sent
+    """
+    media_type = (request.get_header("content-type") or "").partition(";")[0].strip().lower()
+    if media_type in accepted:
+        return True
+
+    response.send_content(415, "Unsupported content type", "text/plain")
+    return False
 
 
 # ------------------------------------------------------------------------------

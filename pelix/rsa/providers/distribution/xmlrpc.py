@@ -34,7 +34,14 @@ from typing import Any, cast
 from xmlrpc.server import SimpleXMLRPCDispatcher
 
 from pelix.framework import BundleContext
-from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse, HTTPService, Servlet
+from pelix.http import (
+    XML_CONTENT_TYPES,
+    AbstractHTTPServletRequest,
+    AbstractHTTPServletResponse,
+    HTTPService,
+    Servlet,
+    check_content_type,
+)
 from pelix.ipopo.constants import ARG_BUNDLE_CONTEXT, ARG_PROPERTIES
 from pelix.ipopo.decorators import (
     ComponentFactory,
@@ -116,6 +123,9 @@ class ServerDispatcher(SimpleXMLRPCDispatcher, Servlet):
         self._executor = executor
 
     def do_POST(self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse) -> None:
+        if not check_content_type(request, response, XML_CONTENT_TYPES):
+            return
+
         data = request.read_data().decode()
         result = self._marshaled_dispatch(data, self._dispatch)
         response.send_content(200, result, "text/xml")

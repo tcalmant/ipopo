@@ -422,10 +422,13 @@ class _CorsServerTests:
 
     def test_no_handler(self) -> None:
         """
-        Without a CORS policy, nothing changes
+        Without a CORS policy, a foreign origin is refused, unless
+        pelix.http.cors.enforce is off: then nothing changes
         """
         self.register_servlet()
+        self.assertEqual(self.request(headers={"Origin": ORIGIN})[0], 403)
 
+        self.start_server(**{http.HTTP_CORS_ENFORCE: False})
         status, headers, _ = self.request(headers={"Origin": ORIGIN})
         self.assertEqual(status, 200)
         self.assertIsNone(headers["Access-Control-Allow-Origin"])
@@ -461,7 +464,9 @@ class _CorsServerTests:
         self.assertEqual(headers["Vary"], "Origin")
         self.assertEqual(headers["Access-Control-Expose-Headers"], "X-Total")
 
-        # Refused origin: the request is handled, but the browser won't let the script read it
+        # Refused origin, without pelix.http.cors.enforce: the request is handled,
+        # but the browser won't let the script read it
+        self.start_server(**{http.HTTP_CORS_ENFORCE: False})
         status, headers, _ = self.request(headers={"Origin": OTHER_ORIGIN})
         self.assertEqual(status, 200)
         self.assertIsNone(headers["Access-Control-Allow-Origin"])
@@ -610,9 +615,8 @@ class _CorsServerTests:
 
     def test_origin_enforced(self) -> None:
         """
-        With pelix.http.cors.enforce, the servlet doesn't run for a foreign origin
+        With pelix.http.cors.enforce (default), the servlet doesn't run for a foreign origin
         """
-        self.start_server(**{http.HTTP_CORS_ENFORCE: "true"})
         self.register_servlet()
         self.add_handler(**{http.HTTP_CORS_ORIGINS: [ORIGIN]})
         own = f"http://{DEFAULT_HOST}:{self.port}"
@@ -679,8 +683,17 @@ class _CorsServerTests:
         """
         self.register_servlet()
         rebound = [("GET", {"Host": "rebound.example"})]
-        # Not checked by default, nor when empty
-        self.check_statuses(rebound, [200])
+        # By default, a server bound to a loopback address only accepts the loopback names
+        self.check_statuses(
+            [
+                *rebound,
+                ("GET", {"Host": f"{DEFAULT_HOST}:{self.port}"}),
+                ("GET", {"Host": f"127.0.0.1:{self.port}"}),
+                ("GET", {"Host": f"[::1]:{self.port}"}),
+            ],
+            [403, 200, 200, 200],
+        )
+        # Not checked when empty
         self.start_server(**{http.HTTP_ALLOWED_HOSTS: ""})
         self.check_statuses(rebound, [200])
 

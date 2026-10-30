@@ -68,16 +68,27 @@ Unreleased
   of the operating system, as `whoami` shows
 * The `redis.password` property of the Redis discovery is hidden: it was
   shown in the details of the component
-* Added the `pelix.http.cors.enforce` property to the HTTP services: a request
-  carrying an `Origin` header which is neither the origin of the server nor
-  allowed by the CORS policy is answered with a 403 error code, instead of
-  being handled with only the CORS headers missing in the response. A "simple"
-  cross-site request, like a form posted by a page of another site, was
-  executed by the servlet. Off by default to stay backward compatible: it
-  should be set on every server a browser can reach
-* Added the `pelix.http.allowed_hosts` property to the HTTP services, to refuse
-  requests whose `Host` header is not listed (DNS rebinding). The header was
-  not checked at all. Off by default
+* **Breaking:** added the `pelix.http.cors.enforce` property to the HTTP
+  services, on by default: a request carrying an `Origin` header which is
+  neither the origin of the server nor allowed by the CORS policy is answered
+  with a 403 error code, instead of being handled with only the CORS headers
+  missing in the response. A "simple" cross-site request, like a form posted
+  by a page of another site, was executed by the servlet. The pages of other
+  origins calling the server need a CORS policy (`CorsHandler` or servlet
+  parameters), or the property set to false
+* **Breaking:** added the `pelix.http.allowed_hosts` property to the HTTP
+  services, to refuse requests whose `Host` header is not listed (DNS
+  rebinding). The header was not checked at all. A service bound to a loopback
+  address accepts `localhost`, `127.0.0.1` and `[::1]` by default; set the
+  property to the other names, e.g. the public name given by a reverse proxy,
+  or to an empty string to disable the check. A service bound to another
+  address doesn't check the header unless the property is set
+* **Breaking:** the remote services dispatcher servlet (`/endpoints`) and the
+  JSON-RPC, Jabsorb-RPC, XML-RPC and RSA XML-RPC servlets answer a 415 error
+  code to a `POST` whose `Content-Type` is not JSON (`application/json`,
+  `application/json-rpc`, `application/jsonrequest`) or XML (`text/xml`,
+  `application/xml`), so that a browser can't send them a cross-site request
+  without a CORS preflight
 * **Breaking:** iPOPO requires `jsonrpclib-pelix` 1.2.0 or newer, the first
   release which refuses to instantiate the classes named by a JSON-RPC peer
   unless they are registered. The JSON-RPC and Jabsorb-RPC transports accepted

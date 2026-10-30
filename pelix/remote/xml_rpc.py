@@ -113,6 +113,9 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher, pelix.http.Servlet):
         :param request: The HTTP request bean
         :param response: The HTTP response handler
         """
+        if not pelix.http.check_content_type(request, response, pelix.http.XML_CONTENT_TYPES):
+            return
+
         # Get the request content
         data = to_str(request.read_data())
 

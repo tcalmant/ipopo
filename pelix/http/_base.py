@@ -69,6 +69,7 @@ __all__ = [
     "DEFAULT_REQUEST_QUEUE_SIZE",
     "HTTP_SERVICE_EXTRA",
     "LOCALHOST_ADDRESS",
+    "LOOPBACK_HOST_NAMES",
     "SERVLET_PARAMETERS",
     "SESSION_USER",
     "AbstractHttpService",
@@ -98,6 +99,9 @@ LOCALHOST_ADDRESS = "127.0.0.1"
 """
 Local address, if None is given as binding address, instead of the default one
 """
+
+LOOPBACK_HOST_NAMES = ("localhost", "127.0.0.1", "[::1]")
+""" Default ``pelix.http.allowed_hosts`` of a service bound to a loopback address """
 
 DEFAULT_REQUEST_QUEUE_SIZE = 5
 """ Default size of the queue of clients waiting to be handled """
@@ -255,7 +259,9 @@ def normalize_allowed_hosts(value: Any) -> list[tuple[str, str | None]] | None:
     if isinstance(value, str):
         value = value.split(",")
 
-    return [split_host_port(item) for item in (str(raw).strip() for raw in value) if item] or None
+    # Already normalized entries are kept, as the service can be validated again
+    items = (raw if isinstance(raw, tuple) else split_host_port(str(raw)) for raw in value)
+    return [item for item in items if item[0]] or None
 
 
 def normalize_trusted_proxies(value: Any) -> list[ipaddress.IPv4Network | ipaddress.IPv6Network]:
@@ -534,7 +540,7 @@ class RequestChecks:
 @Property("_max_body_size", http.HTTP_MAX_BODY_SIZE, 1024 * 1024)
 @Property("_socket_timeout", http.HTTP_SOCKET_TIMEOUT, 60.0)
 @Property("_case_sensitive_paths", http.HTTP_CASE_SENSITIVE_PATHS, True)
-@Property("_cors_enforce", http.HTTP_CORS_ENFORCE, False)
+@Property("_cors_enforce", http.HTTP_CORS_ENFORCE, True)
 @Property("_allowed_hosts", http.HTTP_ALLOWED_HOSTS, None)
 @Property("_proxy_trusted", http.HTTP_PROXY_TRUSTED, None)
 @Property("_session_enabled", http.HTTP_SESSION_ENABLED, False)
@@ -563,7 +569,7 @@ class AbstractHttpService(http.HTTPService):
         self._max_body_size: int | None = 1024 * 1024
         self._socket_timeout: float | None = 60.0
         self._case_sensitive_paths = True
-        self._cors_enforce: bool = False
+        self._cors_enforce: bool = True
         self._allowed_hosts: Any = None
         self._proxy_trusted: Any = None
         self._session_enabled: Any = False
@@ -680,6 +686,12 @@ class AbstractHttpService(http.HTTPService):
 
         # Normalize the origin and host checks
         self._cors_enforce = _to_bool(self._cors_enforce)
+        address = _parse_ip(self._address)
+        if self._allowed_hosts is None and (
+            self._address.lower() == "localhost" or (address is not None and address.is_loopback)
+        ):
+            # Only a local client can reach a loopback address: another name is DNS rebinding
+            self._allowed_hosts = LOOPBACK_HOST_NAMES
         self._allowed_hosts = normalize_allowed_hosts(self._allowed_hosts)
         self._proxy_trusted = normalize_trusted_proxies(self._proxy_trusted)
 

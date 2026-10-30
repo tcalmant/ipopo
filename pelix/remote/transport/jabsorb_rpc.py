@@ -124,6 +124,9 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
         :param request: The HTTP request bean
         :param response: The HTTP response handler
         """
+        if not pelix.http.check_content_type(request, response, pelix.http.JSON_CONTENT_TYPES):
+            return
+
         # Get the request JSON content
         data = jsonrpclib.loads(to_str(request.read_data()))
 

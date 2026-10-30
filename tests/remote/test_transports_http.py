@@ -29,6 +29,7 @@ import queue
 import threading
 import time
 import unittest
+import xmlrpc.client
 from collections.abc import Iterable
 from typing import Any
 
@@ -373,10 +374,84 @@ class HttpTransportsTest(unittest.TestCase):
             self.fail("Remote framework took to long to reply")
 
 
+class FakeRequest:
+    """
+    The part of a servlet request the RPC servlets use
+    """
+
+    def __init__(self, body: str, content_type: str | None) -> None:
+        self.body = body.encode()
+        self.content_type = content_type
+
+    def get_header(self, name: str, default: Any = None) -> Any:
+        return self.content_type if name.lower() == "content-type" else default
+
+    def read_data(self) -> bytes:
+        return self.body
+
+
+class FakeResponse:
+    """
+    Keeps what a servlet answers
+    """
+
+    code: int | None = None
+    content: Any = None
+
+    def send_content(self, code: int, content: Any, mime_type: str = "text/html") -> None:
+        self.code, self.content = code, content
+
+
+def make_rpc_servlets(calls: list[Any]) -> list[tuple[Any, str, str]]:
+    """
+    Returns the RPC servlets, recording their calls, with a valid request body and its content type
+    """
+    from pelix.remote.json_rpc import _JsonRpcServlet
+    from pelix.remote.transport.jabsorb_rpc import _JabsorbRpcServlet
+    from pelix.remote.xml_rpc import _XmlRpcServlet
+    from pelix.rsa.providers.distribution.xmlrpc import ServerDispatcher
+
+    json_body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "svc.method", "params": [1]})
+    xml_body = xmlrpc.client.dumps((1,), "svc.method")
+    return [
+        (_JsonRpcServlet(lambda *args: calls.append(args)), json_body, "application/json-rpc"),
+        (_JabsorbRpcServlet(lambda *args: calls.append(args)), json_body, "application/json"),
+        (_XmlRpcServlet(lambda *args: calls.append(args)), xml_body, "text/xml"),
+        (ServerDispatcher(lambda *args: calls.append(args)), xml_body, "text/xml; charset=utf-8"),
+    ]
+
+
 class RpcServletsTest(unittest.TestCase):
     """
     Tests the RPC servlets against hostile requests, without network
     """
+
+    def test_content_type(self) -> None:
+        """
+        The RPC servlets only accept the content type of their protocol, which a
+        browser can't send cross-site without a CORS preflight
+        """
+        calls: list[Any] = []
+        for servlet, body, content_type in make_rpc_servlets(calls):
+            for bad_type in (
+                None,
+                "",
+                "text/plain",
+                "application/x-www-form-urlencoded",
+                "multipart/form-data",
+            ):
+                with self.subTest(servlet=type(servlet).__name__, content_type=bad_type):
+                    response = FakeResponse()
+                    servlet.do_POST(FakeRequest(body, bad_type), response)
+                    self.assertEqual(response.code, 415)
+                    self.assertEqual(calls, [])
+
+            with self.subTest(servlet=type(servlet).__name__, content_type=content_type):
+                response = FakeResponse()
+                servlet.do_POST(FakeRequest(body, content_type), response)
+                self.assertEqual(response.code, 200)
+                self.assertEqual(len(calls), 1)
+                calls.clear()
 
     def test_jsonclass_refused(self) -> None:
         """
