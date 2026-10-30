@@ -127,6 +127,11 @@ Unreleased
 * New `pelix.path.cwd` framework property: when false, the creation of the
   framework no longer puts the working folder first in `sys.path`. True by
   default
+* The multicast discovery binds its socket to the multicast group instead of
+  `0.0.0.0` or `::` (except on Windows), so that it ignores the unicast packets.
+  The protocol only sends to the group, so frameworks keep discovering each
+  other. An IPv6 link-local group needs its interface (`ff02::1%eth0`), else the
+  socket is bound to `::` as before, with a warning
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
 

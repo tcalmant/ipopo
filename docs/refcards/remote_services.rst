@@ -292,6 +292,14 @@ multicast.group 239.0.0.1     The multicast group (address) to join to send and 
 multicast.port  42000         The multicast port to listen to
 =============== ============= =================================================
 
+.. versionchanged:: 3.3.0
+   The socket is bound to the multicast group instead of all the addresses
+   (except on Windows, which doesn't allow it), so that it no longer accepts
+   unicast packets: the frameworks only ever send to the group.
+   An IPv6 link-local group must then be given with its interface, as in
+   ``ff02::1%eth0``, else the socket falls back to all the addresses with a
+   warning.
+
 To use this discovery provider, you'll need to install the following bundles
 and instantiate the associated components:
 

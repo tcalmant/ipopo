@@ -84,6 +84,26 @@ class MulticastSocketTest(unittest.TestCase):
         finally:
             close_multicast_socket(sock, address)
 
+    def test_unicast_ignored(self) -> None:
+        """
+        Tests that the socket only receives the packets sent to the group
+        """
+        for group, unicast in ((IPV4_GROUP, "127.0.0.1"), ("ff05::1", "::1")):
+            with self.subTest(group=group):
+                try:
+                    sock, address, port = create_multicast_socket(group, 0)
+                except OSError as ex:
+                    self.skipTest(f"Multicast not available: {ex}")
+
+                try:
+                    sock.settimeout(5)
+                    with socket.socket(sock.family, socket.SOCK_DGRAM) as sender:
+                        sender.sendto(b"unicast", (unicast, port))
+                        sender.sendto(b"group", (address, port))
+                    self.assertEqual(sock.recv(64), b"group")
+                finally:
+                    close_multicast_socket(sock, address)
+
 
 # ------------------------------------------------------------------------------
 
