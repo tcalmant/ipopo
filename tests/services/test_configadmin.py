@@ -21,7 +21,7 @@ from unittest import mock
 
 import pelix.framework
 from pelix import constants, services
-from pelix.internals.registry import ServiceReference
+from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.services.configadmin import (
     Configuration,
     ConfigurationAdmin,
@@ -2204,6 +2204,280 @@ class PoolDeliveryRaceTest(unittest.TestCase):
         self.assertFalse(svc.lock_timeout, "Service couldn't get the lock: deadlock")
         self.assertEqual(svc.max_concurrent, 1, "Concurrent notifications")
         self.assertEqual(svc.received[-1], 1, f"Stale configuration given last: {svc.received}")
+
+
+# ------------------------------------------------------------------------------
+
+
+class _EventRecorder(services.IConfigurationListener):
+    """
+    Configuration listener recording the events
+    """
+
+    def __init__(self) -> None:
+        self.events: list[tuple[int, str, str | None]] = []
+
+    def configuration_event(self, event: services.ConfigurationEvent) -> None:
+        self.events.append((event.type, event.pid, event.factory_pid))
+
+
+class _FailingListener(services.IConfigurationListener):
+    """
+    Configuration listener raising an error
+    """
+
+    def configuration_event(self, event: services.ConfigurationEvent) -> None:
+        raise RuntimeError("Listener error")
+
+
+class _OrderedFactory(_RecordingFactory):
+    """
+    Managed service factory writing in a shared journal
+    """
+
+    def __init__(self, name: str, journal: list[str]) -> None:
+        super().__init__()
+        self.__name = name
+        self.__journal = journal
+        self.deleted_pids: list[str] = []
+
+    def updated(self, pid: str, properties: dict[str, Any] | None) -> None:
+        super().updated(pid, properties)
+        self.__journal.append(self.__name)
+
+    def deleted(self, pid: str) -> None:
+        super().deleted(pid)
+        self.deleted_pids.append(pid)
+
+
+class FactoryConfigurationTest(unittest.TestCase):
+    """
+    Factory configurations: names, change count, events, persistence and
+    notifications of the managed service factories
+    """
+
+    FACTORY_PID = "test.ca.factory"
+
+    def setUp(self) -> None:
+        self.conf_folder = tempfile.mkdtemp(prefix="ipopo-configadmin-factory-")
+        self.addCleanup(shutil.rmtree, self.conf_folder, ignore_errors=True)
+        self.start_framework()
+
+    def start_framework(self) -> None:
+        """
+        Starts a framework with ConfigurationAdmin on the test folder
+        """
+        self.framework = pelix.framework.create_framework(
+            ("pelix.ipopo.core", "pelix.services.configadmin"), {"configuration.folder": self.conf_folder}
+        )
+        self.framework.start()
+        self.context = self.framework.get_bundle_context()
+        ref = self.context.get_service_reference(services.IConfigurationAdmin)
+        assert ref is not None
+        self.config = self.context.get_service(ref)
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
+        self.wait_pool()
+
+    def stop_framework(self) -> None:
+        """
+        Stops the framework, keeping the configuration folder
+        """
+        pelix.framework.FrameworkFactory.delete_framework()
+
+    def wait_pool(self) -> None:
+        """
+        Waits for the pool to execute the tasks given so far
+        """
+        pool = cast(ConfigurationAdmin, self.config)._pool
+        assert pool is not None
+        pool.enqueue(lambda: None).result(5)
+
+    def register_factory(
+        self, factory: services.IManagedServiceFactory, ranking: int = 0
+    ) -> ServiceRegistration[Any]:
+        """
+        Registers a managed service factory for the test factory PID
+        """
+        registration = self.context.register_service(
+            services.IManagedServiceFactory,
+            factory,
+            {constants.SERVICE_PID: self.FACTORY_PID, constants.SERVICE_RANKING: ranking},
+        )
+        self.wait_pool()
+        return registration
+
+    def test_factory_configuration_name(self) -> None:
+        """
+        The PID of a named factory configuration is "<factory>~<name>", and
+        getting it again gives the same configuration
+        """
+        config = self.config.get_factory_configuration(self.FACTORY_PID, "first")
+        self.assertEqual(config.get_pid(), f"{self.FACTORY_PID}~first")
+        self.assertEqual(config.get_factory_pid(), self.FACTORY_PID)
+        self.assertIsNone(config.get_properties())
+        self.assertIs(self.config.get_factory_configuration(self.FACTORY_PID, "first"), config)
+
+        config.update({"a": 1})
+        self.assertEqual(
+            list(self.config.list_configurations(f"(service.factoryPid={self.FACTORY_PID})")), [config]
+        )
+
+        # The factory PID is not the one of a managed service configuration
+        self.config.get_configuration("test.ca.managed~x").update({"a": 1})
+        for factory_pid, name in (
+            ("test.ca.managed", "x"),
+            ("", "x"),
+            (None, "x"),
+            (self.FACTORY_PID, ""),
+            (self.FACTORY_PID, "  "),
+            (self.FACTORY_PID, None),
+        ):
+            with self.subTest(factory_pid=factory_pid, name=name), self.assertRaises(ValueError):
+                self.config.get_factory_configuration(factory_pid, name)
+
+    def test_factory_configuration_restart(self) -> None:
+        """
+        Factory configurations are stored and reloaded, with their factory
+        PID, and given to the factory registered after the restart
+        """
+        for name, value in (("a", 1), ("b", 2)):
+            self.config.get_factory_configuration(self.FACTORY_PID, name).update({"index": value})
+        self.config.create_factory_configuration(self.FACTORY_PID).update({"index": 3})
+
+        self.stop_framework()
+        self.start_framework()
+        factory = _RecordingFactory()
+        self.register_factory(factory)
+
+        self.assertEqual(factory.configurations[f"{self.FACTORY_PID}~a"], 1)
+        self.assertEqual(factory.configurations[f"{self.FACTORY_PID}~b"], 2)
+        self.assertEqual(sorted(factory.configurations.values()), [1, 2, 3])
+
+        # The reloaded configuration is the same as the named one
+        config = self.config.get_factory_configuration(self.FACTORY_PID, "a")
+        self.assertEqual(config.get_factory_pid(), self.FACTORY_PID)
+        self.assertIsNotNone(config.get_properties())
+
+    def test_change_count(self) -> None:
+        """
+        The change count grows with each change only
+        """
+        config = self.config.get_configuration("test.ca.count")
+        self.assertEqual(config.get_change_count(), 0)
+
+        for properties, expected_changed, expected_count in (
+            ({"a": 1}, True, 1),
+            ({"a": 1}, False, 1),
+            ({"a": 2}, True, 2),
+            ({}, False, 2),
+        ):
+            with self.subTest(properties=properties):
+                self.assertEqual(config.update_if_different(properties), expected_changed)
+                self.assertEqual(config.get_change_count(), expected_count)
+
+        config.set_bundle_location("here")
+        self.assertEqual(config.get_change_count(), 3)
+        config.set_bundle_location("here")
+        self.assertEqual(config.get_change_count(), 3)
+
+    def test_events(self) -> None:
+        """
+        The listeners get the update, deletion and location events, once the
+        change is stored; a failing listener doesn't prevent the others
+        """
+        recorder = _EventRecorder()
+        self.context.register_service(services.IConfigurationListener, _FailingListener(), {})
+        self.context.register_service(services.IConfigurationListener, recorder, {})
+
+        managed = self.config.get_configuration("test.ca.event")
+        factory = self.config.get_factory_configuration(self.FACTORY_PID, "e")
+        managed.update({"a": 1})
+        managed.update({"a": 1})
+        factory.update({"a": 1})
+        managed.set_bundle_location("somewhere")
+        factory_pid = factory.get_pid()
+        factory.delete()
+        managed.delete()
+
+        self.assertEqual(
+            recorder.events,
+            [
+                (services.CM_UPDATED, "test.ca.event", None),
+                (services.CM_UPDATED, factory_pid, self.FACTORY_PID),
+                (services.CM_LOCATION_CHANGED, "test.ca.event", None),
+                (services.CM_DELETED, factory_pid, self.FACTORY_PID),
+                (services.CM_DELETED, "test.ca.event", None),
+            ],
+        )
+
+    def test_location_persisted(self) -> None:
+        """
+        The bundle location is stored with the configuration and reloaded,
+        but can't be set with the properties
+        """
+        config = self.config.get_configuration("test.ca.location")
+        config.update({"a": 1, services.CONFIG_PROP_BUNDLE_LOCATION: "forged"})
+        self.assertIsNone(config.get_bundle_location())
+
+        config.set_bundle_location("here")
+        with open(os.path.join(self.conf_folder, "test.ca.location.config.js")) as filep:
+            self.assertEqual(json.load(filep)[services.CONFIG_PROP_BUNDLE_LOCATION], "here")
+
+        self.stop_framework()
+        self.start_framework()
+        config = self.config.get_configuration("test.ca.location")
+        self.assertEqual(config.get_bundle_location(), "here")
+        self.assertEqual(config.get_properties(), {"a": 1, services.CONFIG_PROP_PID: "test.ca.location"})
+
+    def test_factory_notifications(self) -> None:
+        """
+        A factory gets the new and updated configurations, the deletions of the
+        ones it knew, and everything again when it comes back
+        """
+        pre = self.config.get_factory_configuration(self.FACTORY_PID, "pre")
+        pre.update({"index": 1})
+        never_given = self.config.get_factory_configuration(self.FACTORY_PID, "empty")
+
+        factory = _OrderedFactory("f", [])
+        registration = self.register_factory(factory)
+        self.assertEqual(factory.configurations, {pre.get_pid(): 1})
+
+        pre.update({"index": 2})
+        late = self.config.get_factory_configuration(self.FACTORY_PID, "late")
+        late.update({"index": 3})
+        self.assertEqual(factory.configurations, {pre.get_pid(): 2, late.get_pid(): 3})
+
+        # Nothing is given to the factory for a configuration it never got
+        never_given.delete()
+        self.assertEqual(factory.deleted_pids, [])
+        late_pid = late.get_pid()
+        late.delete()
+        self.assertEqual(factory.deleted_pids, [late_pid])
+
+        # Recreating a deleted name gives a new configuration
+        again = self.config.get_factory_configuration(self.FACTORY_PID, "late")
+        self.assertIsNot(again, late)
+        again.update({"index": 4})
+        self.assertEqual(factory.configurations[late_pid], 4)
+
+        # The factory goes away and comes back
+        registration.unregister()
+        self.wait_pool()
+        factory = _OrderedFactory("f", [])
+        self.register_factory(factory)
+        self.assertEqual(factory.configurations, {pre.get_pid(): 2, late_pid: 4})
+
+    def test_factories_ranking(self) -> None:
+        """
+        Factories with the same PID are notified by decreasing ranking
+        """
+        journal: list[str] = []
+        self.register_factory(_OrderedFactory("low", journal), 1)
+        self.register_factory(_OrderedFactory("high", journal), 10)
+        self.register_factory(_OrderedFactory("mid", journal), 5)
+
+        self.config.get_factory_configuration(self.FACTORY_PID, "r").update({"index": 1})
+        self.assertEqual(journal, ["high", "mid", "low"])
 
 
 # ------------------------------------------------------------------------------

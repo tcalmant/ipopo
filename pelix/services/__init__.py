@@ -42,6 +42,9 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 
 __all__ = [
+    "CM_DELETED",
+    "CM_LOCATION_CHANGED",
+    "CM_UPDATED",
     "CONFIG_ADMIN_PROPERTIES",
     "CONFIG_PROP_BUNDLE_LOCATION",
     "CONFIG_PROP_FACTORY_PID",
@@ -64,6 +67,7 @@ __all__ = [
     "PROP_FILEINSTALL_FOLDER",
     "PROP_MQTT_TOPICS",
     "PROP_TYPED_EVENT_HISTORY_SIZE",
+    "SERVICE_CONFIGADMIN_LISTENER",
     "SERVICE_CONFIGADMIN_MANAGED",
     "SERVICE_CONFIGADMIN_MANAGED_FACTORY",
     "SERVICE_CONFIGADMIN_PERSISTENCE",
@@ -82,11 +86,13 @@ __all__ = [
     "SERVICE_UNHANDLED_EVENT_HANDLER",
     "SERVICE_UNTYPED_EVENT_HANDLER",
     "Configuration",
+    "ConfigurationEvent",
     "EventAdmin",
     "FileInstall",
     "FileInstallListener",
     "IConfigurationAdmin",
     "IConfigurationAdminPersistence",
+    "IConfigurationListener",
     "IManagedService",
     "IManagedServiceFactory",
     "MonitorEvent",
@@ -364,6 +370,9 @@ SERVICE_CONFIGADMIN_MANAGED = "pelix.configadmin.managed"
 SERVICE_CONFIGADMIN_MANAGED_FACTORY = "pelix.configadmin.managed.factory"
 """ Specification of a factory managed by ConfigurationAdmin """
 
+SERVICE_CONFIGADMIN_LISTENER = "pelix.configadmin.listener"
+""" Specification of a listener of the ConfigurationAdmin events """
+
 SERVICE_CONFIGADMIN_PERSISTENCE = "pelix.configadmin.persistence"
 """ Specification of a ConfigurationAdmin storage service """
 
@@ -391,6 +400,33 @@ Entries which describe a configuration itself: ConfigurationAdmin adds them to
 the properties it gives to managed services, they don't come from the
 administrator
 """
+
+
+CM_UPDATED = 1
+""" Event type: a configuration has been updated """
+
+CM_DELETED = 2
+""" Event type: a configuration has been deleted """
+
+CM_LOCATION_CHANGED = 3
+""" Event type: the bundle location of a configuration has changed """
+
+
+@dataclasses.dataclass(frozen=True)
+class ConfigurationEvent:
+    """
+    Event sent by ConfigurationAdmin to the listeners, after the persistence
+    has been updated
+    """
+
+    type: int
+    """ One of CM_UPDATED, CM_DELETED or CM_LOCATION_CHANGED """
+
+    pid: str
+    """ PID of the configuration """
+
+    factory_pid: str | None
+    """ PID of the factory, None if the configuration isn't a factory one """
 
 
 class Configuration(Protocol):
@@ -473,10 +509,28 @@ class Configuration(Protocol):
         """
         ...
 
+    def get_change_count(self) -> int:
+        """
+        Returns the number of changes of this configuration since it has been
+        created or loaded: it grows on each change of the properties or of the
+        location. It isn't persisted.
+
+        :return: The change count
+        """
+        ...
+
+    def update_if_different(self, properties: dict[str, Any]) -> bool:
+        """
+        Same as update(), returning whether the configuration has changed
+
+        :param properties: the new set of properties for this configuration
+        :return: True if the configuration has been updated
+        :raise IOError: Error storing the configuration
+        """
+        ...
+
     def update(self, properties: dict[str, Any] | None = None) -> None:
         """
-        If called without properties, only notifies listeners
-
         Update the properties of this Configuration object.
         Stores the properties in persistent storage after adding or overwriting
         the following properties:
@@ -494,10 +548,12 @@ class Configuration(Protocol):
         Else, this callback is delayed until aforementioned registration
         occurs.
 
-        Unlike the Configuration Admin Service spec (104.4), this
-        implementation does not support ConfigurationListener/
-        ConfigurationEvent notifications: there is no call to
-        ConfigurationListeners here.
+        Unlike the Configuration Admin Service spec (104.4), nothing happens if
+        the properties are the same as the current ones: no notification and
+        no event. Calling it without properties does nothing either.
+
+        The IConfigurationListener services are notified with a CM_UPDATED
+        event, from the calling thread, once the properties are stored.
 
         :param properties: the new set of properties for this configuration
         :raise IOError: Error storing the configuration
@@ -547,6 +603,18 @@ class IConfigurationAdmin(Protocol):
         """
         ...
 
+    def get_factory_configuration(self, factory_pid: str, name: str) -> Configuration:
+        """
+        Gets or creates, atomically, the factory configuration with the PID
+        ``<factory_pid>~<name>``
+
+        :param factory_pid: PID of the factory
+        :param name: Name of the configuration in the factory
+        :raise ValueError: Invalid factory PID or name, or the PID is used by
+                           a configuration of another factory
+        """
+        ...
+
     def list_configurations(
         self, ldap_filter: "ldapfilter.LdapFilterOrCriteria | str | None" = None
     ) -> Iterable[Configuration]:
@@ -568,6 +636,20 @@ class IConfigurationAdmin(Protocol):
 
         The filter can also be null, meaning that all Configuration objects
         should be returned.
+        """
+        ...
+
+
+@Specification(SERVICE_CONFIGADMIN_LISTENER)
+class IConfigurationListener(Protocol):
+    """
+    Specification of a listener of the configuration events. It is called
+    from the thread which changed the configuration, and must not block
+    """
+
+    def configuration_event(self, event: ConfigurationEvent) -> None:
+        """
+        A configuration has been updated, deleted or has changed of location
         """
         ...
 
