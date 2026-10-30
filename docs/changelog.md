@@ -102,6 +102,9 @@ Unreleased
 * The XML-RPC servlets of the remote services and of RSA refuse a document
   declaring a document type (400 error code) before parsing it, as the EDEF
   parsers already did, against entity expansion
+* The JSON-RPC, XML-RPC, RSA XML-RPC and MQTT-RPC exporters answer a failed
+  call with an error ID instead of the message of the exception, which can
+  describe the server; the log gets the details with the same ID
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
 

@@ -28,6 +28,7 @@ Based on standard package xmlrpclib
 """
 
 import logging
+import uuid
 import xmlrpc.client as xmlrpclib
 from collections.abc import Callable, Iterable
 from typing import Any
@@ -102,7 +103,13 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher, pelix.http.Servlet):
 
         # Call the other method outside the except block, to avoid messy logs
         # in case of error
-        return self._dispatch_method(name, params)
+        try:
+            return self._dispatch_method(name, params)
+        except Exception:
+            # The stdlib would send the error message: only the log gets the details
+            error_id = uuid.uuid4().hex
+            _logger.exception("Error %s calling %s", error_id, name)
+            raise xmlrpclib.Fault(1, f"Internal error. Error ID: {error_id}") from None
 
     def do_POST(
         self, request: pelix.http.AbstractHTTPServletRequest, response: pelix.http.AbstractHTTPServletResponse

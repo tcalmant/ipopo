@@ -31,7 +31,7 @@ import time
 import unittest
 import xmlrpc.client
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, cast
 
 import pelix.http
 import pelix.remote
@@ -491,6 +491,27 @@ class RpcServletsTest(unittest.TestCase):
                     servlet.do_POST(FakeRequest(payload, content_type), response)
                     self.assertEqual(response.code, 400)
                     self.assertEqual(calls, [])
+
+    def test_error_details(self) -> None:
+        """
+        The caller gets an error ID, not the message of the exception, which only goes to the log
+        """
+
+        def fail(*_: Any) -> None:
+            raise ValueError("secret detail")
+
+        servlets = make_rpc_servlets([])
+        for servlet, _, _ in servlets:
+            servlet._dispatch_method = servlet._dispatch_func = fail
+
+        broken = FakeRequest("", "application/json")
+        cast(Any, broken).read_data = fail
+        for servlet, request in [*((s, FakeRequest(b, t)) for s, b, t in servlets), (servlets[0][0], broken)]:
+            with self.subTest(servlet=type(servlet).__name__), self.assertLogs(level="ERROR") as logs:
+                response = FakeResponse()
+                servlet.do_POST(request, response)
+                self.assertNotIn("secret detail", str(response.content))
+                self.assertIn("secret detail", "\n".join(logs.output))
 
 
 # ------------------------------------------------------------------------------

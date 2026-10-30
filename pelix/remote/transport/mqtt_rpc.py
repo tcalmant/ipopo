@@ -245,9 +245,11 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
             try:
                 # Call the service
                 result[KEY_DATA] = self.dispatch(method, params)
-            except Exception as ex:  # noqa: BLE001
-                # An error occurred
-                result[KEY_ERROR] = str(ex)
+            except Exception:
+                # The details describe the server: only the log gets them
+                error_id = uuid.uuid4().hex
+                _logger.exception("Error %s calling %s", error_id, method)
+                result[KEY_ERROR] = f"Internal error. Error ID: {error_id}"
 
         try:
             # Publish the result

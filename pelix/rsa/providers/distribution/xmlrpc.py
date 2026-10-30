@@ -26,6 +26,7 @@ XmlRpc-on-HttpService-based Export and Import Distribution Providers
 """
 
 import logging
+import uuid
 import xmlrpc.client as xmlrpclib
 from collections.abc import Callable
 from concurrent.futures import Executor
@@ -139,6 +140,15 @@ class ServerDispatcher(SimpleXMLRPCDispatcher, Servlet):
         response.send_content(200, result, "text/xml")
 
     def _dispatch(self, method: str | None, params: Any) -> Any:
+        try:
+            return self._dispatch_call(method, params)
+        except Exception:
+            # The stdlib would send the error message: only the log gets the details
+            error_id = uuid.uuid4().hex
+            _logger.exception("Error %s calling %s", error_id, method)
+            raise xmlrpclib.Fault(1, f"Internal error. Error ID: {error_id}") from None
+
+    def _dispatch_call(self, method: str | None, params: Any) -> Any:
         if method is None:
             raise ValueError("No method to dispatch given")
         obj_method_list = method.split(".")
