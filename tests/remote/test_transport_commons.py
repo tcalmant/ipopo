@@ -6,9 +6,16 @@ Tests the Remote Services abstract transport classes
 :author: Thomas Calmant
 """
 
+import socket
+import threading
+import time
 import unittest
 import uuid
-from typing import Any, cast
+import xmlrpc.client as xmlrpclib
+from typing import Any, Self, cast
+from unittest import mock
+
+import jsonrpclib.jsonrpc
 
 import pelix.constants
 import pelix.framework
@@ -16,9 +23,9 @@ import pelix.remote
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides
-from pelix.remote import RemoteServiceDispatcher, RemoteServiceError
+from pelix.remote import RemoteServiceDispatcher, RemoteServiceError, json_rpc, xml_rpc
 from pelix.remote.beans import ImportEndpoint
-from pelix.remote.transport import commons
+from pelix.remote.transport import commons, jabsorb_rpc
 
 # ------------------------------------------------------------------------------
 
@@ -631,6 +638,110 @@ class AbstractCommonImporterTest(unittest.TestCase):
         # Clear it
         self.registry.lost_framework(endpoint.framework)
         self.assertListEqual(importer.events, [IMPORT_CLEAR], "Importer not called after framework loss")
+
+
+# ------------------------------------------------------------------------------
+
+
+class HostileServer:
+    """
+    An HTTP server which never answers (``body`` is None) or answers the given body
+    """
+
+    def __init__(self, body: bytes | None) -> None:
+        self.__body = body
+        self.__server = socket.create_server(("127.0.0.1", 0))
+        self.__server.settimeout(10)
+        self.port: int = self.__server.getsockname()[1]
+        self.__stop = threading.Event()
+        self.__thread = threading.Thread(target=self.__serve, daemon=True)
+
+    def __enter__(self) -> Self:
+        self.__thread.start()
+        return self
+
+    def __exit__(self, *_: object) -> None:
+        self.__stop.set()
+        self.__server.close()
+        self.__thread.join(10)
+
+    def __serve(self) -> None:
+        while not self.__stop.is_set():
+            try:
+                client, _ = self.__server.accept()
+            except OSError:
+                return
+
+            with client:
+                client.recv(65536)
+                if self.__body is not None:
+                    client.sendall(
+                        b"HTTP/1.1 200 OK\r\nContent-Type: text/xml\r\n"
+                        + f"Content-Length: {len(self.__body)}\r\n\r\n".encode()
+                        + self.__body
+                    )
+                self.__stop.wait(10)
+
+
+class ClientLimitsTest(unittest.TestCase):
+    """
+    Tests the limits of the calls to other frameworks
+    """
+
+    def test_get_client_limits(self) -> None:
+        """
+        Tests the parsing of the framework properties
+        """
+        defaults = (commons.DEFAULT_CLIENT_TIMEOUT, commons.DEFAULT_CLIENT_MAX_RESPONSE_SIZE)
+        for timeout, max_size, expected in (
+            (None, None, defaults),
+            ("2.5", "100", (2.5, 100)),
+            (3, 200, (3.0, 200)),
+            ("0", "-1", (None, None)),
+            ("abc", "1.5", defaults),
+        ):
+            with self.subTest(timeout=timeout, max_size=max_size):
+                properties = {
+                    pelix.remote.PROP_CLIENT_TIMEOUT: timeout,
+                    pelix.remote.PROP_CLIENT_MAX_RESPONSE_SIZE: max_size,
+                }
+                context = mock.Mock(get_property=properties.get)
+                self.assertEqual(tuple(commons.get_client_limits(context)), expected)
+
+    def test_transports(self) -> None:
+        """
+        Tests that the RPC proxies give up on a server which doesn't answer or sends too much
+        """
+        limits = commons.ClientLimits(0.5, 1024)
+        for is_json, proxy_class in ((False, xmlrpclib.ServerProxy), (True, jsonrpclib.jsonrpc.ServerProxy)):
+            for body, error in ((None, TimeoutError), (b" " * 4096, RemoteServiceError)):
+                with self.subTest(is_json=is_json, body=body is not None), HostileServer(body) as server:
+                    url = f"http://127.0.0.1:{server.port}/"
+                    proxy = proxy_class(url, transport=commons.make_client_transport(url, limits, is_json))
+                    start = time.monotonic()
+                    with self.assertRaises(error):
+                        proxy.some.method()
+                    self.assertLess(time.monotonic() - start, 5)
+
+    def test_proxies(self) -> None:
+        """
+        Tests that the proxies of the imported services apply the limits
+        """
+        context = mock.Mock(get_property={pelix.remote.PROP_CLIENT_TIMEOUT: 0.5}.get)
+
+        with HostileServer(None) as server:
+            url = f"http://127.0.0.1:{server.port}/"
+            limits = commons.get_client_limits(context)
+            for proxy in (
+                json_rpc._ServiceCallProxy("name", url, limits),
+                xml_rpc._ServiceCallProxy("name", url, limits),
+                jabsorb_rpc._ServiceCallProxy("name", url, limits),
+            ):
+                with self.subTest(proxy=type(proxy).__module__):
+                    start = time.monotonic()
+                    with self.assertRaises(TimeoutError):
+                        proxy.method()
+                    self.assertLess(time.monotonic() - start, 5)
 
 
 # ------------------------------------------------------------------------------

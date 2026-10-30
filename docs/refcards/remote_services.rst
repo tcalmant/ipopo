@@ -243,6 +243,22 @@ All those protocols require the HTTP service to be up and running to work.
 Finally, iPOPO also supports a kind of *MQTT-RPC* protocol, *i.e.* JSON-RPC
 over MQTT.
 
+The calls to the other frameworks over HTTP (XML-RPC, JSON-RPC and Jabsorb-RPC
+proxies, and the requests of the dispatcher servlet to the discovered
+frameworks) are bounded by the following framework properties, as the address
+of a framework comes from the discovery and can't be trusted:
+
+========================================= ============= ===========================================
+Property                                  Default value Description
+========================================= ============= ===========================================
+``pelix.remote.client.timeout``           30            Timeout, in seconds, of each network operation (connection, each read). 0 removes it
+``pelix.remote.client.max_response_size`` 16777216      Maximum size, in bytes, of a response (16 MiB). 0 removes the limit
+========================================= ============= ===========================================
+
+.. versionadded:: 3.3.0
+   The calls had no timeout and read responses of any size. A compressed
+   response is no longer accepted.
+
 
 Providers included with Pelix/iPOPO
 ===================================

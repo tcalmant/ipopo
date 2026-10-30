@@ -29,19 +29,25 @@ Pelix remote services: Abstract RPC implementation
 """
 
 import abc
+import http.client
+import io
 import logging
 import threading
 import uuid
+import xmlrpc.client as xmlrpclib
 from abc import abstractmethod
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, NamedTuple, TypeVar
+
+import jsonrpclib.config
+import jsonrpclib.jsonrpc
 
 import pelix.remote.beans
 from pelix import constants
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo.decorators import Invalidate, Property, Provides, Validate
-from pelix.remote import RemoteServiceError
+from pelix.remote import PROP_CLIENT_MAX_RESPONSE_SIZE, PROP_CLIENT_TIMEOUT, RemoteServiceError
 from pelix.utilities import get_remote_method
 
 # ------------------------------------------------------------------------------
@@ -53,11 +59,152 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-__all__ = ["AbstractRpcServiceExporter", "AbstractRpcServiceImporter"]
+__all__ = [
+    "AbstractRpcServiceExporter",
+    "AbstractRpcServiceImporter",
+    "ClientLimits",
+    "get_client_limits",
+    "make_client_transport",
+    "read_response",
+]
 
 # ------------------------------------------------------------------------------
 
 _logger = logging.getLogger(__name__)
+
+DEFAULT_CLIENT_TIMEOUT = 30.0
+""" Default value of the ``pelix.remote.client.timeout`` framework property """
+
+DEFAULT_CLIENT_MAX_RESPONSE_SIZE = 16 * 1024 * 1024
+""" Default value of the ``pelix.remote.client.max_response_size`` framework property """
+
+# ------------------------------------------------------------------------------
+
+
+class ClientLimits(NamedTuple):
+    """
+    Limits of the calls to other frameworks, which may be slow or hostile
+    """
+
+    timeout: float | None
+    """ Timeout of the network operations, in seconds (None: no timeout) """
+
+    max_size: int | None
+    """ Maximum size of a response, in bytes (None: no limit) """
+
+
+_T = TypeVar("_T", int, float)
+
+
+def _read_limit(context: BundleContext, name: str, kind: type[_T], default: _T) -> _T | None:
+    """
+    Reads a positive limit from the framework properties
+
+    :param context: A bundle context
+    :param name: Name of the framework property
+    :param kind: Type of the limit
+    :param default: Value to use if the property is missing or invalid
+    :return: The limit, or None if it is lesser than or equal to 0
+    """
+    value = context.get_property(name)
+    if value is None:
+        return default
+
+    try:
+        limit = kind(value)
+    except (TypeError, ValueError):
+        _logger.warning("Invalid %s: %r, using %s", name, value, default)
+        return default
+
+    return limit if limit > 0 else None
+
+
+def get_client_limits(context: BundleContext) -> ClientLimits:
+    """
+    Reads the limits of the calls to other frameworks from the framework properties
+
+    :param context: A bundle context
+    :return: The client limits
+    """
+    return ClientLimits(
+        _read_limit(context, PROP_CLIENT_TIMEOUT, float, DEFAULT_CLIENT_TIMEOUT),
+        _read_limit(context, PROP_CLIENT_MAX_RESPONSE_SIZE, int, DEFAULT_CLIENT_MAX_RESPONSE_SIZE),
+    )
+
+
+def read_response(response: http.client.HTTPResponse, max_size: int | None) -> bytes:
+    """
+    Reads the body of an HTTP response, up to the given size
+
+    :param response: An HTTP response
+    :param max_size: Maximum size of the body (None: no limit)
+    :return: The body of the response
+    :raise RemoteServiceError: The body is bigger than the maximum size
+    """
+    if max_size is None:
+        return response.read()
+
+    data = response.read(max_size + 1)
+    if len(data) > max_size:
+        raise RemoteServiceError(f"Response bigger than {max_size} bytes")
+    return data
+
+
+class _LimitedTransportMixIn(xmlrpclib.Transport):
+    """
+    Applies the client limits to an XML-RPC or JSON-RPC transport
+    """
+
+    def __init__(self, limits: ClientLimits, *args: Any, **kwargs: Any) -> None:
+        super().__init__(*args, **kwargs)
+        self._limits = limits
+
+        # A compressed response could be expanded beyond the maximum size
+        self.accept_gzip_encoding = False
+
+    def make_connection(self, host: Any) -> Any:
+        connection = super().make_connection(host)
+        connection.timeout = self._limits.timeout
+        return connection
+
+    def parse_response(self, response: http.client.HTTPResponse) -> Any:
+        # A plain stream also prevents the parent class from decompressing the body
+        body = io.BytesIO(read_response(response, self._limits.max_size))
+        return super().parse_response(body)  # ty: ignore[invalid-argument-type]
+
+
+class _XmlRpcTransport(_LimitedTransportMixIn, xmlrpclib.Transport):
+    pass
+
+
+class _XmlRpcSafeTransport(_LimitedTransportMixIn, xmlrpclib.SafeTransport):
+    pass
+
+
+# jsonrpclib doesn't follow the signatures of the xmlrpc.client stubs
+class _JsonRpcTransport(_LimitedTransportMixIn, jsonrpclib.jsonrpc.Transport):  # ty: ignore[invalid-method-override]
+    pass
+
+
+class _JsonRpcSafeTransport(_LimitedTransportMixIn, jsonrpclib.jsonrpc.SafeTransport):  # ty: ignore[invalid-method-override]
+    pass
+
+
+def make_client_transport(url: str, limits: ClientLimits, json_rpc: bool) -> Any:
+    """
+    Prepares the transport of an XML-RPC or JSON-RPC server proxy, applying the client limits
+
+    :param url: URL of the server
+    :param limits: The client limits
+    :param json_rpc: If True, make a JSON-RPC transport, else an XML-RPC one
+    :return: A transport for the ``ServerProxy`` of ``xmlrpc.client`` or ``jsonrpclib``
+    """
+    secure = url.lower().startswith("https:")
+    if json_rpc:
+        config = jsonrpclib.config.DEFAULT
+        return _JsonRpcSafeTransport(limits, config, None) if secure else _JsonRpcTransport(limits, config)
+    return (_XmlRpcSafeTransport if secure else _XmlRpcTransport)(limits)
+
 
 # ------------------------------------------------------------------------------
 

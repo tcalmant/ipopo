@@ -132,6 +132,13 @@ Unreleased
   The protocol only sends to the group, so frameworks keep discovering each
   other. An IPv6 link-local group needs its interface (`ff02::1%eth0`), else the
   socket is bound to `::` as before, with a warning
+* The XML-RPC, JSON-RPC and Jabsorb-RPC proxies of the remote services, and
+  the requests of the dispatcher servlet to the discovered frameworks,
+  time out after 30 seconds without network activity and refuse responses
+  bigger than 16 MiB, or compressed: see the new
+  `pelix.remote.client.timeout` and `pelix.remote.client.max_response_size`
+  framework properties. They had neither limit, including the calls made by
+  the multicast discovery from its reading thread
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
 

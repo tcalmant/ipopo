@@ -52,6 +52,7 @@ from pelix.ipopo.decorators import (
     Validate,
 )
 from pelix.remote import beans
+from pelix.remote.transport.commons import ClientLimits, get_client_limits, read_response
 from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
@@ -519,6 +520,9 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         # Ports of exposing servers
         self._ports: list[int] = []
 
+        # Limits of the requests to the discovered frameworks
+        self._limits = ClientLimits(None, None)
+
     @Validate
     def _validate(self, context: pelix.framework.BundleContext) -> None:
         """
@@ -526,6 +530,7 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         """
         # Get the framework UID
         self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
+        self._limits = get_client_limits(context)
 
         # Normalize the path
         self._path = f"/{'/'.join(part for part in (self._path or '').split('/') if part)}/"
@@ -540,8 +545,7 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         # Clean up
         self._fw_uid = None
 
-    @staticmethod
-    def __grab_data(host: str, port: int, path: str) -> Any | None:
+    def __grab_data(self, host: str, port: int, path: str) -> Any | None:
         """
         Sends a HTTP request to the server at (host, port), on the given path.
         Returns the parsed response.
@@ -554,10 +558,10 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         """
         # Request the end points
         try:
-            conn = httplib.HTTPConnection(host, port)
+            conn = httplib.HTTPConnection(host, port, timeout=self._limits.timeout)
             conn.request("GET", path)
             result = conn.getresponse()
-            data = result.read()
+            data = read_response(result, self._limits.max_size)
             conn.close()
         except Exception as ex:  # noqa: BLE001
             _logger.error("Error accessing the dispatcher servlet: %s", ex)
@@ -796,7 +800,7 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
 
         # Request the end points
         try:
-            conn = httplib.HTTPConnection(host, port)
+            conn = httplib.HTTPConnection(host, port, timeout=self._limits.timeout)
             conn.request(
                 "POST",
                 path,
@@ -804,7 +808,7 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
                 {"Content-Type": "application/json"},
             )
             result = conn.getresponse()
-            data = result.read()
+            data = read_response(result, self._limits.max_size)
             conn.close()
         except Exception as ex:  # noqa: BLE001
             _logger.error(

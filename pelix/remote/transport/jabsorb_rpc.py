@@ -265,15 +265,17 @@ class _ServiceCallProxy:
     Service call proxy
     """
 
-    def __init__(self, name: str, url: str) -> None:
+    def __init__(self, name: str, url: str, limits: commons.ClientLimits) -> None:
         """
         Sets up the call proxy
 
         :param name: End point name
         :param url: End point URL
+        :param limits: Limits of the calls
         """
         self.__name = name
         self.__url = url
+        self.__limits = limits
 
     def __getattr__(self, name: str) -> Any:
         """
@@ -283,7 +285,9 @@ class _ServiceCallProxy:
         # This is an ugly trick to handle multithreaded calls, as the
         # underlying proxy reuses the same connection when possible: sometimes
         # it means sending a request before retrieving a result
-        proxy = jsonrpclib.ServerProxy(self.__url)
+        proxy = jsonrpclib.ServerProxy(
+            self.__url, transport=commons.make_client_transport(self.__url, self.__limits, True)
+        )
 
         def wrapped_call(*args: Any, **kwargs: Any) -> Any:
             """
@@ -349,7 +353,7 @@ class JabsorbRpcServiceImporter(commons.AbstractRpcServiceImporter):
             return None
 
         # Prepare the proxy
-        return _ServiceCallProxy(name, access_url)
+        return _ServiceCallProxy(name, access_url, commons.get_client_limits(self._context))
 
     def clear_service_proxy(self, endpoint: ImportEndpoint) -> None:
         """
