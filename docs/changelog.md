@@ -145,6 +145,13 @@ Unreleased
   the multicast discovery from its reading thread
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
+* The MQTT discovery and MQTT-RPC components can connect to their broker with
+  TLS and credentials, with the new `mqtt.tls`, `mqtt.tls.ca_file`,
+  `mqtt.tls.cert_file`, `mqtt.tls.key_file`, `mqtt.username` and
+  `mqtt.password` (hidden) properties, plus `mqtt.client_id` and
+  `mqtt.keepalive`. The broker certificate and host name are always verified.
+  They are read by the new `pelix.misc.mqtt_client.MqttConnectionConfig`, shared
+  by all the MQTT components
 
 ### HTTP service
 

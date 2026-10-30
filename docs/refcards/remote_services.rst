@@ -821,14 +821,14 @@ The discovery instance can be configured with the following properties:
 ============== ============================= ==================================
 Property       Default value Description
 ============== ============================= ==================================
-mqtt.host      localhost                     Host of the MQTT server
-mqtt.port      1883                          Port of the MQTT server
 topic.prefix   pelix/{appid}/remote-services Prefix of all MQTT messages (format string accepting the ``appid`` entry)
 application.id None                          Application ID, to allow multiple applications on the same server
 ============== ============================= ==================================
 
-The transport exporter and importer instances should be configured with the
-same ``mqtt.host`` and ``mqtt.port`` properties as the discovery service.
+The discovery and the transport exporter and importer instances connect to
+their broker with the ``mqtt.*`` properties described in
+:ref:`mqtt-connection` (host, port, TLS, credentials): they should be
+configured with the same broker.
 
 To use the MQTT providers, you'll need to install the following bundles and
 instantiate the associated components:
