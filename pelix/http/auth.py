@@ -255,7 +255,7 @@ def authenticate_request(
         try:
             credentials = authenticator.extract_credentials(headers)
         except AuthenticationFailed as ex:
-            _logger.info("Refused credentials: %s", ex)
+            _logger.warning("Refused credentials from %s: %s", source, ex)
             return AuthDecision(ANONYMOUS, True)
         except Exception:
             # Refuse rather than let a faulty authenticator let the request through
@@ -267,8 +267,9 @@ def authenticate_request(
 
         try:
             subject = _authenticate(credentials, source, authenticator.get_scheme().lower())
-        except AuthenticationFailed as ex:
-            _logger.info("Authentication failed: %s", ex)
+        except AuthenticationFailed:
+            # As the shell: the attempted name is not logged, it is sometimes a password typed too early
+            _logger.warning("Failed login from %s", source)
             return AuthDecision(ANONYMOUS, True)
         except Exception:
             _logger.exception("Error authenticating a request")

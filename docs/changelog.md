@@ -105,6 +105,9 @@ Unreleased
 * The JSON-RPC, XML-RPC, RSA XML-RPC and MQTT-RPC exporters answer a failed
   call with an error ID instead of the message of the exception, which can
   describe the server; the log gets the details with the same ID
+* HTTP services: the failed logins are logged at the WARNING level with the
+  address of the client, as the remote shell does, without the attempted user
+  name
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
 
