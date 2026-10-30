@@ -11,7 +11,9 @@ import unittest
 from pelix.framework import Bundle, FrameworkFactory
 from pelix.ipopo import constants
 from pelix.ipopo.constants import IPopoEvent
-from pelix.ipopo.decorators import ComponentFactory, Requires
+from pelix.ipopo.decorators import ComponentFactory, Requires, RequiresCondition
+from pelix.ipopo.instance import StoredInstance
+from pelix.services.condition import CONDITION_ID, INSTANCE, SERVICE_CONDITION
 from tests import log_off, log_on
 from tests.interfaces import IEchoService
 from tests.ipopo import install_bundle, install_ipopo
@@ -710,6 +712,42 @@ class RequirementTest(unittest.TestCase):
                 instance = self.ipopo.instantiate(factory, f"{factory}.instance")
                 for field, value in expected.items():
                     self.assertEqual(value, getattr(instance, field), field)
+
+    def testRequiresCondition(self):
+        """
+        Tests that a component is valid only while its condition is registered
+        """
+
+        @ComponentFactory("condition-test-factory")
+        @RequiresCondition("_cond", "test.ready")
+        class Consumer:
+            pass
+
+        context = self.framework.get_bundle_context()
+        self.ipopo.register_factory(context, Consumer)
+        self.ipopo.instantiate("condition-test-factory", "condition-test")
+        self.assertEqual(self.ipopo.get_instance_details("condition-test")["state"], StoredInstance.INVALID)
+
+        # The "true" condition of the framework is not the awaited one
+        self.assertIsNotNone(context.get_service_reference(SERVICE_CONDITION, f"({CONDITION_ID}=true)"))
+
+        reg = context.register_service(SERVICE_CONDITION, INSTANCE, {CONDITION_ID: ["other", "test.ready"]})
+        self.assertEqual(self.ipopo.get_instance_details("condition-test")["state"], StoredInstance.VALID)
+
+        reg.unregister()
+        self.assertEqual(self.ipopo.get_instance_details("condition-test")["state"], StoredInstance.INVALID)
+
+    def testRequiresConditionInvalid(self):
+        """
+        Tests the arguments checks of RequiresCondition
+        """
+        for args, error in (
+            (("_f", ""), ValueError),
+            (("_f", 42), TypeError),
+            (("", "id"), ValueError),
+        ):
+            with self.subTest(args=args), self.assertRaises(error):
+                RequiresCondition(*args)  # type: ignore
 
 
 # ------------------------------------------------------------------------------

@@ -18,6 +18,7 @@ from pelix.constants import PROP_PATH_CWD
 from pelix.framework import Bundle, BundleContext, BundleEvent, BundleException, FrameworkFactory
 
 # Tests
+from pelix.services.condition import CONDITION_ID, CONDITION_ID_TRUE, SERVICE_CONDITION
 from tests import log_off, log_on
 
 # ------------------------------------------------------------------------------
@@ -58,6 +59,22 @@ class FrameworkTest(unittest.TestCase):
         """
         if SIMPLE_BUNDLE in sys.modules:
             del sys.modules[SIMPLE_BUNDLE]
+
+    def testTrueCondition(self):
+        """
+        Tests that the framework registers the "true" condition at each start
+        """
+        framework = FrameworkFactory.get_framework()
+        spec_filter = f"({CONDITION_ID}={CONDITION_ID_TRUE})"
+        for _ in range(2):
+            framework.start()
+            ref = framework.get_bundle_context().get_service_reference(SERVICE_CONDITION, spec_filter)
+            self.assertIsNotNone(ref)
+            assert ref is not None
+            self.assertIs(ref.get_bundle(), framework)
+            framework.stop()
+
+        FrameworkFactory.delete_framework()
 
     def testBundleZero(self):
         """

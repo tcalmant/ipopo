@@ -258,6 +258,10 @@ Unreleased
   are notified by decreasing service ranking
 * Added `pelix.services.eventdelivery`, the delivery code and topic rules
   shared by both event services
+* Added the Condition service (`pelix.services.condition`), after the OSGi
+  Condition Service specification: the framework registers the "true"
+  condition (`osgi.condition.id=true`) each time it starts, and any bundle can
+  register markers for the states of the system it reaches
 
 ### iPOPO
 
@@ -292,6 +296,9 @@ Unreleased
   and can return `True` to prevent iPOPO from logging the error trace.
   The handler runs on a component that may be half initialized: it is meant for
   logging, not for recovering. OSGi Declarative Services has no equivalent.
+* Added the `@RequiresCondition` decorator: a component is valid only while
+  the Condition service of the given `osgi.condition.id` is registered, which
+  orders the start of components without start levels
 * Added the `@Modified` callback decorator, the counterpart of the `modified`
   method of OSGi Declarative Services: `reconfigure()`, and thus an update of
   the Configuration Admin configuration of a component, gives it the new and

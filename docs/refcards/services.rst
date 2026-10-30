@@ -129,6 +129,36 @@ service.ranking int  The rank/priority of the service. The lower the rank, the m
 
 .. _service_factory:
 
+Condition service
+-----------------
+
+A *condition* is a marker service, after the OSGi Condition Service
+specification: its mere presence in the registry tells that a state of the
+system is reached (a database is connected, a subsystem is ready, ...).
+It provides the :class:`~pelix.services.condition.Condition` specification
+(``org.osgi.service.condition.Condition``) and the ``osgi.condition.id``
+property, which can hold several IDs.
+
+The framework registers the "true" condition (``osgi.condition.id=true``)
+every time it starts, before any bundle.
+A bundle registers its own conditions as any other service, once the state is
+reached, and unregisters them when it is lost:
+
+.. code-block:: python
+
+    from pelix.services.condition import CONDITION_ID, INSTANCE, SERVICE_CONDITION
+
+    reg = context.register_service(
+        SERVICE_CONDITION, INSTANCE, {CONDITION_ID: "my.subsystem.ready"})
+
+Components wait for a condition with the
+:class:`~pelix.ipopo.decorators.RequiresCondition` decorator.
+
+.. autodata:: pelix.services.condition.SERVICE_CONDITION
+.. autodata:: pelix.services.condition.CONDITION_ID
+.. autodata:: pelix.services.condition.CONDITION_ID_TRUE
+.. autodata:: pelix.services.condition.INSTANCE
+
 Service Factory
 ---------------
 
