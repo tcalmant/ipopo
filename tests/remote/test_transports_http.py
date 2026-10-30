@@ -473,6 +473,25 @@ class RpcServletsTest(unittest.TestCase):
         self.assertIn("error", result)
         self.assertEqual(calls, [])
 
+    def test_xml_doctype(self) -> None:
+        """
+        The XML-RPC servlets refuse a document type declaration, which can declare entities
+        """
+        calls: list[Any] = []
+        for servlet, body, content_type in make_rpc_servlets(calls):
+            if "xml" not in content_type:
+                continue
+
+            for doctype in ("<!DOCTYPE m [<!ENTITY a 'x'>]>", "<!-- c --><!DOCTYPE m>"):
+                with self.subTest(servlet=type(servlet).__name__, doctype=doctype):
+                    payload = body.replace("?>", "?>" + doctype, 1).replace(
+                        "<int>1</int>", "<string>&a;</string>"
+                    )
+                    response = FakeResponse()
+                    servlet.do_POST(FakeRequest(payload, content_type), response)
+                    self.assertEqual(response.code, 400)
+                    self.assertEqual(calls, [])
+
 
 # ------------------------------------------------------------------------------
 

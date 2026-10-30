@@ -40,7 +40,7 @@ from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.transport import commons
-from pelix.utilities import to_str
+from pelix.utilities import check_xml_no_doctype, to_str
 
 # ------------------------------------------------------------------------------
 
@@ -118,6 +118,13 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher, pelix.http.Servlet):
 
         # Get the request content
         data = to_str(request.read_data())
+
+        try:
+            # Refuse documents declaring entities before giving them to the parser
+            check_xml_no_doctype(data)
+        except ValueError:
+            response.send_content(400, "Document type declarations are not accepted", "text/plain")
+            return
 
         # Dispatch
         result = self._marshaled_dispatch(data, self._simple_dispatch)

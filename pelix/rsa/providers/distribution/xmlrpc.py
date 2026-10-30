@@ -64,6 +64,7 @@ from pelix.rsa.providers.distribution import (
     ImportContainer,
     ImportDistributionProvider,
 )
+from pelix.utilities import check_xml_no_doctype
 
 # ------------------------------------------------------------------------------
 # Module version
@@ -127,6 +128,13 @@ class ServerDispatcher(SimpleXMLRPCDispatcher, Servlet):
             return
 
         data = request.read_data().decode()
+        try:
+            # Refuse documents declaring entities before giving them to the parser
+            check_xml_no_doctype(data)
+        except ValueError:
+            response.send_content(400, "Document type declarations are not accepted", "text/plain")
+            return
+
         result = self._marshaled_dispatch(data, self._dispatch)
         response.send_content(200, result, "text/xml")
 

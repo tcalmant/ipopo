@@ -99,6 +99,9 @@ Unreleased
 * Basic HTTPS service: the TLS handshake is done by the thread of the client,
   under `pelix.http.socket_timeout`, instead of in the thread accepting the
   connections, where a client which never completed it blocked all the others
+* The XML-RPC servlets of the remote services and of RSA refuse a document
+  declaring a document type (400 error code) before parsing it, as the EDEF
+  parsers already did, against entity expansion
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
 
