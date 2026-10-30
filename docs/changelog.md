@@ -108,6 +108,8 @@ Unreleased
 * HTTP services: the failed logins are logged at the WARNING level with the
   address of the client, as the remote shell does, without the attempted user
   name
+* HTTP services: an invalid `pelix.http.socket_timeout` gives the default
+  timeout (60 seconds) with a warning, instead of removing the timeout
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
 

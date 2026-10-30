@@ -185,7 +185,8 @@ Timeout, in seconds, of the sockets handling the requests (float, 60 by
 default).
 
 Avoids a slow client to keep a request handling thread busy forever. A value
-lesser than or equal to 0 removes the timeout.
+lesser than or equal to 0 removes the timeout. An invalid value is replaced by
+the default one, with a warning.
 """
 
 # ... Host header whitelist

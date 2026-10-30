@@ -45,7 +45,8 @@ pelix.http.socket_timeout       60        Timeout, in seconds, of the sockets
                                           handling the requests. A client which
                                           takes longer to send its request gets a
                                           408 error code. A value lesser than or
-                                          equal to 0 removes the timeout
+                                          equal to 0 removes the timeout, an
+                                          invalid one gives the default
 pelix.http.case_sensitive_paths True      If set, servlet paths are matched
                                           case-sensitively, as URI paths are
                                           defined to be. Unset it to restore the

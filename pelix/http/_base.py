@@ -672,13 +672,17 @@ class AbstractHttpService(http.HTTPService):
         # Normalize the resource limits: a non-positive value removes the limit
         self._max_body_size = normalize_max_body_size(self._max_body_size)
 
-        try:
-            self._socket_timeout = float(self._socket_timeout)  # type: ignore[arg-type]
-        except (TypeError, ValueError):
-            self._socket_timeout = None
-        else:
-            if self._socket_timeout <= 0:
-                self._socket_timeout = None
+        # None: already normalized as "no timeout" by a previous validation
+        if self._socket_timeout is not None:
+            try:
+                self._socket_timeout = float(self._socket_timeout)
+            except (TypeError, ValueError):
+                # Fail closed: an invalid value must not remove the timeout
+                self.log(logging.WARNING, "Invalid socket timeout %r: using 60 seconds", self._socket_timeout)
+                self._socket_timeout = 60.0
+            else:
+                if self._socket_timeout <= 0:
+                    self._socket_timeout = None
 
         # Normalize the extra properties
         if not isinstance(self._extra, dict):

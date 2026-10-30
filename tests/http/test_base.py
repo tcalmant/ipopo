@@ -276,6 +276,26 @@ class HostTest(unittest.TestCase):
                 service._normalize_configuration()
                 self.assertEqual(service._allowed_hosts, expected)
 
+    def test_socket_timeout(self) -> None:
+        for value, expected in (
+            (None, None),
+            ("abc", 60.0),
+            ([1], 60.0),
+            ("2.5", 2.5),
+            (0, None),
+            (-1, None),
+        ):
+            with self.subTest(value=value):
+                service = HttpServiceImpl()
+                service._socket_timeout = value  # type: ignore[assignment]
+                if expected == 60.0:
+                    # An invalid value must not remove the timeout
+                    with self.assertLogs("pelix.http._base", "WARNING"):
+                        service._normalize_configuration()
+                else:
+                    service._normalize_configuration()
+                self.assertEqual(service.get_socket_timeout(), expected)
+
 
 class ProxyTest(unittest.TestCase):
     """
