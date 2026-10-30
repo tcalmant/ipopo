@@ -32,7 +32,8 @@ Eclipse Foundation: see http://www.eclipse.org/paho
 import logging
 import os
 import threading
-from collections.abc import Callable
+from collections.abc import Callable, Mapping
+from dataclasses import dataclass, field
 from typing import Any, Literal
 
 import paho.mqtt.client as paho
@@ -40,6 +41,8 @@ from paho.mqtt.client import ConnectFlags, DisconnectFlags
 from paho.mqtt.enums import CallbackAPIVersion, MQTTProtocolVersion
 from paho.mqtt.properties import Properties
 from paho.mqtt.reasoncodes import ReasonCode
+
+from pelix.utilities import str2bool
 
 # ------------------------------------------------------------------------------
 
@@ -50,7 +53,24 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-__all__ = ["MQTTv5", "MQTTv31", "MQTTv311", "MqttClient", "MqttMessage"]
+__all__ = [
+    "PROP_MQTT_CLIENT_ID",
+    "PROP_MQTT_HOST",
+    "PROP_MQTT_KEEPALIVE",
+    "PROP_MQTT_PASSWORD",
+    "PROP_MQTT_PORT",
+    "PROP_MQTT_TLS",
+    "PROP_MQTT_TLS_CA",
+    "PROP_MQTT_TLS_CERT",
+    "PROP_MQTT_TLS_KEY",
+    "PROP_MQTT_USERNAME",
+    "MQTTv5",
+    "MQTTv31",
+    "MQTTv311",
+    "MqttClient",
+    "MqttConnectionConfig",
+    "MqttMessage",
+]
 
 # ------------------------------------------------------------------------------
 
@@ -63,6 +83,125 @@ MqttMessage = paho.MQTTMessage
 MQTTv31 = paho.MQTTv31
 MQTTv311 = paho.MQTTv311
 MQTTv5 = paho.MQTTv5
+
+PROP_MQTT_HOST = "mqtt.host"
+""" Host name of the MQTT broker (``localhost`` by default) """
+
+PROP_MQTT_PORT = "mqtt.port"
+""" Port of the MQTT broker (1883 by default, 8883 with TLS) """
+
+PROP_MQTT_KEEPALIVE = "mqtt.keepalive"
+""" Maximum period in seconds between two exchanges with the broker (60 by default) """
+
+PROP_MQTT_CLIENT_ID = "mqtt.client_id"
+""" MQTT client ID (a random one by default): it must be unique on the broker """
+
+PROP_MQTT_USERNAME = "mqtt.username"
+""" User name to authenticate on the broker """
+
+PROP_MQTT_PASSWORD = "mqtt.password"
+""" Password to authenticate on the broker: always declared as a hidden property """
+
+PROP_MQTT_TLS = "mqtt.tls"
+""" If true, connect using TLS, implied by the other ``mqtt.tls.*`` properties """
+
+PROP_MQTT_TLS_CA = "mqtt.tls.ca_file"
+""" Certificate authorities trusted to verify the broker (the system ones by default) """
+
+PROP_MQTT_TLS_CERT = "mqtt.tls.cert_file"
+""" Client certificate file (PEM) """
+
+PROP_MQTT_TLS_KEY = "mqtt.tls.key_file"
+""" Private key file (PEM) of the client certificate, if not in the certificate file """
+
+
+@dataclass(frozen=True, kw_only=True)
+class MqttConnectionConfig:
+    """
+    Configuration of the connection to an MQTT broker, shared by all the MQTT
+    components of Pelix.
+
+    The broker certificate and host name are always verified when TLS is used.
+    """
+
+    host: str = "localhost"
+    port: int | None = None
+    keepalive: int = 60
+    client_id: str | None = None
+    username: str | None = None
+    password: str | None = field(default=None, repr=False)
+    tls: bool = False
+    ca_file: str | None = None
+    cert_file: str | None = None
+    key_file: str | None = None
+
+    @classmethod
+    def from_properties(
+        cls, properties: Mapping[str, Any], password: str | None = None
+    ) -> "MqttConnectionConfig":
+        """
+        Reads the ``mqtt.*`` entries of the given properties
+
+        :param properties: Component properties
+        :param password: Value of the hidden ``mqtt.password`` property
+        :return: The connection configuration
+        """
+        tls = properties.get(PROP_MQTT_TLS) or False
+        port = properties.get(PROP_MQTT_PORT)
+        return cls(
+            host=properties.get(PROP_MQTT_HOST) or "localhost",
+            port=int(port) if port else None,
+            keepalive=int(properties.get(PROP_MQTT_KEEPALIVE) or 60),
+            client_id=properties.get(PROP_MQTT_CLIENT_ID) or None,
+            username=properties.get(PROP_MQTT_USERNAME) or None,
+            password=password or None,
+            tls=str2bool(tls) if isinstance(tls, str) else bool(tls),
+            ca_file=properties.get(PROP_MQTT_TLS_CA) or None,
+            cert_file=properties.get(PROP_MQTT_TLS_CERT) or None,
+            key_file=properties.get(PROP_MQTT_TLS_KEY) or None,
+        )
+
+    @property
+    def use_tls(self) -> bool:
+        """
+        True if the connection uses TLS
+        """
+        # Giving a TLS file without the flag must not end up in clear text
+        return bool(self.tls or self.ca_file or self.cert_file or self.key_file)
+
+    def make_client(self) -> "MqttClient":
+        """
+        Creates an MQTT client, with credentials and TLS set up
+
+        :return: A disconnected MQTT client
+        :raise OSError: A TLS file can't be read
+        :raise ssl.SSLError: Invalid TLS file
+        """
+        client = MqttClient(self.client_id)
+        if self.username:
+            client.set_credentials(self.username, self.password)
+
+        if self.use_tls:
+            # Paho requires the certificate and verifies the host name by default
+            client.tls_set(ca_certs=self.ca_file, certfile=self.cert_file, keyfile=self.key_file)
+
+        return client
+
+    def connect(self, client: "MqttClient") -> None:
+        """
+        Connects the given client to the configured broker, in the background
+
+        :param client: A client made by :meth:`make_client`
+        """
+        port = self.port or (8883 if self.use_tls else 1883)
+        _logger.debug(
+            "Connecting to MQTT broker %s:%d (TLS: %s, user: %s)",
+            self.host,
+            port,
+            self.use_tls,
+            self.username,
+        )
+        client.connect(self.host, port, self.keepalive)
 
 
 class MqttClient:

@@ -36,8 +36,17 @@ from typing import Any
 import pelix.remote
 from pelix import constants
 from pelix.framework import BundleContext
-from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
-from pelix.misc.mqtt_client import MqttClient, MqttMessage
+from pelix.ipopo import constants as ipopo_constants
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    HiddenProperty,
+    Invalidate,
+    Property,
+    Provides,
+    Requires,
+    ValidateComponent,
+)
+from pelix.misc.mqtt_client import PROP_MQTT_PASSWORD, MqttClient, MqttConnectionConfig, MqttMessage
 from pelix.remote import beans
 from pelix.remote.edef_io import EDEFReader, EDEFWriter
 from pelix.utilities import to_bytes, to_str
@@ -72,8 +81,7 @@ ENDPOINT_EVENTS = (EVENT_ADD, EVENT_UPDATE, EVENT_REMOVE)
 @Provides(pelix.remote.RemoteServiceExportEndpointListener, "_controller")
 @Requires("_dispatcher", pelix.remote.RemoteServiceDispatcher)
 @Requires("_registry", pelix.remote.RemoteServiceRegistry)
-@Property("_host", "mqtt.host", "localhost")
-@Property("_port", "mqtt.port", 1883)
+@HiddenProperty("_mqtt_password", PROP_MQTT_PASSWORD, None)
 @Property("_prefix", "topic.prefix", "pelix/{appid}/remote-services")
 @Property("_appid", "application.id", None)
 class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
@@ -96,9 +104,8 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         # Framework UID
         self._framework_uid: str = ""
 
-        # MQTT server properties
-        self._host = "localhost"
-        self._port = 1883
+        # MQTT broker password (hidden property)
+        self._mqtt_password: str | None = None
 
         # MQTT topic Properties
         self._prefix = ""
@@ -110,8 +117,8 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         # Real prefix
         self._real_prefix = ""
 
-    @Validate
-    def _validate(self, context: BundleContext) -> None:
+    @ValidateComponent(ipopo_constants.ARG_BUNDLE_CONTEXT, ipopo_constants.ARG_PROPERTIES)
+    def _validate(self, context: BundleContext, properties: dict[str, Any]) -> None:
         """
         Component validated
         """
@@ -127,7 +134,8 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
             raise ValueError(f"A Framework UID must be set with property {constants.FRAMEWORK_UID}")
 
         # Create the MQTT client
-        self.__mqtt = MqttClient()
+        config = MqttConnectionConfig.from_properties(properties, self._mqtt_password)
+        self.__mqtt = config.make_client()
 
         # Customize callbacks
         self.__mqtt.on_connect = self.__on_connect
@@ -138,7 +146,7 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         self.__mqtt.set_will(self._make_topic(EVENT_LOST), to_bytes(self._framework_uid), qos=2)
 
         # Prepare the connection
-        self.__mqtt.connect(self._host, self._port)
+        config.connect(self.__mqtt)
 
     @Invalidate
     def _invalidate(self, _: BundleContext) -> None:

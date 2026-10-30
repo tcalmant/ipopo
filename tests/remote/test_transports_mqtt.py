@@ -37,7 +37,14 @@ from pelix.framework import Framework, FrameworkFactory, create_framework
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
 from pelix.remote import security
-from tests.mqtt_utilities import find_mqtt_server
+from tests.mqtt_utilities import (
+    MQTT_CERTS,
+    MQTT_PASSWORD,
+    MQTT_PORT_MTLS,
+    MQTT_USERNAME,
+    find_mqtt_server,
+    has_mqtt_secure_listeners,
+)
 from tests.utilities import WrappedProcess
 
 try:
@@ -129,15 +136,16 @@ class RemoteService:
 
 
 def load_framework(
-    app_id: str, mqtt_server: str, transport: str, components: Iterable[tuple[str, str]]
+    app_id: str, mqtt_props: dict[str, Any], transport: str, components: Iterable[tuple[str, str]]
 ) -> Framework:
     """
     Starts a Pelix framework in the local process
 
     :param app_id: Application ID
-    :param mqtt_server: Host of the MQTT broker to use. It is given explicitly as
-                        the peer process is spawned, i.e. it reimports this module:
-                        looking for the broker on its own could give another result
+    :param mqtt_props: Properties of the connection to the MQTT broker. They are
+                       given explicitly as the peer process is spawned, i.e. it
+                       reimports this module: looking for the broker on its own
+                       could give another result
     :param transport: Name of the transport bundle to install
     :param components: Tuples (factory, name) of instances to start
     """
@@ -158,12 +166,12 @@ def load_framework(
         ipopo.instantiate(
             pelix.remote.FACTORY_DISCOVERY_MQTT,
             "mqtt-discovery",
-            {"mqtt.host": mqtt_server, "application.id": app_id},
+            {**mqtt_props, "application.id": app_id},
         )
 
         # Start other components
         for factory, name in components:
-            ipopo.instantiate(factory, name, {"mqtt.host": mqtt_server})
+            ipopo.instantiate(factory, name, dict(mqtt_props))
 
     return framework
 
@@ -171,7 +179,7 @@ def load_framework(
 def export_framework(
     state_queue: Queue,
     app_id: str,
-    mqtt_server: str,
+    mqtt_props: dict[str, Any],
     transport: str,
     components: Iterable[tuple[str, str]],
 ) -> None:
@@ -180,13 +188,13 @@ def export_framework(
 
     :param state_queue: Queue to store status
     :param app_id: Application ID
-    :param mqtt_server: Host of the MQTT broker to use
+    :param mqtt_props: Properties of the connection to the MQTT broker
     :param transport: Name of the transport bundle to install
     :param components: Tuples (factory, name) of instances to start
     """
     try:
         # Load the framework
-        framework = load_framework(app_id, mqtt_server, transport, components)
+        framework = load_framework(app_id, mqtt_props, transport, components)
         context = framework.get_bundle_context()
 
         # Register the exported service
@@ -221,11 +229,17 @@ class MqttTransportsTest(unittest.TestCase):
     """
 
     def __run_test(
-        self, transport_bundle: str, exporter_factory: str, importer_factory: str, test_kwargs: bool = True
+        self,
+        mqtt_props: dict[str, Any],
+        transport_bundle: str,
+        exporter_factory: str,
+        importer_factory: str,
+        test_kwargs: bool = True,
     ) -> None:
         """
         Runs a remote service call test
 
+        :param mqtt_props: Properties of the connection to the MQTT broker
         :param transport_bundle: Transport implementation bundle to use
         :param exporter_factory: Name of the RS exporter factory
         :param importer_factory: Name of the RS importer factory
@@ -233,8 +247,6 @@ class MqttTransportsTest(unittest.TestCase):
         :raise queue.Empty: Peer took to long to answer
         :raise ValueError: Test failed
         """
-        assert MQTT_SERVER is not None
-
         # Define components
         components = [(exporter_factory, "rs-exporter"), (importer_factory, "rs-importer")]
 
@@ -243,7 +255,7 @@ class MqttTransportsTest(unittest.TestCase):
         status_queue = Queue()
         peer = WrappedProcess(
             target=export_framework,
-            args=(status_queue, APP_ID, MQTT_SERVER, transport_bundle, components),
+            args=(status_queue, APP_ID, mqtt_props, transport_bundle, components),
         )
         peer.start()
 
@@ -254,8 +266,12 @@ class MqttTransportsTest(unittest.TestCase):
             self.assertEqual(state, "ready")
 
             # Load the local framework (after the fork)
-            framework = load_framework(APP_ID, MQTT_SERVER, transport_bundle, components)
+            framework = load_framework(APP_ID, mqtt_props, transport_bundle, components)
             context = framework.get_bundle_context()
+
+            # The broker password is never a service property
+            for any_ref in context.get_all_service_references(None) or []:
+                self.assertNotIn(MQTT_PASSWORD, repr(any_ref.get_properties()))
 
             # Look for the remote service
             for _ in range(60):
@@ -355,8 +371,40 @@ class MqttTransportsTest(unittest.TestCase):
         """
         Tests the MQTT-RPC transport
         """
+        assert MQTT_SERVER is not None
         try:
             self.__run_test(
+                {"mqtt.host": MQTT_SERVER},
+                "pelix.remote.transport.mqtt_rpc",
+                pelix.remote.FACTORY_TRANSPORT_MQTTRPC_EXPORTER,
+                pelix.remote.FACTORY_TRANSPORT_MQTTRPC_IMPORTER,
+                False,
+            )
+        except queue.Empty:
+            # Process error
+            self.fail("Remote framework took to long to reply")
+
+    def test_mqttrpc_secure(self) -> None:
+        """
+        Tests the MQTT-RPC transport and MQTT discovery over TLS, with a
+        client certificate and a password
+        """
+        if not has_mqtt_secure_listeners():
+            self.skipTest("The MQTT broker has no TLS nor password listener")
+
+        assert MQTT_SERVER is not None
+        mqtt_props = {
+            "mqtt.host": MQTT_SERVER,
+            "mqtt.port": MQTT_PORT_MTLS,
+            "mqtt.tls.ca_file": str(MQTT_CERTS / "ca.crt"),
+            "mqtt.tls.cert_file": str(MQTT_CERTS / "client.crt"),
+            "mqtt.tls.key_file": str(MQTT_CERTS / "client.key"),
+            "mqtt.username": MQTT_USERNAME,
+            "mqtt.password": MQTT_PASSWORD,
+        }
+        try:
+            self.__run_test(
+                mqtt_props,
                 "pelix.remote.transport.mqtt_rpc",
                 pelix.remote.FACTORY_TRANSPORT_MQTTRPC_EXPORTER,
                 pelix.remote.FACTORY_TRANSPORT_MQTTRPC_IMPORTER,

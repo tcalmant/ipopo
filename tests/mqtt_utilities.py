@@ -20,6 +20,8 @@ Utility methods for MQTT tests
     limitations under the License.
 """
 
+import pathlib
+import socket
 import unittest
 from threading import Event
 
@@ -43,6 +45,40 @@ Public brokers must not be used as a fallback: tests would publish their content
 on the Internet, depend on a third party, and each process looking for a server
 on its own could end up on a different broker than its peers.
 """
+
+MQTT_CERTS = pathlib.Path(__file__).parent.parent / "tests-infra" / "mqtt" / "certs"
+""" Folder of the test CA and client certificate, trusted by the TLS listeners of the broker """
+
+
+def _read_broker_secrets() -> dict[str, str]:
+    """
+    Reads the user name and password made by ``tests-infra/mqtt/prepare.sh``
+
+    :return: The variables of the ``.env`` file, empty if it is missing
+    """
+    try:
+        lines = (MQTT_CERTS.parent / ".env").read_text(encoding="utf-8").splitlines()
+    except OSError:
+        return {}
+    return dict(line.split("=", 1) for line in lines if "=" in line)
+
+
+_SECRETS = _read_broker_secrets()
+
+MQTT_USERNAME = _SECRETS.get("MQTT_TEST_USERNAME", "")
+""" User name accepted by the password-protected listeners of the broker """
+
+MQTT_PASSWORD = _SECRETS.get("MQTT_TEST_PASSWORD", "")
+""" Password of :data:`MQTT_USERNAME`, generated with the certificates """
+
+MQTT_PORT_PASSWORD = 1884
+""" Plain listener, user name and password required """
+
+MQTT_PORT_TLS = 8883
+""" TLS listener, anonymous """
+
+MQTT_PORT_MTLS = 8884
+""" TLS listener, client certificate, user name and password required """
 
 PUBLICATION_TIMEOUT = 10
 """
@@ -94,3 +130,21 @@ def find_mqtt_server() -> str | None:
         clt.disconnect()
 
     return None
+
+
+def has_mqtt_secure_listeners() -> bool:
+    """
+    Checks if the broker has the TLS and password listeners of tests-infra,
+    missing when it was started from an older configuration or without prepare.sh
+
+    :return: True if all the listeners accept connections, and their secrets exist
+    """
+    if not MQTT_PASSWORD or not (MQTT_CERTS / "ca.crt").exists():
+        return False
+
+    for port in (MQTT_PORT_PASSWORD, MQTT_PORT_TLS, MQTT_PORT_MTLS):
+        try:
+            socket.create_connection((MQTT_SERVER, port), 2).close()
+        except OSError:
+            return False
+    return True

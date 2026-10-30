@@ -23,7 +23,16 @@ except ImportError:
     # Missing requirement: not a fatal error
     raise unittest.SkipTest("MQTT client dependency missing: skip test")
 
-from tests.mqtt_utilities import find_mqtt_server
+from tests.mqtt_utilities import (
+    MQTT_CERTS,
+    MQTT_PASSWORD,
+    MQTT_PORT_MTLS,
+    MQTT_PORT_PASSWORD,
+    MQTT_PORT_TLS,
+    MQTT_USERNAME,
+    find_mqtt_server,
+    has_mqtt_secure_listeners,
+)
 
 # ------------------------------------------------------------------------------
 
@@ -648,6 +657,80 @@ class MqttClientTest(unittest.TestCase):
             # Invalid filters (text after wildcard
             for invalid_filter in ("first/#/fourth", "#/second/#", "#/third/#", "#/fourth"):
                 self.assertFalse(mqtt.MqttClient.topic_matches(invalid_filter, topic))
+
+
+class MqttConnectionConfigTest(unittest.TestCase):
+    """
+    Tests the connection configuration shared by the MQTT components
+    """
+
+    def test_from_properties(self) -> None:
+        """
+        Tests the parsing of the ``mqtt.*`` properties
+        """
+        ca = "/some/ca.crt"
+        cases: list[tuple[dict[str, object], str, int, bool]] = [
+            ({}, "localhost", 1883, False),
+            ({"mqtt.host": "broker", "mqtt.port": "1884"}, "broker", 1884, False),
+            ({"mqtt.tls": True}, "localhost", 8883, True),
+            ({"mqtt.tls": "true"}, "localhost", 8883, True),
+            ({"mqtt.tls": "false"}, "localhost", 1883, False),
+            # A TLS file without the flag must not fall back to clear text
+            ({"mqtt.tls.ca_file": ca}, "localhost", 8883, True),
+            ({"mqtt.tls": False, "mqtt.tls.cert_file": "c.pem", "mqtt.port": 9883}, "localhost", 9883, True),
+        ]
+        for props, host, port, tls in cases:
+            with self.subTest(props=props):
+                config = mqtt.MqttConnectionConfig.from_properties(props, "secret")
+                self.assertEqual(config.host, host)
+                self.assertEqual(config.port or (8883 if config.use_tls else 1883), port)
+                self.assertEqual(config.use_tls, tls)
+                self.assertEqual(config.keepalive, 60)
+                self.assertNotIn("secret", repr(config))
+
+    def test_connect(self) -> None:
+        """
+        Tests the connection to the TLS and password listeners of the broker
+        """
+        if not has_mqtt_secure_listeners():
+            self.skipTest("The MQTT broker has no TLS nor password listener")
+
+        ca = str(MQTT_CERTS / "ca.crt")
+        user = {"mqtt.username": MQTT_USERNAME}
+        mtls = {
+            "mqtt.port": MQTT_PORT_MTLS,
+            "mqtt.tls.ca_file": ca,
+            "mqtt.tls.cert_file": str(MQTT_CERTS / "client.crt"),
+            "mqtt.tls.key_file": str(MQTT_CERTS / "client.key"),
+            **user,
+        }
+        cases: list[tuple[dict[str, object], str | None, bool]] = [
+            ({"mqtt.port": MQTT_PORT_PASSWORD}, None, False),
+            ({"mqtt.port": MQTT_PORT_PASSWORD, **user}, "wrong", False),
+            ({"mqtt.port": MQTT_PORT_PASSWORD, **user}, MQTT_PASSWORD, True),
+            ({"mqtt.tls.ca_file": ca}, None, True),
+            # The broker certificate is checked against the system authorities
+            ({"mqtt.port": MQTT_PORT_TLS, "mqtt.tls": True}, None, False),
+            # Host name not in the broker certificate
+            ({"mqtt.host": "127.0.0.2", "mqtt.tls.ca_file": ca}, None, False),
+            ({**mtls, "mqtt.tls.cert_file": None, "mqtt.tls.key_file": None}, MQTT_PASSWORD, False),
+            (mtls, MQTT_PASSWORD, True),
+        ]
+        for props, password, expected in cases:
+            with self.subTest(props=props, password=password):
+                config = mqtt.MqttConnectionConfig.from_properties(props, password)
+                connected = threading.Event()
+                client = config.make_client()
+                client.on_connect = lambda clt, rc, evt=connected: evt.set() if rc == 0 else None
+                config.connect(client)
+                try:
+                    self.assertEqual(connected.wait(5 if expected else 2), expected)
+                finally:
+                    client.disconnect()
+
+        # Invalid TLS files are refused before connecting
+        with self.assertRaises(OSError):
+            mqtt.MqttConnectionConfig.from_properties({"mqtt.tls.ca_file": "/missing/ca.crt"}).make_client()
 
 
 # ------------------------------------------------------------------------------

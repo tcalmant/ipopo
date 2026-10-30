@@ -42,8 +42,16 @@ from typing import Any
 import pelix.remote
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference
-from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Validate
-from pelix.misc.mqtt_client import MqttClient, MqttMessage
+from pelix.ipopo import constants
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    HiddenProperty,
+    Invalidate,
+    Property,
+    Provides,
+    ValidateComponent,
+)
+from pelix.misc.mqtt_client import PROP_MQTT_PASSWORD, MqttClient, MqttConnectionConfig, MqttMessage
 from pelix.remote import RemoteServiceError
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.transport import commons
@@ -112,8 +120,7 @@ def make_topic(topic: str, suffix: str) -> str:
     pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
     (MQTTRPC_CONFIGURATION,),
 )
-@Property("_host", "mqtt.host", "localhost")
-@Property("_port", "mqtt.port", 1883)
+@HiddenProperty("_mqtt_password", PROP_MQTT_PASSWORD, None)
 class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
     """
     MQTT-RPC Remote Services exporter
@@ -133,15 +140,14 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # Topic to reply to requests
         self.__reply_topic = ""
 
-        # MQTT server
-        self._host = ""
-        self._port = 0
+        # MQTT broker password (hidden property)
+        self._mqtt_password: str | None = None
 
         # MQTT client
         self.__mqtt: MqttClient | None = None
 
-    @Validate
-    def validate(self, context: BundleContext) -> None:
+    @ValidateComponent(constants.ARG_BUNDLE_CONTEXT, constants.ARG_PROPERTIES)
+    def validate(self, context: BundleContext, properties: dict[str, Any] | None = None) -> None:
         """
         Component validated
         """
@@ -155,14 +161,15 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         self.__reply_topic = make_topic(self.__real_topic, TOPIC_RESPONSE)
 
         # Create the MQTT client
-        self.__mqtt = MqttClient()
+        config = MqttConnectionConfig.from_properties(properties or {}, self._mqtt_password)
+        self.__mqtt = config.make_client()
 
         # Customize callbacks
         self.__mqtt.on_connect = self.__on_connect
         self.__mqtt.on_message = self.__on_message
 
         # Prepare the connection
-        self.__mqtt.connect(self._host, self._port)
+        config.connect(self.__mqtt)
 
     @Invalidate
     def invalidate(self, context: BundleContext) -> None:
@@ -392,8 +399,7 @@ class _ServiceCallProxy:
     pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
     (MQTTRPC_CONFIGURATION,),
 )
-@Property("_host", "mqtt.host", "localhost")
-@Property("_port", "mqtt.port", 1883)
+@HiddenProperty("_mqtt_password", PROP_MQTT_PASSWORD, None)
 class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
     """
     MQTT-RPC Remote Services importer
@@ -406,9 +412,8 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         # Call parent
         super().__init__()
 
-        # MQTT server
-        self._host = ""
-        self._port = 0
+        # MQTT broker password (hidden property)
+        self._mqtt_password: str | None = None
 
         # MQTT client
         self.__mqtt: MqttClient | None = None
@@ -542,8 +547,8 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
             # Notify the proxy
             proxy.handle_result(result, error)
 
-    @Validate
-    def validate(self, context: BundleContext) -> None:
+    @ValidateComponent(constants.ARG_BUNDLE_CONTEXT, constants.ARG_PROPERTIES)
+    def validate(self, context: BundleContext, properties: dict[str, Any] | None = None) -> None:
         """
         Component validated
         """
@@ -551,13 +556,14 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         super().validate(context)
 
         # Create the MQTT client
-        self.__mqtt = MqttClient()
+        config = MqttConnectionConfig.from_properties(properties or {}, self._mqtt_password)
+        self.__mqtt = config.make_client()
 
         # Customize callbacks
         self.__mqtt.on_message = self.__on_message
 
         # Prepare the connection
-        self.__mqtt.connect(self._host, self._port)
+        config.connect(self.__mqtt)
 
     @Invalidate
     def invalidate(self, context: BundleContext) -> None:
