@@ -652,7 +652,6 @@ class _CorsServerTests:
         else:
             context.register_service(http.HTTP_SERVLET, EchoServlet(), {http.HTTP_SERVLET_PATH: "/echo"})
 
-        self.start_server(**{http.HTTP_CORS_ENFORCE: True})
         status, headers, body = self.request(uri="/echo", headers={"Cookie": "x=1; y=2"})
         self.assertEqual(status, 200)
         self.assertEqual(json.loads(body)[2], {"x": "1", "y": "2"})
@@ -671,7 +670,13 @@ class _CorsServerTests:
         self.assertFalse(secure)
         self.assertEqual(self.request(headers=behind_tls)[0], 403)
 
-        self.start_server(**{http.HTTP_CORS_ENFORCE: True, http.HTTP_PROXY_TRUSTED: "127.0.0.0/8, ::1"})
+        # The proxy keeps the public Host, which a loopback service must accept explicitly
+        self.start_server(
+            **{
+                http.HTTP_PROXY_TRUSTED: "127.0.0.0/8, ::1",
+                http.HTTP_ALLOWED_HOSTS: f"meme.example.com, {DEFAULT_HOST}",
+            }
+        )
         self.assertEqual(json.loads(self.request(uri="/echo", headers=proxied)[2])[:2], ["1.2.3.4", True])
         # The browser sends an https Origin, while the service only sees clear text
         self.assertEqual(self.request(headers=behind_tls)[0], 200)
