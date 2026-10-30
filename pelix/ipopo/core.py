@@ -449,13 +449,16 @@ class _IPopoService(IPopoService):
             except KeyError:
                 pass
 
-    def _fire_ipopo_event(self, kind: int, factory_name: str, instance_name: str | None = None) -> None:
+    def _fire_ipopo_event(
+        self, kind: int, factory_name: str, instance_name: str | None = None, field: str | None = None
+    ) -> None:
         """
         Triggers an iPOPO event
 
         :param kind: Kind of event
         :param factory_name: Name of the factory associated to the event
         :param instance_name: Name of the component instance associated to the event
+        :param field: Name of the injected field (BOUND and UNBOUND events)
         """
         with self.__listeners_lock:
             # Use a copy of the list of listeners
@@ -463,7 +466,7 @@ class _IPopoService(IPopoService):
 
         for listener in listeners:
             try:
-                listener.handle_ipopo_event(constants.IPopoEvent(kind, factory_name, instance_name))
+                listener.handle_ipopo_event(constants.IPopoEvent(kind, factory_name, instance_name, field))
             except:  # noqa: E722
                 _logger.exception("Error calling an iPOPO event handler")
 

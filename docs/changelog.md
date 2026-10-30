@@ -252,6 +252,9 @@ Unreleased
   and message as strings), the list of its `unsatisfied` requirements and the
   `valid` flag of each dependency. The new `get_instance_error()` method
   returns the exception object. The shell command `ipopo.instance` prints them
+* The `IPopoEvent.BOUND` and `IPopoEvent.UNBOUND` events, declared but never
+  sent, are now fired when a service is injected in or removed from a field of a
+  component. `IPopoEvent.get_field()` gives the field name
 * Added the `@Modified` callback decorator, the counterpart of the `modified`
   method of OSGi Declarative Services: `reconfigure()`, and thus an update of
   the Configuration Admin configuration of a component, gives it the new and

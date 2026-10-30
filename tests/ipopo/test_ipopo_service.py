@@ -288,6 +288,38 @@ class IPopoServiceTest(unittest.TestCase):
         self.assertRaises(TypeError, self.ipopo.instantiate, FACTORY_2, INSTANCE)
         log_on()
 
+    def test_bound_unbound_events(self):
+        """
+        Tests the BOUND and UNBOUND events, with the injected field
+        """
+        assert self.ipopo is not None, "iPOPO service not found"
+        context = self.framework.get_bundle_context()
+        events: list[tuple[int, str | None, str | None]] = []
+
+        class Listener:
+            def handle_ipopo_event(self, event):
+                events.append((event.get_kind(), event.get_component_name(), event.get_field()))
+
+        @decorators.ComponentFactory("bound-factory")
+        @decorators.Requires("dep", "bound.spec")
+        class Consumer:
+            pass
+
+        self.ipopo.register_factory(context, Consumer)
+        self.ipopo.add_listener(Listener())
+
+        self.ipopo.instantiate("bound-factory", "consumer")
+        reg = context.register_service("bound.spec", object(), {})
+        reg.unregister()
+
+        self.assertListEqual(
+            [
+                (IPopoEvent.BOUND, "consumer", "dep"),
+                (IPopoEvent.UNBOUND, "consumer", "dep"),
+            ],
+            [e for e in events if e[0] in (IPopoEvent.BOUND, IPopoEvent.UNBOUND)],
+        )
+
     def test_ipopo_events(self):
         """
         Tests iPOPO event listener

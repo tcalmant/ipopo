@@ -291,10 +291,10 @@ class IPopoEvent:
     """ A component has been invalidated """
 
     BOUND = 5
-    """ A reference has been injected in the component """
+    """ A service has been injected in a field of the component (see :meth:`get_field`) """
 
     UNBOUND = 6
-    """ A reference has been removed from the component """
+    """ A service has been removed from a field of the component (see :meth:`get_field`) """
 
     KILLED = 9
     """ A component has been killed (removed from the list of instances) """
@@ -302,14 +302,18 @@ class IPopoEvent:
     UNREGISTERED = 10
     """ A component factory has been unregistered """
 
-    def __init__(self, kind: int, factory_name: str, component_name: str | None) -> None:
+    def __init__(
+        self, kind: int, factory_name: str, component_name: str | None, field: str | None = None
+    ) -> None:
         """
         Sets up the iPOPO event
 
         :param kind: Kind of event
         :param factory_name: Name of the factory associated to the event
         :param component_name: Name of the component instance associated to the event
+        :param field: Name of the injected field, for ``BOUND`` and ``UNBOUND`` events
         """
+        self.__field = field
         self.__kind = kind
         self.__factory_name = factory_name
         self.__component_name = component_name
@@ -321,6 +325,15 @@ class IPopoEvent:
         :return: the name of the component
         """
         return self.__component_name
+
+    def get_field(self) -> str | None:
+        """
+        Retrieves the name of the field concerned by a ``BOUND`` or ``UNBOUND``
+        event
+
+        :return: The field name, None for other kinds of event
+        """
+        return self.__field
 
     def get_factory_name(self) -> str:
         """

@@ -897,6 +897,16 @@ class StoredInstance:
 
         return result
 
+    def __fire_binding_event(self, kind: int, field: str) -> None:
+        """
+        Triggers a BOUND or UNBOUND iPOPO event
+
+        :param kind: Kind of event
+        :param field: The injected field
+        """
+        if self._ipopo_service is not None:
+            self._ipopo_service._fire_ipopo_event(kind, self.factory_name, self.name, field)
+
     def __set_binding(
         self, dependency: handlers_const.DependencyHandler, service: T, reference: ServiceReference[T]
     ) -> None:
@@ -923,6 +933,8 @@ class StoredInstance:
             service,
             reference,
         )
+
+        self.__fire_binding_event(constants.IPopoEvent.BOUND, field)
 
     def __update_binding(
         self,
@@ -987,6 +999,8 @@ class StoredInstance:
 
         # Update the injected field
         setattr(self.instance, field, dependency.get_value())
+
+        self.__fire_binding_event(constants.IPopoEvent.UNBOUND, field)
 
         # Unget the service
         self.bundle_context.unget_service(reference)
