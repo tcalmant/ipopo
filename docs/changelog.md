@@ -85,6 +85,9 @@ Unreleased
 * Basic HTTP service: a negative `Content-Length` is handled as an invalid
   one, i.e. an empty body. `read_data()` read the whole stream, ignoring
   `pelix.http.max_body_size`
+* Basic HTTPS service: the TLS handshake is done by the thread of the client,
+  under `pelix.http.socket_timeout`, instead of in the thread accepting the
+  connections, where a client which never completed it blocked all the others
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
 

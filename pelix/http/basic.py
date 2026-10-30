@@ -30,6 +30,7 @@ Python library.
 
 import logging
 import socket
+import ssl
 import threading
 import traceback
 from http.server import BaseHTTPRequestHandler, HTTPServer
@@ -326,6 +327,22 @@ class _RequestHandler(BaseHTTPRequestHandler):
         timeout = self._service.get_socket_timeout()
         if timeout is not None:
             self.connection.settimeout(timeout)
+
+    def handle(self) -> None:
+        """
+        Does the TLS handshake, under the socket timeout, before handling the
+        requests of the connection
+        """
+        if isinstance(self.connection, ssl.SSLSocket):
+            try:
+                self.connection.do_handshake()
+            except OSError as ex:
+                self._service.log(
+                    logging.WARNING, "TLS handshake failed with %s: %s", self.client_address, ex
+                )
+                return
+
+        super().handle()
 
     def __getattr__(self, name: str) -> Any:
         """

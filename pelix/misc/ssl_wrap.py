@@ -47,7 +47,10 @@ def wrap_socket(
     socket: socket.socket, certfile: str, keyfile: str, password: str | None = None
 ) -> socket.socket:
     """
-    Wraps an existing TCP socket and returns an SSLSocket object
+    Wraps an existing TCP socket and returns an SSLSocket object.
+
+    The handshake is not done on connection: call ``do_handshake()`` on the
+    accepted sockets, or let their first read or write do it.
 
     :param socket: The socket to wrap
     :param certfile: The server certificate file
@@ -76,5 +79,7 @@ def wrap_socket(
         # Load the certificate, without the password argument
         context.load_cert_chain(certfile, keyfile)
 
-    # Return the wrapped socket
-    return context.wrap_socket(socket, server_side=True)
+    # The sockets accepted by a wrapped server socket inherit this flag: their
+    # handshake must be done by their own thread, or a client which never
+    # completes it blocks accept()
+    return context.wrap_socket(socket, server_side=True, do_handshake_on_connect=False)
