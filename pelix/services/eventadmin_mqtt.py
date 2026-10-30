@@ -26,6 +26,7 @@ MQTT
     limitations under the License.
 """
 
+import fnmatch
 import json
 import logging
 from typing import TYPE_CHECKING, Any, cast
@@ -33,7 +34,7 @@ from typing import TYPE_CHECKING, Any, cast
 from pelix import constants, services
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
 from pelix.misc.mqtt_client import MqttClient, MqttMessage
-from pelix.utilities import to_str
+from pelix.utilities import to_iterable, to_str
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
@@ -62,13 +63,16 @@ EVENT_PROP_SOURCE_UID = "pelix.eventadmin.mqtt.source"
 EVENT_PROP_STARTING_SLASH = "pelix.eventadmin.mqtt.start_slash"
 """ Flag to indicate that the EventAdmin topic starts with a '/' """
 
+# Security audit events must not leak to the broker nor be forged by its clients
+_PRIVATE_TOPIC_PREFIX = "pelix/security/"
+
 # ------------------------------------------------------------------------------
 
 
 @ComponentFactory(services.FACTORY_EVENT_ADMIN_MQTT)
 @Provides(services.ServiceEventHandler, "_controller")
 @Requires("_event", services.EventAdmin)
-@Property("_event_topics", services.PROP_EVENT_TOPICS, "*")
+@Property("_event_topics", services.PROP_EVENT_TOPICS, None)
 @Property("_host", "mqtt.host", "localhost")
 @Property("_port", "mqtt.port", 1883)
 @Property("_mqtt_topic", "mqtt.topic.prefix", DEFAULT_MQTT_TOPIC)
@@ -152,6 +156,18 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
         """
         return f"{self._mqtt_topic}/{suffix}"
 
+    def _is_shared(self, topic: str) -> bool:
+        """
+        Checks if the given EventAdmin topic can go through the bridge
+
+        :param topic: An EventAdmin topic
+        :return: True if the topic matches the configured ones and isn't private
+        """
+        if topic.lstrip("/").startswith(_PRIVATE_TOPIC_PREFIX):
+            return False
+
+        return any(fnmatch.fnmatch(topic, shared) for shared in to_iterable(self._event_topics, False) or ())
+
     def __on_connect(self, client: MqttClient, result_code: int) -> None:
         """
         Client connected to the server
@@ -160,8 +176,9 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
             # Connection is OK, subscribe to the topic
             client.subscribe(self._make_topic("#"))
 
-            # Provide the service
-            self._controller = True
+            # Provide the service only if some topics are shared, as EventAdmin
+            # considers a handler without topics as accepting all of them
+            self._controller = bool(to_iterable(self._event_topics, False))
 
     def __on_disconnect(self, client: MqttClient, result_code: int) -> None:
         """
@@ -193,6 +210,9 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
         elif services.EVENT_PROP_PROPAGATE not in properties:
             # Propagation flag is not set, ignore
             _logger.warning("No propagate")
+            return
+        elif not self._is_shared(topic):
+            # Not a topic to share
             return
 
         # Remove starting '/' in the event, and set up the flag
@@ -249,6 +269,10 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
         if properties.pop(EVENT_PROP_STARTING_SLASH, False):
             # Topic has a starting '/'
             evt_topic = f"/{evt_topic}"
+
+        if not self._is_shared(evt_topic):
+            _logger.debug("Ignored event from MQTT on a topic not shared: %s", evt_topic)
+            return
 
         # Post the event
         self._event.post(evt_topic, properties)

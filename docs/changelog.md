@@ -113,6 +113,10 @@ Unreleased
   name
 * HTTP services: an invalid `pelix.http.socket_timeout` gives the default
   timeout (60 seconds) with a warning, instead of removing the timeout
+* **Breaking:** the EventAdmin MQTT bridge shares no topic by default: set its
+  `event.topics` property (it was `*`). The messages received from the MQTT
+  server are only posted as events when their topic matches `event.topics`,
+  and the `pelix/security/*` events never go through the bridge, either way
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
 
