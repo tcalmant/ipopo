@@ -46,7 +46,7 @@ Test files are named `test_*.py` (not `*_test.py`), mirroring the module they co
 
 Some test suites (parts of `tests/remote`, `tests/rsa`, `tests/misc`, `tests/services`, `tests/shell`)
 depend on external services (etcd3, an MQTT broker, Redis, an XMPP server, ZooKeeper) brought
-up via `tests-infra/compose.yaml` (`docker compose -f tests-infra/compose.yaml up -d`, then
+up via `tests-infra/compose.yaml` (`sh ./tests-infra/mqtt/prepare.sh`, then `docker compose -f tests-infra/compose.yaml up -d`, then
 `sh ./tests-infra/xmpp/docker_register_users.sh`). Without that infrastructure, those tests will fail
 or be skipped depending on the module.
 

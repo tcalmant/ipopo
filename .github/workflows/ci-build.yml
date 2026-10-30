@@ -72,6 +72,7 @@ jobs:
 
       - name: Start test infrastructure
         run: |
+          sh ./tests-infra/mqtt/prepare.sh
           docker compose -f tests-infra/compose.yaml up -d
           sh ./tests-infra/xmpp/docker_register_users.sh
 
