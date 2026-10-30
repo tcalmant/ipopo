@@ -294,6 +294,14 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
             for ref in infos["bindings"]:
                 lines.append(f"\t\t\t{ref}")
 
+        # Requirements preventing the validation
+        if details["unsatisfied"]:
+            lines.append("Unsatisfied requirements:")
+            lines.extend(
+                f"\t{item['field']}: {requirement_specifications_to_str(item)} (filter: {item['filter']})"
+                for item in details["unsatisfied"]
+            )
+
         # Properties
         lines.append("Properties:")
         lines.append(self._utils.make_table(("Key", "Value"), sorted(details["properties"].items()), "\t"))
@@ -301,6 +309,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         # Error trace, for erroneous components
         error_trace = details["error_trace"]
         if error_trace:
+            lines.append(f"Error: {details['error']['type']}: {details['error']['message']}")
             lines.append("Error trace:")
             lines.append(error_trace)
 

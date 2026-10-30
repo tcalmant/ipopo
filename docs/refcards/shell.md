@@ -496,6 +496,9 @@ usage information.
 | `pelix.shell.log` | Looks into the Log Service (provided by `pelix.misc.log`). See [](./log.rst). |
 | `pelix.shell.report` | Generates framework state reports. See [](./shell_report.md). |
 
+The `ipopo.instance` command shows the requirements which prevent a component
+from being validated, and the exception type and message of an erroneous one.
+
 ## How to provide commands
 
 ### Shell Command service

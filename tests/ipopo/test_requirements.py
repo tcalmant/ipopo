@@ -11,7 +11,7 @@ import unittest
 from pelix.framework import Bundle, FrameworkFactory
 from pelix.ipopo import constants
 from pelix.ipopo.constants import IPopoEvent
-from pelix.ipopo.decorators import ComponentFactory, Property, Requires
+from pelix.ipopo.decorators import ComponentFactory, Requires
 from tests import log_off, log_on
 from tests.interfaces import IEchoService
 from tests.ipopo import install_bundle, install_ipopo
@@ -669,7 +669,6 @@ class RequirementTest(unittest.TestCase):
         self.assertIsNone(consumer.service, "Service still injected")
         consumer.reset()
 
-
     def testInheritedRequires(self):
         """
         Tests that @Requires declared on parent classes (factory or not)
@@ -711,6 +710,7 @@ class RequirementTest(unittest.TestCase):
                 instance = self.ipopo.instantiate(factory, f"{factory}.instance")
                 for field, value in expected.items():
                     self.assertEqual(value, getattr(instance, field), field)
+
 
 # ------------------------------------------------------------------------------
 

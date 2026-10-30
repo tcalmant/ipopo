@@ -34,6 +34,30 @@ KILLED       The component has been invalidated and won't be usable again
 ERRONEOUS    The component raised an error during its validation. It is not destroyed and a validation can be retried manually
 ============ ==================================================================
 
+Why a component is not valid
+****************************
+
+``get_instance_details()`` explains the state of a component with plain data
+(strings, lists and dictionaries, usable as JSON):
+
+* ``unsatisfied``: the requirements which are not valid, each with its
+  ``field``, ``specification``, ``specifications``, ``filter``, ``optional``
+  and ``aggregate``. They are the reason why an ``INVALID`` component is not
+  validated
+* ``error``: for an ``ERRONEOUS`` component, the ``type`` and the ``message``
+  of the exception raised by the validation callback (``None`` otherwise).
+  ``error_trace`` still gives the formatted traceback
+* ``dependencies[field]["valid"]``: the state of each requirement handler
+
+``get_instance_error()`` returns the exception object itself, e.g. to read a
+reason code carried by an attribute of the exception. It keeps the traceback
+and its frames alive until the next validation attempt or the death of the
+component.
+
+``get_factory_details()["services"]`` lists the specifications provided by the
+components of a factory. The shell commands ``ipopo.instance`` and
+``ipopo.factory`` print the same information.
+
 API
 ---
 
@@ -63,7 +87,7 @@ components and factories:
 
 .. autoclass:: pelix.ipopo.constants.IPopoService
    :members: get_instances, get_instance_details, get_factories,
-             get_factory_details, instantiate, kill, retry_erroneous
+             get_instance_error, get_factory_details, instantiate, kill, retry_erroneous
 
 Listening to components events
 ******************************

@@ -243,6 +243,15 @@ Unreleased
 
 ### iPOPO
 
+* Inherited `@Requires` (parent class declaring requirements, with or without
+  `@ComponentFactory`) are covered by a test (#99)
+* A failing `@Instantiate` constructor no longer prevents the instantiation of
+  the components of the next factories of the bundle: the error is logged with
+  the component and factory names
+* `get_instance_details()` gives the `error` of an `ERRONEOUS` component (type
+  and message as strings), the list of its `unsatisfied` requirements and the
+  `valid` flag of each dependency. The new `get_instance_error()` method
+  returns the exception object. The shell command `ipopo.instance` prints them
 * Added the `@Modified` callback decorator, the counterpart of the `modified`
   method of OSGi Declarative Services: `reconfigure()`, and thus an update of
   the Configuration Admin configuration of a component, gives it the new and

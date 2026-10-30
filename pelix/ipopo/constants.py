@@ -548,6 +548,8 @@ class IPopoService(Protocol):
             or not
           * ``aggregate``: A flag indicating whether the requirement is a set
             of services or not
+          * ``valid``: A flag indicating whether the handler is valid (its
+            requirement is satisfied or optional)
           * ``binding``: A list of the ServiceReference the component is bound
             to
 
@@ -555,8 +557,30 @@ class IPopoService(Protocol):
           component. The value is converted to its string representation, to
           avoid unexpected behaviours.
 
+        * ``unsatisfied``: List of the dependencies which are not valid, i.e.
+          the reason why the component is not validated. Each entry is a
+          dictionary with the keys ``field``, ``specification``,
+          ``specifications``, ``filter``, ``optional`` and ``aggregate``, as in
+          ``dependencies``
+        * ``error``: ``None``, or for a component whose last validation failed
+          with an exception, a dictionary with the strings ``type`` (module
+          qualified exception class) and ``message``. The exception itself is
+          returned by ``get_instance_error()``
+        * ``error_trace``: Formatted traceback of the last validation error, or ``None``
+
         :param name: The name of a component instance
         :return: A dictionary of details
+        :raise ValueError: Invalid component name
+        """
+        ...
+
+    def get_instance_error(self, name: str) -> BaseException | None:
+        """
+        Returns the exception which made the last validation of the given
+        component fail, or None.
+
+        :param name: The name of a component instance
+        :return: The last validation exception, or None
         :raise ValueError: Invalid component name
         """
         ...

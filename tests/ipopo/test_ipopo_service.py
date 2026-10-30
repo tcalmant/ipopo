@@ -12,6 +12,7 @@ from pelix.framework import FrameworkFactory
 from pelix.ipopo import decorators
 from pelix.ipopo.constants import IPopoEvent
 from tests import log_off, log_on
+from tests.interfaces import IEchoService
 from tests.ipopo import install_bundle, install_ipopo
 from tests.ipopo.ipopo_bundle import BASIC_INSTANCE
 
@@ -110,6 +111,7 @@ class IPopoServiceTest(unittest.TestCase):
         A failing @Instantiate must not prevent the next factories to be
         registered and instantiated
         """
+        assert self.ipopo is not None
         log_off()
         try:
             install_bundle(self.framework, "tests.ipopo.instantiate_failure_bundle")
@@ -171,6 +173,55 @@ class IPopoServiceTest(unittest.TestCase):
         self.assertIs(type(details["state"]), int, "Component state must be an integer")
         self.assertIs(type(details["services"]), dict, "Services details must be in a dictionary")
         self.assertIs(type(details["dependencies"]), dict, "Dependencies details must be in a dictionary")
+
+    def test_instance_details_error_and_unsatisfied(self):
+        """
+        Tests the structured error and the unsatisfied requirements of the
+        instance details
+        """
+        assert self.ipopo is not None
+        module = install_bundle(self.framework)
+
+        # Requirement of B not satisfied: it is the reason of the invalid state
+        self.ipopo.instantiate(module.FACTORY_B, "b")
+        details = self.ipopo.get_instance_details("b")
+        self.assertIsNone(details["error"])
+        self.assertIsNone(self.ipopo.get_instance_error("b"))
+        self.assertEqual(1, len(details["unsatisfied"]))
+        self.assertDictEqual(
+            {
+                "field": "service",
+                "specification": IEchoService.__name__,
+                "specifications": [IEchoService.__name__],
+                "filter": None,
+                "optional": False,
+                "aggregate": False,
+            },
+            details["unsatisfied"][0],
+        )
+
+        # Satisfied once A is there
+        self.ipopo.instantiate(module.FACTORY_A, "a")
+        self.assertListEqual([], self.ipopo.get_instance_details("b")["unsatisfied"])
+
+        # Erroneous component: plain data in the details, object in the method
+        log_off()
+        try:
+            self.ipopo.instantiate(module.FACTORY_ERRONEOUS, "e")
+        finally:
+            log_on()
+        details = self.ipopo.get_instance_details("e")
+        self.assertDictEqual({"type": "builtins.OSError", "message": "Error raised"}, details["error"])
+        error = self.ipopo.get_instance_error("e")
+        self.assertIsInstance(error, OSError)
+        self.assertIn("OSError", details["error_trace"])
+
+        # Cleared by the next validation
+        self.ipopo.retry_erroneous("e", {"erroneous": False})
+        self.assertIsNone(self.ipopo.get_instance_error("e"))
+        self.assertIsNone(self.ipopo.get_instance_details("e")["error"])
+
+        self.assertRaises(ValueError, self.ipopo.get_instance_error, "unknown")
 
     def test_ipopo_start_installed(self):
         """

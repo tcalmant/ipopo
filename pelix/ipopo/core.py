@@ -59,6 +59,9 @@ __all__ = ["BUILTIN_HANDLERS"]
 # Prepare the module logger
 _logger = logging.getLogger("ipopo.core")
 
+# Keys of a dependency description copied in the "unsatisfied" details
+_UNSATISFIED_KEYS = ("specification", "specifications", "filter", "optional", "aggregate")
+
 # Built-in handlers, automatically installed
 BUILTIN_HANDLERS = (
     "pelix.ipopo.handlers.properties",
@@ -1042,12 +1045,25 @@ class _IPopoService(IPopoService):
             or not
           * ``aggregate``: A flag indicating whether the requirement is a set
             of services or not
+          * ``valid``: A flag indicating whether the handler is valid (its
+            requirement is satisfied or optional)
           * ``binding``: A list of the ServiceReference the component is bound
             to
 
         * ``properties``: A dictionary key → value, with all properties of the
           component. The value is converted to its string representation, to
           avoid unexpected behaviours.
+
+        * ``unsatisfied``: List of the dependencies which are not valid, i.e.
+          the reason why the component is not validated. Each entry is a
+          dictionary with the keys ``field``, ``specification``,
+          ``specifications``, ``filter``, ``optional`` and ``aggregate``, as in
+          ``dependencies``
+        * ``error``: ``None``, or for a component whose last validation failed
+          with an exception, a dictionary with the strings ``type`` (module
+          qualified exception class) and ``message``. The exception itself is
+          returned by ``get_instance_error()``
+        * ``error_trace``: Formatted traceback of the last validation error, or ``None``
 
         :param name: The name of a component instance
         :return: A dictionary of details
@@ -1076,6 +1092,14 @@ class _IPopoService(IPopoService):
 
                 # Error details
                 result["error_trace"] = stored_instance.error_trace
+                result["error"] = (
+                    {
+                        "type": f"{type(error).__module__}.{type(error).__qualname__}",
+                        "message": str(error),
+                    }
+                    if (error := stored_instance.error) is not None
+                    else None
+                )
 
                 # Provided service
                 result["services"] = {}
@@ -1097,6 +1121,7 @@ class _IPopoService(IPopoService):
                     # Dependency
                     info = result["dependencies"][dependency.get_field()] = cast(dict[str, Any], {})
                     info["handler"] = type(dependency).__name__
+                    info["valid"] = dependency.is_valid()
 
                     # Requirement
                     req = dependency.requirement
@@ -1111,6 +1136,13 @@ class _IPopoService(IPopoService):
                     # Bindings
                     info["bindings"] = dependency.get_bindings()
 
+                # Requirements preventing the validation
+                result["unsatisfied"] = [
+                    {"field": field, **{key: info.get(key) for key in _UNSATISFIED_KEYS}}
+                    for field, info in result["dependencies"].items()
+                    if not info["valid"]
+                ]
+
                 # Properties
                 if stored_instance.context is not None:
                     properties = stored_instance.context.properties.items()
@@ -1120,6 +1152,22 @@ class _IPopoService(IPopoService):
 
                 # All done
                 return result
+
+    def get_instance_error(self, name: str) -> BaseException | None:
+        """
+        Returns the exception which made the last validation of the given
+        component fail, or None. The exception keeps its traceback alive until
+        the next validation attempt or the death of the component.
+
+        :param name: The name of a component instance
+        :return: The last validation exception, or None
+        :raise ValueError: Invalid component name
+        """
+        with self.__instances_lock:
+            try:
+                return self.__instances[name].error
+            except KeyError:
+                raise ValueError(f"Unknown component: {name}") from None
 
     def get_factories(self) -> list[str]:
         """

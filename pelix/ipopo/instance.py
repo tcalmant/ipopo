@@ -82,6 +82,7 @@ class StoredInstance:
         "_logger",
         "bundle_context",
         "context",
+        "error",
         "error_trace",
         "factory_name",
         "instance",
@@ -145,6 +146,9 @@ class StoredInstance:
 
         # Stack track of validation error
         self.error_trace: str | None = None
+
+        # Last validation exception (keeps its traceback alive until cleared)
+        self.error: BaseException | None = None
 
         # Hidden properties an update has already been refused for: the
         # configuration of a component is resent as a whole on every update
@@ -476,6 +480,7 @@ class StoredInstance:
             # Reset state
             self.state = StoredInstance.INVALID
             self.error_trace = None
+            self.error = None
 
             # Retry
             self.check_lifecycle()
@@ -598,6 +603,7 @@ class StoredInstance:
 
             # Clear the error trace
             self.error_trace = None
+            self.error = None
 
             # Call the handlers
             self.__safe_handlers_callback(handlers_const.Handler.pre_validate)
@@ -794,13 +800,14 @@ class StoredInstance:
 
             # Store the exception as it is a validation error
             self.error_trace = traceback.format_exc()
+            self.error = ex
 
             if ex.needs_stop:
                 # Framework must be stopped...
                 self._logger.error("%s said that the Framework must be stopped.", self.name)
                 self.bundle_context.get_framework().stop()
             return False
-        except:  # noqa: E722
+        except BaseException as ex:
             self._logger.exception(
                 "Component '%s': error calling @ValidateComponent callback",
                 self.name,
@@ -808,6 +815,7 @@ class StoredInstance:
 
             # Store the exception as it is a validation error
             self.error_trace = traceback.format_exc()
+            self.error = ex
 
             return False
 
