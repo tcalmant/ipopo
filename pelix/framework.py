@@ -29,6 +29,7 @@ Pelix is a Python framework that aims to act as OSGi as much as possible
 
 import collections
 import importlib
+import importlib.util
 import inspect
 import logging
 import os
@@ -37,7 +38,8 @@ import sys
 import threading
 import types
 import uuid
-from collections.abc import Callable, Generator, Iterable
+from collections.abc import Callable, Generator, Iterable, Mapping
+from importlib.resources.abc import Traversable
 from typing import (
     Any,
     Generic,
@@ -57,7 +59,9 @@ from pelix.constants import (
     FrameworkException,
     check_specification_name,
 )
+from pelix.internals import resources
 from pelix.internals.events import BundleEvent, ServiceEvent
+from pelix.internals.metadata import read_metadata
 from pelix.internals.registry import (
     BundleListener,
     EventDispatcher,
@@ -188,6 +192,7 @@ class Bundle:
         "__context",
         "__framework",
         "__id",
+        "__metadata",
         "__module",
         "__name",
         "__registered_services",
@@ -220,6 +225,7 @@ class Bundle:
         bundle_id: int,
         name: str,
         module_: types.ModuleType,
+        metadata: Mapping[str, Any] | None = None,
     ) -> None:
         """
         Sets up the bundle descriptor
@@ -228,6 +234,7 @@ class Bundle:
         :param bundle_id: The ID of the bundle in the host framework
         :param name: The bundle symbolic name
         :param module_: The bundle module
+        :param metadata: The metadata of the bundle
         """
         # A re-entrant lock for synchronization
         self._lock = threading.RLock()
@@ -237,6 +244,7 @@ class Bundle:
         self.__id = bundle_id
         self.__module = module_
         self.__name = name
+        self.__metadata: Mapping[str, Any] = metadata or {}
 
         self.__framework = framework
         self._state = Bundle.RESOLVED
@@ -317,6 +325,40 @@ class Bundle:
         """
         return self.__id
 
+    def get_headers(self) -> Mapping[str, Any]:
+        """
+        Retrieves the metadata of the bundle, read when it was installed (or
+        updated) without executing its module
+
+        :return: An immutable mapping, empty if the bundle declares nothing
+        """
+        return self.__metadata
+
+    def get_entry(self, path: str) -> Traversable | None:
+        """
+        Looks for a file or a directory in the resources of the bundle: the
+        files of the package for a package, the ``<module>.res`` directory
+        next to the module otherwise
+
+        :param path: A "/" separated path, relative to the resources root
+        :return: The entry, or None if it doesn't exist
+        :raise ValueError: Absolute path, or path containing ".."
+        """
+        return resources.get_entry(resources.get_root(self.__name, self.__module.__spec__), path)
+
+    def find_entries(self, path: str = "", pattern: str = "*", recurse: bool = False) -> list[str]:
+        """
+        Looks for files in the resources of the bundle
+
+        :param path: Directory to look into, relative to the resources root
+        :param pattern: ``fnmatch`` pattern of the file names
+        :param recurse: If True, looks into the sub-directories too
+        :return: The sorted paths of the files found, relative to the root
+        :raise ValueError: Absolute path, or path containing ".."
+        """
+        root = resources.get_root(self.__name, self.__module.__spec__)
+        return resources.find_entries(root, path, pattern, recurse)
+
     def get_location(self) -> str:
         """
         Retrieves the location of this module
@@ -385,11 +427,16 @@ class Bundle:
 
     def get_version(self) -> str:
         """
-        Retrieves the bundle version, using the ``__version__`` or
-        ``__version_info__`` attributes of its module.
+        Retrieves the bundle version, using the ``version`` of its metadata or
+        the ``__version__`` or ``__version_info__`` attributes of its module.
 
         :return: The bundle version, "0.0.0" by default
         """
+        # Version of the metadata
+        version = cast(str | None, self.__metadata.get("version"))
+        if version:
+            return version
+
         # Get the version value
         version = cast(str | None, getattr(self.__module, "__version__", None))
         if version:
@@ -602,6 +649,15 @@ class Bundle:
                 # Reset module content
                 self.__module.__dict__.clear()
                 self.__module.__dict__.update(old_content)
+
+            else:
+                try:
+                    # The cache is replaced only by a valid reading
+                    self.__metadata = read_metadata(self.__name, self.__module.__spec__)
+                except BundleException:
+                    _logger.exception(
+                        "Invalid metadata after the update of %s: keeping the previous one", self.__name
+                    )
 
             if module_stat is not None:
                 try:
@@ -873,10 +929,14 @@ class Framework(Bundle):
                     # Use the given path in priority
                     sys.path.insert(0, str(path))
 
-                try:
-                    # The module has already been loaded
-                    module_ = sys.modules[name]
-                except KeyError:
+                module_ = sys.modules.get(name)
+
+                # Read the metadata first: an invalid one must not execute the module
+                metadata = read_metadata(
+                    name, module_.__spec__ if module_ else importlib.util.find_spec(name)
+                )
+
+                if module_ is None:
                     # Load the module
                     #  __import__(name) -> package level
                     # import_module -> module level
@@ -898,7 +958,7 @@ class Framework(Bundle):
             bundle_id = self.__next_bundle_id
 
             # Prepare the bundle object and its context
-            bundle = Bundle(self, bundle_id, name, module_)
+            bundle = Bundle(self, bundle_id, name, module_, metadata)
 
             # Store the bundle
             self.__bundles[bundle_id] = bundle
