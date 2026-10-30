@@ -203,6 +203,10 @@ Unreleased
 
 * Added the Typed Event reference card, and updated the EventAdmin, HTTP,
   shell and initial configuration ones
+* The quickstart starts the remote shell on its default address, shows its
+  login prompt, and gives a Unix socket alternative: it listened on `0.0.0.0`
+  without TLS, which the remote shell now refuses
+
 ## iPOPO 3.2.4
 
 :::{admonition} Release Date

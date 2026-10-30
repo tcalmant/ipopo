@@ -162,14 +162,44 @@ $ factories
 | ipopo-shell-commands-factory | Bundle(ID=4, Name=pelix.shell.ipopo)   |
 +------------------------------+----------------------------------------+
 2 factories available
-$ instantiate ipopo-remote-shell-factory rshell pelix.shell.address=0.0.0.0 pelix.shell.port=9000
+$ instantiate ipopo-remote-shell-factory rshell pelix.shell.port=9000
 Component 'rshell' instantiated.
 ```
 
-A remote shell as been started on port 9000 and can be accessed using Netcat:
+A remote shell as been started on port 9000 of `localhost` and can be accessed
+using Netcat. Every TCP client must log in first:
 
 ```
 bash$ nc localhost 9000
+------------------------------------------------------------------------
+** Pelix Shell prompt **
+
+iPOPO Remote Shell
+------------------------------------------------------------------------
+Login:
+```
+
+The login and password are checked by `pelix.security.core` and a credential
+store, like an `.htpasswd` file: without them, nobody can log in (see the
+[remote shell authentication](./refcards/shell.md#remote-shell-authentication)).
+Without TLS, the remote shell refuses to listen on another address than a
+loopback one, so that no password crosses the network in clear text: see the
+[TLS remote shell](./refcards/shell.md#connect-a-tls-remote-shell) to reach it
+from another machine.
+
+To try it without setting up the security layer, the remote shell can listen
+on a Unix socket instead: its clients run by the same user as the framework
+don't log in, like the console UI.
+
+```
+$ kill rshell
+Component 'rshell' killed.
+$ instantiate ipopo-remote-shell-factory rshell pelix.shell.unix.path=/tmp/pelix-shell.sock
+Component 'rshell' instantiated.
+```
+
+```
+bash$ nc -U /tmp/pelix-shell.sock
 ------------------------------------------------------------------------
 ** Pelix Shell prompt **
 
