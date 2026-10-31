@@ -163,6 +163,16 @@ Unreleased
 * Fixed a dead lock of `MqttClient.publish()` when publishing with a QoS of 1
   or 2 from several threads. `MqttClient.wait_publication()` now returns
   `False` when the client is disconnected while waiting
+* `MqttClient` relies on the reconnection of Paho only (delay from 1 to 120
+  seconds), instead of also running its own timer, logs each failed connection
+  as a warning with its cause (TLS errors were silent), and subscribes again
+  to its topics after a reconnection without session
+* `MqttClient.publish()` returns the message ID of the QoS 1 and 2 messages it
+  queues while disconnected, sent on reconnection, instead of `None` although
+  the message was sent later. The queue is bounded by the new
+  `max_queued_messages` argument and `mqtt.max_queued_messages` property
+  (1000 by default)
+* `MqttClient` works with MQTT v5: the constructor raised a `ValueError`
 
 ### HTTP service
 

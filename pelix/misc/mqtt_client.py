@@ -31,6 +31,7 @@ Eclipse Foundation: see http://www.eclipse.org/paho
 
 import logging
 import os
+import sys
 import threading
 import time
 from collections.abc import Callable, Mapping
@@ -55,9 +56,11 @@ __version__ = ".".join(str(x) for x in __version_info__)
 __docformat__ = "restructuredtext en"
 
 __all__ = [
+    "DEFAULT_MAX_QUEUED_MESSAGES",
     "PROP_MQTT_CLIENT_ID",
     "PROP_MQTT_HOST",
     "PROP_MQTT_KEEPALIVE",
+    "PROP_MQTT_MAX_QUEUED",
     "PROP_MQTT_PASSWORD",
     "PROP_MQTT_PORT",
     "PROP_MQTT_TLS",
@@ -85,6 +88,9 @@ MQTTv31 = paho.MQTTv31
 MQTTv311 = paho.MQTTv311
 MQTTv5 = paho.MQTTv5
 
+DEFAULT_MAX_QUEUED_MESSAGES = 1000
+""" Default maximum number of QoS 1 and 2 messages waiting to be sent """
+
 PROP_MQTT_HOST = "mqtt.host"
 """ Host name of the MQTT broker (``localhost`` by default) """
 
@@ -93,6 +99,9 @@ PROP_MQTT_PORT = "mqtt.port"
 
 PROP_MQTT_KEEPALIVE = "mqtt.keepalive"
 """ Maximum period in seconds between two exchanges with the broker (60 by default) """
+
+PROP_MQTT_MAX_QUEUED = "mqtt.max_queued_messages"
+""" Maximum number of QoS 1 and 2 messages waiting to be sent, including while disconnected """
 
 PROP_MQTT_CLIENT_ID = "mqtt.client_id"
 """ MQTT client ID (a random one by default): it must be unique on the broker """
@@ -129,6 +138,7 @@ class MqttConnectionConfig:
     port: int | None = None
     keepalive: int = 60
     client_id: str | None = None
+    max_queued_messages: int = DEFAULT_MAX_QUEUED_MESSAGES
     username: str | None = None
     password: str | None = field(default=None, repr=False)
     tls: bool = False
@@ -154,6 +164,7 @@ class MqttConnectionConfig:
             port=int(port) if port else None,
             keepalive=int(properties.get(PROP_MQTT_KEEPALIVE) or 60),
             client_id=properties.get(PROP_MQTT_CLIENT_ID) or None,
+            max_queued_messages=int(properties.get(PROP_MQTT_MAX_QUEUED, DEFAULT_MAX_QUEUED_MESSAGES)),
             username=properties.get(PROP_MQTT_USERNAME) or None,
             password=password or None,
             tls=str2bool(tls) if isinstance(tls, str) else bool(tls),
@@ -178,7 +189,7 @@ class MqttConnectionConfig:
         :raise OSError: A TLS file can't be read
         :raise ssl.SSLError: Invalid TLS file
         """
-        client = MqttClient(self.client_id)
+        client = MqttClient(self.client_id, max_queued_messages=self.max_queued_messages)
         if self.username:
             client.set_credentials(self.username, self.password)
 
@@ -216,13 +227,17 @@ class MqttClient:
         clean_session: bool = False,
         protocol: int = MQTTv311,
         transport: Literal["tcp", "websockets", "unix"] = "tcp",
+        max_queued_messages: int = DEFAULT_MAX_QUEUED_MESSAGES,
     ) -> None:
         """
         :param client_id: ID of the MQTT client
         :param clean_session: If True, the broker will clean the client session on disconnect.
                               Forced to True if no client ID is given.
+                              With MQTT v5, the session starts clean on each connection instead.
         :param protocol: MQTT protocol version (MQTTv31, MQTTv311 or MQTTv5)
         :param transport: Transport protocol (tcp or websockets)
+        :param max_queued_messages: Maximum number of QoS 1 and 2 messages waiting to be sent,
+                                    including while disconnected (0 for no limit)
         """
         # No ID
         if not client_id:
@@ -246,8 +261,8 @@ class MqttClient:
             # Keep the ID as is
             self._client_id = client_id
 
-        # Reconnection timer
-        self.__timer: threading.Timer | None = threading.Timer(5, self.__reconnect)
+        # Subscriptions to renew when the broker forgot them (topic -> QoS)
+        self.__subscriptions: dict[str, int] = {}
 
         # Publications to wait for. Paho tracks their state itself: notifying
         # them from on_publish would need a lock shared with publish(), but Paho
@@ -265,21 +280,26 @@ class MqttClient:
             _logger.error("Unsupported MQTT protocol version")
             raise
 
-        # MQTT client
+        # MQTT client: Paho reconnects it, with a growing delay (1 to 120 s)
+        v5 = protocol_version == MQTTProtocolVersion.MQTTv5
+        self.__clean_start: paho.CleanStartOption = clean_session if v5 else paho.MQTT_CLEAN_START_FIRST_ONLY
         self.__mqtt = paho.Client(
             CallbackAPIVersion.VERSION2,
             client_id=self._client_id,
-            clean_session=clean_session,
+            # MQTT v5 has a clean start flag instead, given to connect()
+            clean_session=None if v5 else clean_session,
             protocol=protocol_version,
             transport=transport,
             reconnect_on_failure=True,
         )
+        self.__mqtt.max_queued_messages_set(max_queued_messages)
 
         # Give access to Paho methods to configure TLS
         self.tls_set = self.__mqtt.tls_set
 
         # Paho callbacks
         self.__mqtt.on_connect = self.__on_connect
+        self.__mqtt.on_connect_fail = self.__on_connect_fail
         self.__mqtt.on_disconnect = self.__on_disconnect
         self.__mqtt.on_message = self.__on_message
         self.__mqtt.on_publish = self.__on_publish
@@ -464,15 +484,15 @@ class MqttClient:
         :param blocking: If True, block until connecting, else be notified with on_connect
         :raise ValueError: Invalid host or port
         """
-        # Disconnect first (it also stops the timer)
+        # Disconnect first
         self.disconnect()
         self.__stopped.clear()
 
         # Prepare the connection
         if blocking:
-            self.__mqtt.connect(host, port, keepalive)
+            self.__mqtt.connect(host, port, keepalive, clean_start=self.__clean_start)
         else:
-            self.__mqtt.connect_async(host, port, keepalive)
+            self.__mqtt.connect_async(host, port, keepalive, clean_start=self.__clean_start)
 
         # Start the MQTT loop
         self.__mqtt.loop_start()
@@ -481,9 +501,6 @@ class MqttClient:
         """
         Disconnects from the MQTT server
         """
-        # Stop the timer
-        self.__stop_timer()
-
         # Unlock all publishers
         self.__stopped.set()
 
@@ -515,12 +532,18 @@ class MqttClient:
         :param qos: Quality of Service
         :param retain: Retain flag
         :param wait: If True, prepares an event to wait for the message to be published
-        :return: The local message ID, None on error
+        :return: The local message ID, also when a QoS 1 or 2 message is queued while
+                 disconnected (sent on reconnection, see :meth:`wait_publication`),
+                 None if the message is refused (QoS 0 while disconnected, full queue)
         """
         result = self.__mqtt.publish(topic, payload, qos, retain)
-        if result.rc != 0:
-            # No success
-            _logger.debug("Failed to publish message on %s: %d", topic, result.rc)
+        if result.rc == paho.MQTT_ERR_NO_CONN and qos > 0:
+            # Paho keeps it and sends it once connected again. Paho marks the
+            # messages queued for its in-flight limit the same way
+            _logger.debug("Not connected: message on %s queued", topic)
+            result.rc = paho.MQTT_ERR_SUCCESS
+        elif result.rc != paho.MQTT_ERR_SUCCESS:
+            _logger.debug("Message on %s refused: %s", topic, paho.error_string(result.rc))
             return None
 
         if wait:
@@ -563,6 +586,8 @@ class MqttClient:
         :return: The local message ID, None on error
         :raise ValueError: Invalid topic or QoS
         """
+        # Also sent on each new connection: the broker forgets it with a clean session
+        self.__subscriptions[topic] = qos
         result = self.__mqtt.subscribe(topic, qos)
         if result is not None:
             return result[1]
@@ -576,53 +601,17 @@ class MqttClient:
         :return: The local message ID, None on error
         :raise ValueError: Invalid topic parameter
         """
+        self.__subscriptions.pop(topic, None)
         result = self.__mqtt.unsubscribe(topic)
         if result is not None:
             return result[1]
         return None
 
-    def __start_timer(self, delay: float) -> None:
+    def __on_connect_fail(self, client: paho.Client, userdata: Any) -> None:
         """
-        Starts the reconnection timer
-
-        :param delay: Delay (in seconds) before calling the reconnection method
+        Paho failed to connect the server and will try again (called while handling the error)
         """
-        self.__timer = threading.Timer(delay, self.__reconnect)
-        self.__timer.daemon = True
-        self.__timer.start()
-
-    def __stop_timer(self) -> None:
-        """
-        Stops the reconnection timer, if any
-        """
-        if self.__timer is not None:
-            self.__timer.cancel()
-            self.__timer = None
-
-    def __reconnect(self) -> None:
-        """
-        Tries to connect to the MQTT server
-        """
-        # Cancel the timer, if any
-        self.__stop_timer()
-
-        try:
-            # Try to reconnect the server
-            result_code = self.__mqtt.reconnect()
-            if result_code:
-                # Something wrong happened
-                message = (
-                    f"Error connecting the MQTT server: {result_code} ({paho.error_string(result_code)})"
-                )
-                _logger.error(message)
-                raise ValueError(message)
-        except Exception as ex:  # noqa: BLE001
-            # Something went wrong: log it
-            _logger.error("Exception connecting server: %s", ex)
-        finally:
-            # Prepare a reconnection timer. It will be cancelled by the
-            # on_connect callback
-            self.__start_timer(10)
+        _logger.warning("Can't connect to the MQTT server, retrying: %s", sys.exception())
 
     def __on_connect(
         self,
@@ -643,9 +632,10 @@ class MqttClient:
         if rc.is_failure:
             # result_code != 0: something wrong happened
             _logger.error("Error connecting the MQTT server: %s", rc)
-        else:
-            # Connection is OK: stop the reconnection timer
-            self.__stop_timer()
+        elif not flags.session_present:
+            # New session: renew the subscriptions
+            for topic, qos in list(self.__subscriptions.items()):
+                client.subscribe(topic, qos)
 
         # Notify the caller, if any
         if self.__on_connect_cb is not None:
@@ -670,12 +660,8 @@ class MqttClient:
         :param result_code: Disconnection reason (0: expected, 1: error)
         """
         if rc.is_failure:
-            # rc != 0: unexpected disconnection
+            # rc != 0: unexpected disconnection, Paho reconnects
             _logger.error("Unexpected disconnection from the MQTT server: %s", rc)
-
-            # Try to reconnect
-            self.__stop_timer()
-            self.__start_timer(2)
 
         # Notify the caller, if any
         if self.__on_disconnect_cb is not None:

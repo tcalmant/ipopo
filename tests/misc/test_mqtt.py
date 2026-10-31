@@ -7,9 +7,7 @@ Tests the MQTT client module
 """
 
 import logging
-import os
 import socket
-import sys
 import threading
 import time
 import unittest
@@ -75,6 +73,15 @@ def _disconnect_client(client: mqtt.MqttClient) -> None:
     if pair_r is not None:
         pair_r.shutdown(socket.SHUT_RDWR)
         pair_r.close()
+
+
+def _find_free_port() -> int:
+    """
+    Returns a local TCP port nothing listens on
+    """
+    with socket.socket() as sock:
+        sock.bind(("localhost", 0))
+        return sock.getsockname()[1]
 
 
 class MqttClientTest(unittest.TestCase):
@@ -244,96 +251,126 @@ class MqttClientTest(unittest.TestCase):
 
     def test_reconnect(self) -> None:
         """
-        Tests client reconnection
+        Tests the reconnection after a disconnection by the broker, and the
+        renewal of the subscriptions the broker forgot
         """
         assert MQTT_SERVER is not None
+        topic = f"pelix/test/mqtt/reconnect/{uuid.uuid4()!s}"
+        client_id = mqtt.MqttClient.generate_id("rc-")
 
-        if os.name == "posix":
-            # FIXME: try harder
-            self.skipTest("This test doesn't work on POSIX...")
+        client = mqtt.MqttClient(client_id)
+        connections = threading.Semaphore(0)
+        messages: list[bytes] = []
+        client.on_connect = lambda clt, rc: connections.release() if rc == 0 else None
+        client.on_message = lambda clt, msg: messages.append(msg.payload)
 
-        # Avoid typo
-        topic = "/pelix/test"
-
-        # Create clients
-        client = mqtt.MqttClient()
-        client_2 = mqtt.MqttClient()
-
-        # Enable Paho logging as this test can fail easily
-        client.raw_client.enable_logger()
-
-        event_connect = threading.Event()
-        event_disconnect = threading.Event()
-        event_message = threading.Event()
-
-        client_2_connected = threading.Event()
-
-        def on_connect(clt: mqtt.MqttClient, result_code: int) -> None:
-            # Subscribe to test messages
-            clt.subscribe(topic, 2)
-
-            # Continue the test
-            event_connect.set()
-
-        def on_disconnect(clt: mqtt.MqttClient, result_code: int) -> None:
-            event_disconnect.set()
-
-        def on_message(clt: mqtt.MqttClient, msg: mqtt.MqttMessage) -> None:
-            event_message.set()
-
-        client.on_connect = on_connect
-        client.on_disconnect = on_disconnect
-        client.on_message = on_message
-
-        # Setup client 2
-        client_2.on_connect = lambda *_: client_2_connected.set()
-
-        # Connect
+        sender = mqtt.MqttClient()
         client.connect(MQTT_SERVER, 1883, 10)
-        client_2.connect(MQTT_SERVER, 1883)
-
+        sender.connect(MQTT_SERVER, blocking=True)
         try:
-            if not event_connect.wait(5):
-                # Connection failed
-                self.fail("MQTT connection timeout")
+            self.assertTrue(connections.acquire(timeout=5), "Connection timeout")
 
-            if not client_2_connected.wait(5):
-                self.fail("Second client connection timeout")
+            # Subscribed once, outside of on_connect
+            client.subscribe(topic, 1)
+            time.sleep(0.5)
+            sender.wait_publication(cast(int, sender.publish(topic, "before", 1, wait=True)), 5)
 
-            # Send something from client 2 to test client
-            mid = client_2.publish(topic, "dummy1", qos=2, wait=True)
-            assert mid is not None
-            client_2.wait_publication(mid, 5)
+            # Same client ID with a clean session: the broker disconnects the client
+            # and forgets its session, subscriptions included
+            intruder = mqtt.MqttClient(client_id, clean_session=True)
+            intruder.connect(MQTT_SERVER, blocking=True)
+            time.sleep(0.5)
+            intruder.disconnect()
 
-            # Ensure we get it
-            if not event_message.wait(5):
-                self.fail("Message not received")
-            event_message.clear()
-
-            # Disconnect test client
-            event_connect.clear()
-            _disconnect_client(client)
-
-            # Wait for the reconnection event
-            if not event_connect.wait(20):
-                self.fail("Connection event not received")
-
-            # Test a new message
-            mid = client_2.publish(topic, "dummy2", qos=2, wait=True)
-            assert mid is not None
-            client_2.wait_publication(mid, 5)
-
-            # Ensure we get it
-            if not event_message.wait(5):
-                self.fail("Message not received")
-            event_message.clear()
-
-            # NOTE: Disconnection event is not received on reconnect
-            if not event_disconnect.is_set():
-                print("Disconnection event not received", file=sys.stderr)
+            self.assertTrue(connections.acquire(timeout=20), "No reconnection")
+            time.sleep(0.5)
+            sender.wait_publication(cast(int, sender.publish(topic, "after", 1, wait=True)), 5)
+            time.sleep(1)
+            self.assertEqual(messages, [b"before", b"after"])
         finally:
-            # Clean up
-            client_2.disconnect()
+            sender.disconnect()
+            client.disconnect()
+
+    def test_disconnected_publish(self) -> None:
+        """
+        Messages published while disconnected: QoS 1 and 2 are queued, up to a
+        limit, and sent once connected; QoS 0 is refused
+        """
+        assert MQTT_SERVER is not None
+        topic = f"pelix/test/mqtt/queued/{uuid.uuid4()!s}"
+
+        listener = mqtt.MqttClient()
+        received: list[bytes] = []
+        subscribed = threading.Event()
+        listener.on_subscribe = lambda clt, mid, codes: subscribed.set()
+        listener.on_message = lambda clt, msg: received.append(msg.payload)
+        listener.connect(MQTT_SERVER, blocking=True)
+        listener.subscribe(topic, 2)
+
+        client = mqtt.MqttClient(max_queued_messages=2)
+        try:
+            self.assertTrue(subscribed.wait(5))
+
+            # Never connected yet
+            self.assertIsNone(client.publish(topic, "qos0", 0))
+            queued = [client.publish(topic, f"qos{qos}", qos, wait=True) for qos in (1, 2)]
+            self.assertNotIn(None, queued)
+            self.assertIsNone(client.publish(topic, "full", 1), "Queue limit ignored")
+
+            client.connect(MQTT_SERVER)
+            for mid in queued:
+                self.assertTrue(client.wait_publication(cast(int, mid), 10))
+            time.sleep(1)
+            self.assertEqual(sorted(received), [b"qos1", b"qos2"])
+        finally:
+            client.disconnect()
+            listener.disconnect()
+
+    def test_connection_failure(self) -> None:
+        """
+        A failed connection is logged as a warning and retried, TLS failures included
+        """
+        assert MQTT_SERVER is not None
+        cases: list[tuple[str, dict[str, object]]] = [
+            ("nothing listening", {"mqtt.port": _find_free_port()}),
+        ]
+        if has_mqtt_secure_listeners():
+            cases.append(("untrusted broker", {"mqtt.port": MQTT_PORT_TLS, "mqtt.tls": True}))
+
+        for name, props in cases:
+            with self.subTest(name=name):
+                config = mqtt.MqttConnectionConfig.from_properties({"mqtt.host": MQTT_SERVER, **props})
+                client = config.make_client()
+                try:
+                    with self.assertLogs("pelix.misc.mqtt_client", logging.WARNING) as log_ctx:
+                        config.connect(client)
+                        # Retried after 1 second, then 2
+                        time.sleep(4)
+                finally:
+                    client.disconnect()
+                failures = [line for line in log_ctx.output if "Can't connect" in line]
+                self.assertGreaterEqual(len(failures), 2, log_ctx.output)
+
+    def test_mqtt_v5(self) -> None:
+        """
+        Tests a client using MQTT v5
+        """
+        assert MQTT_SERVER is not None
+        topic = f"pelix/test/mqtt/v5/{uuid.uuid4()!s}"
+        client = mqtt.MqttClient(protocol=mqtt.MQTTv5)
+        received = EventData[mqtt.MqttMessage]()
+        subscribed = threading.Event()
+        client.on_subscribe = lambda clt, mid, codes: subscribed.set()
+        client.on_message = lambda clt, msg: received.set(msg)
+        client.connect(MQTT_SERVER, blocking=True)
+        try:
+            client.subscribe(topic, 1)
+            self.assertTrue(subscribed.wait(5))
+            self.assertTrue(client.wait_publication(cast(int, client.publish(topic, "v5", 1, wait=True)), 5))
+            self.assertTrue(received.wait(5))
+            assert received.data is not None
+            self.assertEqual(received.data.payload, b"v5")
+        finally:
             client.disconnect()
 
     def test_will(self) -> None:
@@ -355,15 +392,7 @@ class MqttClientTest(unittest.TestCase):
             else:
                 event_connect.raise_exception(RuntimeError(f"Connection failed with code {result_code}"))
 
-        def on_disconnect(clt: mqtt.MqttClient, result_code: int) -> None:
-            if result_code != 0:
-                # Disconnected unwillingly: stop the timer
-                # -- IMPLEMENTATION SPECIFIC --
-                clt._MqttClient__stop_timer()  # type: ignore
-                # == IMPLEMENTATION SPECIFIC ==
-
         client.on_connect = on_connect
-        client.on_disconnect = on_disconnect
 
         # Create client 2
         client_2 = mqtt.MqttClient()
@@ -703,6 +732,12 @@ class MqttConnectionConfigTest(unittest.TestCase):
                 self.assertEqual(config.use_tls, tls)
                 self.assertEqual(config.keepalive, 60)
                 self.assertNotIn("secret", repr(config))
+                self.assertEqual(config.max_queued_messages, mqtt.DEFAULT_MAX_QUEUED_MESSAGES)
+
+        self.assertEqual(
+            mqtt.MqttConnectionConfig.from_properties({"mqtt.max_queued_messages": "5"}).max_queued_messages,
+            5,
+        )
 
     def test_connect(self) -> None:
         """
