@@ -392,6 +392,10 @@ class LogServiceTest(unittest.TestCase):
         self.assertIs(latest.exception[0], ValueError)
         self.assertIn("ValueError: Some error", str(latest))
 
+        # The logger name is kept, also as the name of the record
+        self.assertEqual(latest.logger_name, "test.log")
+        self.assertEqual(latest.to_record().name, "test.log")
+
     def test_to_record_formatter(self):
         """
         Tests that an entry can be rendered by a standard formatter
@@ -399,6 +403,8 @@ class LogServiceTest(unittest.TestCase):
         self.logger.log(logging.WARNING, "formatted")
         record = self.reader.get_log()[-1].to_record()
         self.assertEqual(logging.Formatter("%(levelname)s|%(message)s").format(record), "WARNING|formatted")
+        # Given to the log service: no logger
+        self.assertIsNone(self.reader.get_log()[-1].logger_name)
 
     def test_stream(self):
         """

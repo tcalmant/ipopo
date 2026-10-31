@@ -389,6 +389,8 @@ Unreleased
   takes a third argument, a `logging.Formatter` format
 * New `LogReader.stream(history, max_size)`: a thread-safe, bounded feed of the
   log entries, discarding the oldest ones when the consumer is too slow
+* `LogEntry.logger_name`: the name of the Python logger which emitted an entry
+  (None for entries given to the log service), also used as the record name
 * `InitFileHandler` takes a `search_path` argument: the folders where it looks
   for the default `.pelix.conf` file, instead of `DEFAULT_PATH` (which includes
   the current folder)

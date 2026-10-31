@@ -113,6 +113,7 @@ class LogEntryImpl(LogEntry):
         "__bundle",
         "__exception",
         "__level",
+        "__logger_name",
         "__message",
         "__record",
         "__reference",
@@ -126,6 +127,7 @@ class LogEntryImpl(LogEntry):
         exception: OptExcInfo,
         bundle: Bundle | None,
         reference: ServiceReference[Any] | None,
+        logger_name: str | None = None,
     ) -> None:
         """
         :param level: The Python log level of the entry
@@ -133,8 +135,10 @@ class LogEntryImpl(LogEntry):
         :param exception: The exception associated to the entry
         :param bundle: The bundle that created the entry
         :param reference: The service reference associated to the entry
+        :param logger_name: The name of the Python logger which emitted the entry
         """
         self.__bundle = bundle
+        self.__logger_name = logger_name
         self.__exception = exception
         self.__level = level
         self.__message = message
@@ -182,6 +186,13 @@ class LogEntryImpl(LogEntry):
         The message associated to this entry
         """
         return self.__message
+
+    @property
+    def logger_name(self) -> str | None:
+        """
+        The name of the Python logger which emitted this entry, None if it was given to the log service
+        """
+        return self.__logger_name
 
     @property
     def exception(self) -> OptExcInfo:
@@ -234,7 +245,7 @@ class LogEntryImpl(LogEntry):
         """
         # Extract local details
         bundle = self.bundle
-        name = bundle.get_symbolic_name() if bundle is not None else "n/a"
+        name = self.__logger_name or (bundle.get_symbolic_name() if bundle is not None else "n/a")
         pathname = bundle.get_location() if bundle is not None else "n/a"
         lineno = 0
 
@@ -495,7 +506,7 @@ class LogServiceFactory(logging.Handler):
 
         # Convert to a LogEntry
         entry = LogEntryImpl(
-            record.levelno, record.getMessage(), cast(OptExcInfo, record.exc_info), bundle, None
+            record.levelno, record.getMessage(), cast(OptExcInfo, record.exc_info), bundle, None, record.name
         )
         self._reader._store_entry(entry)
 

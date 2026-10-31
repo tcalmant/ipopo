@@ -121,6 +121,13 @@ class LogEntry(Protocol):
         ...
 
     @property
+    def logger_name(self) -> str | None:
+        """
+        The name of the Python logger which emitted this entry, None if it was given to the log service
+        """
+        ...
+
+    @property
     def exception(self) -> OptExcInfo:
         """
         The exception associated to this entry
