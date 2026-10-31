@@ -40,10 +40,11 @@ UNINSTALLED The bundle has been removed from the framework (only visible by rema
 
 The update process of a bundle is simple:
 
+* the metadata of the new source is read first: if it is invalid, nothing is stopped
 * if it was active, the bundle is stopped: other bundles are notified of this transition, and its services are unregistered
-* the module is updated, using the `importlib.reload() <https://docs.python.org/3/library/importlib.html#importlib.reload>`_ method
-* if the update fails, the previous version of the module is kept, but the bundle is not restarted.
-* if the update succeeds and the bundle was active, the bundle its restarted
+* every name of the module is removed, except the ones giving its identity (``__name__``, ``__file__``, ``__spec__``...), then the module is updated, using the `importlib.reload() <https://docs.python.org/3/library/importlib.html#importlib.reload>`_ method
+* if the update succeeds, the metadata is replaced, the bundle is restarted if it was active, and the ``UPDATED`` event is sent
+* if the update fails, whatever the exception raised by the new code, the previous version of the module is restored and restarted if the bundle was active, the ``UPDATE_FAILED`` event is sent and a :class:`~pelix.constants.BundleException` is raised, with the cause chained
 
 Bundle Activator
 ----------------
@@ -186,8 +187,8 @@ The other headers are kept as they are. The metadata is available through
 :meth:`Bundle.get_headers() <pelix.framework.Bundle.get_headers>`, as an
 immutable mapping (empty for a bundle which declares nothing). It is read at
 installation and replaced by a successful update only, so it never changes
-otherwise. If the metadata is invalid after an update, the previous one is kept
-and an error is logged.
+otherwise. An update whose new metadata is invalid fails before the bundle is
+stopped, and the previous metadata is kept.
 
 Bundle resources
 ----------------

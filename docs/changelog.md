@@ -25,6 +25,16 @@ Unreleased
   give access to the files of a package bundle, or to the `<module>.res`
   directory of a module bundle
 
+* **Breaking:** `Bundle.update()` now raises a `BundleException` (the cause is
+  chained) and sends `UPDATE_FAILED` when the new code can't be loaded, instead
+  of logging the error of a syntax or import error and sending `UPDATED`, and
+  instead of raising the raw exception of the module for any other error. The
+  previous code is restored and restarted. The new metadata is checked before
+  the bundle is stopped, and all the names of the module are cleared before the
+  reload, the dunder ones included: a removed attribute, or a removed activator,
+  no longer survives an update. The shell `update` command reports the failure
+  and stops
+
 ### Security
 
 * `Subject` has two new fields, `peer_address` (the other end of the

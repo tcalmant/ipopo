@@ -11,11 +11,12 @@ import pathlib
 import sys
 import tempfile
 import textwrap
+import tomllib
 import unittest
 import zipfile
 from typing import Any, ClassVar
 
-from pelix.framework import Bundle, BundleContext, BundleException, FrameworkFactory
+from pelix.framework import Bundle, BundleContext, BundleEvent, BundleException, FrameworkFactory
 from tests import log_off, log_on
 
 # ------------------------------------------------------------------------------
@@ -345,12 +346,13 @@ def test_fct():
         with open(bundle_fullname, "w") as f:
             f.write(bundle_content.format(version="1.0.2", test="\n"))
 
-        # No error must be raised...
+        # The update fails...
         log_off()
-        bundle.update()
+        with self.assertRaises(BundleException):
+            bundle.update()
         log_on()
 
-        # ... but the state of the module shouldn't have changed
+        # ... and the state of the module shouldn't have changed
         self.assertTrue(module_.test_var, "Test variable should still be True")
 
         # Finally, change the test file to be a valid module
@@ -634,7 +636,7 @@ class BundleMetadataTest(BundleFilesTestCase):
 
     def testUpdate(self):
         """
-        Tests that the metadata follows the updates, and that an invalid one is kept out
+        Tests that the metadata follows the updates, and that an invalid one refuses them
         """
         bundle = self.install('"""\n.. pelix-bundle\n   version = "1.0"\n"""\n')
         module_file = pathlib.Path(bundle.get_location())
@@ -643,7 +645,8 @@ class BundleMetadataTest(BundleFilesTestCase):
         self.assertEqual(bundle.get_version(), "2.0")
 
         module_file.write_text('"""\n.. pelix-bundle\n   version = \n"""\n', encoding="utf-8")
-        bundle.update()
+        with self.assertRaises(BundleException):
+            bundle.update()
         self.assertEqual(bundle.get_version(), "2.0")
 
 
@@ -739,6 +742,135 @@ class BundleResourcesTest(BundleFilesTestCase):
                     bundle.get_entry(path)
                 with self.assertRaises(ValueError):
                     bundle.find_entries(path)
+
+
+class BundleUpdateTest(BundleFilesTestCase):
+    """
+    Tests the update of the bundles
+    """
+
+    OLD = textwrap.dedent(
+        """
+        \"\"\"
+        .. pelix-bundle
+           version = "1.0"
+        \"\"\"
+        __stale__ = "old"
+        from pelix.constants import BundleActivator
+
+        # Calls are written in a file: a module can't share a list with the test
+        def log(call):
+            with open(__file__ + ".calls", "a") as calls:
+                calls.write(call + "\\n")
+
+        @BundleActivator
+        class Activator:
+            def start(self, context):
+                log("start")
+
+            def stop(self, context):
+                log("stop")
+        """
+    )
+
+    def setUp(self):
+        """
+        Called before each test. Installs and starts a bundle.
+        """
+        super().setUp()
+        self.bundle = self.install(self.OLD)
+        self.bundle.start()
+        self.events: list[int] = []
+        self.context.add_bundle_listener(self)
+        self.calls_file = pathlib.Path(self.bundle.get_location() + ".calls")
+        self.clear_calls()
+
+    def clear_calls(self) -> None:
+        """
+        Forgets the calls of the activator
+        """
+        self.calls_file.unlink(missing_ok=True)
+
+    def calls(self) -> list[str]:
+        """
+        Lists the calls of the activator
+        """
+        return self.calls_file.read_text().split() if self.calls_file.exists() else []
+
+    def bundle_changed(self, event: BundleEvent) -> None:
+        """
+        Records the bundle events
+        """
+        self.events.append(event.get_kind())
+
+    def update_to(self, source: str) -> None:
+        """
+        Writes a new source for the bundle and updates it
+        """
+        pathlib.Path(self.bundle.get_location()).write_text(textwrap.dedent(source), encoding="utf-8")
+        self.bundle.update()
+
+    def testFailures(self):
+        """
+        Tests the sources which can't be loaded: the old code comes back
+        """
+        # The sources with metadata are refused before the bundle is stopped
+        for label, source, cause, stopped in (
+            ("syntax error", "def broken(:\n", SyntaxError, True),
+            (
+                "syntax error with metadata",
+                self.OLD.replace("class Activator:", "class Activator(:"),
+                SyntaxError,
+                False,
+            ),
+            ("missing dependency", "import nonexistent_dependency\n", ImportError, True),
+            ("module level error", "raise RuntimeError('boom')\n", RuntimeError, True),
+            (
+                "invalid metadata",
+                self.OLD.replace('version = "1.0"', "version ="),
+                tomllib.TOMLDecodeError,
+                False,
+            ),
+        ):
+            with self.subTest(label):
+                self.clear_calls()
+                self.events.clear()
+                with self.assertRaises(BundleException) as raised:
+                    self.update_to(source)
+
+                self.assertIsInstance(raised.exception.__cause__ or raised.exception, cause)
+                self.assertEqual(self.calls(), ["stop", "start"] if stopped else [])
+                self.assertNotIn(BundleEvent.UPDATED, self.events)
+                self.assertEqual(self.events[-1], BundleEvent.UPDATE_FAILED)
+
+                # The previous code and metadata are back
+                self.assertEqual(self.bundle.get_state(), Bundle.ACTIVE)
+                self.assertEqual(self.bundle.get_version(), "1.0")
+                self.assertEqual(self.bundle.get_module().__stale__, "old")
+
+    def testStaleNames(self):
+        """
+        Tests that no name of the old code survives a successful update
+        """
+        self.update_to('"""\n.. pelix-bundle\n   version = "2.0"\n"""\nx = 1\n')
+        self.assertEqual(self.events[-1], BundleEvent.UPDATED)
+        self.assertEqual(self.bundle.get_version(), "2.0")
+        self.assertFalse(hasattr(self.bundle.get_module(), "__stale__"))
+        # No activator any more: the old one must not be started again
+        self.assertEqual(self.calls(), ["stop"])
+        self.assertEqual(self.bundle.get_state(), Bundle.ACTIVE)
+        self.assertTrue(self.bundle.get_module().__name__)
+
+    def testStoppedBundle(self):
+        """
+        Tests a failed update of a bundle which wasn't active
+        """
+        self.bundle.stop()
+        self.clear_calls()
+        with self.assertRaises(BundleException):
+            self.update_to("raise RuntimeError\n")
+        self.assertEqual(self.bundle.get_state(), Bundle.RESOLVED)
+        self.assertEqual(self.calls(), [])
 
 
 if __name__ == "__main__":

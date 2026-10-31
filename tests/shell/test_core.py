@@ -736,6 +736,15 @@ class ShellCoreCommandsTest(unittest.TestCase):
         output = self._run_command("bd aaa")
         self.assertIn("Unknown bundle", output)
 
+    def testUpdateFailure(self) -> None:
+        """
+        Tests that the update command reports a failed update
+        """
+        bundle_id = self.context.get_bundle().get_bundle_id()
+        with mock.patch.object(Framework, "update", side_effect=constants.BundleException("boom")):
+            output = self._run_command("update {0}", bundle_id)
+        self.assertIn("Update failed: boom", output)
+
     def testBundlesCommands(self) -> None:
         """
         Tests the install, start, update, stop and uninstall commands

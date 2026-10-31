@@ -173,6 +173,21 @@ __all__ = [
 # Prepare the module logger
 _logger = logging.getLogger("pelix.main")
 
+# Module attributes kept by an update: the ones giving its identity
+_MODULE_IDENTITY = frozenset(
+    (
+        "__name__",
+        "__doc__",
+        "__package__",
+        "__loader__",
+        "__spec__",
+        "__file__",
+        "__cached__",
+        "__builtins__",
+        "__path__",
+    )
+)
+
 # ------------------------------------------------------------------------------
 
 
@@ -592,7 +607,12 @@ class Bundle:
 
     def update(self) -> None:
         """
-        Updates the bundle
+        Updates the bundle. If the new code can't be loaded, the previous one
+        is restored and restarted if the bundle was active.
+
+        :raise BundleException: Invalid new metadata, or error loading the
+                                new code (the cause is chained). The
+                                ``UPDATE_FAILED`` event has been sent.
         """
         with self._lock:
             # Was it active ?
@@ -600,6 +620,13 @@ class Bundle:
 
             # Send the update event
             self._fire_bundle_event(BundleEvent.UPDATE_BEGIN)
+
+            try:
+                # Invalid metadata must not stop the bundle
+                new_metadata = read_metadata(self.__name, self.__module.__spec__)
+            except BundleException:
+                self._fire_bundle_event(BundleEvent.UPDATE_FAILED)
+                raise
 
             try:
                 # Stop the bundle
@@ -632,32 +659,27 @@ class Bundle:
                         module_path,
                     )
 
-            # Clean up the module constants (otherwise kept by reload)
-            # Keep special members (__name__, __file__, ...)
+            # Clean up the module (otherwise kept by reload), except its identity.
+            # Dunder names are cleared too: they could be stale, like the activator
             old_content = self.__module.__dict__.copy()
             for name in list(self.__module.__dict__):
-                if not (name.startswith("__") and name.endswith("__")):
+                if name not in _MODULE_IDENTITY:
                     del self.__module.__dict__[name]
 
+            failure: Exception | None = None
             try:
                 # Reload the module
                 reload_module(self.__module)
-            except (ImportError, SyntaxError):
-                # Exception raised if the file is unreadable
+            except Exception as ex:
+                # Anything can be raised by the module code
                 _logger.exception("Error updating %s", self.__name)
+                failure = ex
 
                 # Reset module content
                 self.__module.__dict__.clear()
                 self.__module.__dict__.update(old_content)
-
             else:
-                try:
-                    # The cache is replaced only by a valid reading
-                    self.__metadata = read_metadata(self.__name, self.__module.__spec__)
-                except BundleException:
-                    _logger.exception(
-                        "Invalid metadata after the update of %s: keeping the previous one", self.__name
-                    )
+                self.__metadata = new_metadata
 
             if module_stat is not None:
                 try:
@@ -681,6 +703,10 @@ class Bundle:
                     # Something wrong occurred, notify listeners
                     self._fire_bundle_event(BundleEvent.UPDATE_FAILED)
                     raise
+
+            if failure is not None:
+                self._fire_bundle_event(BundleEvent.UPDATE_FAILED)
+                raise BundleException(f"Error updating {self.__name}: {failure}") from failure
 
             # Bundle update finished
             self._fire_bundle_event(BundleEvent.UPDATED)
