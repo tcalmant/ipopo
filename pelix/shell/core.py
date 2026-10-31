@@ -811,7 +811,11 @@ class _ShellService(parser.Shell, ShellService):
                     bid,
                     bundle.get_symbolic_name(),
                 )
-                bundle.update()
+                try:
+                    bundle.update()
+                except constants.BundleException as ex:
+                    session.write_line("Update failed: {0}", ex)
+                    return False
             else:
                 return False
 

@@ -655,7 +655,10 @@ class _IPopoService(IPopoService):
             self._autorestart_clear_components(bundle)
 
         elif kind == BundleEvent.UPDATE_FAILED:
-            # Update failed, clean the stored components
+            # Update failed: the previous code is back, restart its components
+            # if the bundle runs again, else just clean the stored components
+            if bundle.get_state() == Bundle.ACTIVE:
+                self._autorestart_components(bundle)
             self._autorestart_clear_components(bundle)
 
     def service_changed(self, event: ServiceEvent[Any]) -> None:

@@ -29,6 +29,7 @@ Pelix is a Python framework that aims to act as OSGi as much as possible
 
 import collections
 import importlib
+import importlib.util
 import inspect
 import logging
 import os
@@ -37,7 +38,8 @@ import sys
 import threading
 import types
 import uuid
-from collections.abc import Callable, Generator, Iterable
+from collections.abc import Callable, Generator, Iterable, Mapping
+from importlib.resources.abc import Traversable
 from typing import (
     Any,
     Generic,
@@ -57,7 +59,9 @@ from pelix.constants import (
     FrameworkException,
     check_specification_name,
 )
+from pelix.internals import resources
 from pelix.internals.events import BundleEvent, ServiceEvent
+from pelix.internals.metadata import check_version, read_metadata
 from pelix.internals.registry import (
     BundleListener,
     EventDispatcher,
@@ -169,6 +173,21 @@ __all__ = [
 # Prepare the module logger
 _logger = logging.getLogger("pelix.main")
 
+# Module attributes kept by an update: the ones giving its identity
+_MODULE_IDENTITY = frozenset(
+    (
+        "__name__",
+        "__doc__",
+        "__package__",
+        "__loader__",
+        "__spec__",
+        "__file__",
+        "__cached__",
+        "__builtins__",
+        "__path__",
+    )
+)
+
 # ------------------------------------------------------------------------------
 
 
@@ -188,6 +207,7 @@ class Bundle:
         "__context",
         "__framework",
         "__id",
+        "__metadata",
         "__module",
         "__name",
         "__registered_services",
@@ -220,6 +240,7 @@ class Bundle:
         bundle_id: int,
         name: str,
         module_: types.ModuleType,
+        metadata: Mapping[str, Any] | None = None,
     ) -> None:
         """
         Sets up the bundle descriptor
@@ -228,6 +249,7 @@ class Bundle:
         :param bundle_id: The ID of the bundle in the host framework
         :param name: The bundle symbolic name
         :param module_: The bundle module
+        :param metadata: The metadata of the bundle
         """
         # A re-entrant lock for synchronization
         self._lock = threading.RLock()
@@ -237,6 +259,7 @@ class Bundle:
         self.__id = bundle_id
         self.__module = module_
         self.__name = name
+        self.__metadata: Mapping[str, Any] = metadata or {}
 
         self.__framework = framework
         self._state = Bundle.RESOLVED
@@ -317,6 +340,40 @@ class Bundle:
         """
         return self.__id
 
+    def get_headers(self) -> Mapping[str, Any]:
+        """
+        Retrieves the metadata of the bundle, read when it was installed (or
+        updated) without executing its module
+
+        :return: An immutable mapping, empty if the bundle declares nothing
+        """
+        return self.__metadata
+
+    def get_entry(self, path: str) -> Traversable | None:
+        """
+        Looks for a file or a directory in the resources of the bundle: the
+        files of the package for a package, the ``<module>.res`` directory
+        next to the module otherwise
+
+        :param path: A "/" separated path, relative to the resources root
+        :return: The entry, or None if it doesn't exist
+        :raise ValueError: Absolute path, or path containing ".."
+        """
+        return resources.get_entry(resources.get_root(self.__name, self.__module.__spec__), path)
+
+    def find_entries(self, path: str = "", pattern: str = "*", recurse: bool = False) -> list[str]:
+        """
+        Looks for files in the resources of the bundle
+
+        :param path: Directory to look into, relative to the resources root
+        :param pattern: ``fnmatch`` pattern of the file names
+        :param recurse: If True, looks into the sub-directories too
+        :return: The sorted paths of the files found, relative to the root
+        :raise ValueError: Absolute path, or path containing ".."
+        """
+        root = resources.get_root(self.__name, self.__module.__spec__)
+        return resources.find_entries(root, path, pattern, recurse)
+
     def get_location(self) -> str:
         """
         Retrieves the location of this module
@@ -385,11 +442,16 @@ class Bundle:
 
     def get_version(self) -> str:
         """
-        Retrieves the bundle version, using the ``__version__`` or
-        ``__version_info__`` attributes of its module.
+        Retrieves the bundle version, using the ``version`` of its metadata or
+        the ``__version__`` or ``__version_info__`` attributes of its module.
 
         :return: The bundle version, "0.0.0" by default
         """
+        # Version of the metadata
+        version = cast(str | None, self.__metadata.get("version"))
+        if version:
+            return version
+
         # Get the version value
         version = cast(str | None, getattr(self.__module, "__version__", None))
         if version:
@@ -545,7 +607,12 @@ class Bundle:
 
     def update(self) -> None:
         """
-        Updates the bundle
+        Updates the bundle. If the new code can't be loaded, the previous one
+        is restored and restarted if the bundle was active.
+
+        :raise BundleException: Invalid new metadata, or error loading the
+                                new code (the cause is chained). The
+                                ``UPDATE_FAILED`` event has been sent.
         """
         with self._lock:
             # Was it active ?
@@ -553,6 +620,13 @@ class Bundle:
 
             # Send the update event
             self._fire_bundle_event(BundleEvent.UPDATE_BEGIN)
+
+            try:
+                # Invalid metadata must not stop the bundle
+                new_metadata = read_metadata(self.__name, self.__module.__spec__)
+            except BundleException:
+                self._fire_bundle_event(BundleEvent.UPDATE_FAILED)
+                raise
 
             try:
                 # Stop the bundle
@@ -585,23 +659,28 @@ class Bundle:
                         module_path,
                     )
 
-            # Clean up the module constants (otherwise kept by reload)
-            # Keep special members (__name__, __file__, ...)
+            # Clean up the module (otherwise kept by reload), except its identity.
+            # Dunder names are cleared too: they could be stale, like the activator
             old_content = self.__module.__dict__.copy()
             for name in list(self.__module.__dict__):
-                if not (name.startswith("__") and name.endswith("__")):
+                if name not in _MODULE_IDENTITY:
                     del self.__module.__dict__[name]
 
+            failure: Exception | None = None
             try:
                 # Reload the module
                 reload_module(self.__module)
-            except (ImportError, SyntaxError):
-                # Exception raised if the file is unreadable
+            except Exception as ex:
+                # Anything can be raised by the module code
                 _logger.exception("Error updating %s", self.__name)
+                failure = ex
 
                 # Reset module content
                 self.__module.__dict__.clear()
                 self.__module.__dict__.update(old_content)
+            else:
+                self.__metadata = new_metadata
+                check_version(self.__name, new_metadata, self.__module)
 
             if module_stat is not None:
                 try:
@@ -625,6 +704,10 @@ class Bundle:
                     # Something wrong occurred, notify listeners
                     self._fire_bundle_event(BundleEvent.UPDATE_FAILED)
                     raise
+
+            if failure is not None:
+                self._fire_bundle_event(BundleEvent.UPDATE_FAILED)
+                raise BundleException(f"Error updating {self.__name}: {failure}") from failure
 
             # Bundle update finished
             self._fire_bundle_event(BundleEvent.UPDATED)
@@ -873,10 +956,14 @@ class Framework(Bundle):
                     # Use the given path in priority
                     sys.path.insert(0, str(path))
 
-                try:
-                    # The module has already been loaded
-                    module_ = sys.modules[name]
-                except KeyError:
+                module_ = sys.modules.get(name)
+
+                # Read the metadata first: an invalid one must not execute the module
+                metadata = read_metadata(
+                    name, module_.__spec__ if module_ else importlib.util.find_spec(name)
+                )
+
+                if module_ is None:
                     # Load the module
                     #  __import__(name) -> package level
                     # import_module -> module level
@@ -893,12 +980,13 @@ class Framework(Bundle):
 
             # Add the module to sys.modules, just to be sure
             sys.modules[name] = module_
+            check_version(name, metadata, module_)
 
             # Compute the bundle ID
             bundle_id = self.__next_bundle_id
 
             # Prepare the bundle object and its context
-            bundle = Bundle(self, bundle_id, name, module_)
+            bundle = Bundle(self, bundle_id, name, module_, metadata)
 
             # Store the bundle
             self.__bundles[bundle_id] = bundle

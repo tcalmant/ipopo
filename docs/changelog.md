@@ -14,6 +14,28 @@ Unreleased
   requires Python 3.11 or newer. Use iPOPO 3.2.x with Python 3.10
 * Removed the `tomli` dependency, replaced by the standard `tomllib`
 
+### Framework
+
+* Added the bundle metadata: a TOML block after a `.. pelix-bundle` line in a
+  module-level docstring, or a `<module>.manifest.toml` file, read when the
+  bundle is installed, before its module is imported. See
+  `Bundle.get_headers()` and the bundles reference card. The `version` header
+  now takes precedence over `__version__` in `Bundle.get_version()`, with a
+  warning when they differ
+* Added the bundle resources: `Bundle.get_entry()` and `Bundle.find_entries()`
+  give access to the files of a package bundle, or to the `<module>.res`
+  directory of a module bundle
+
+* **Breaking:** `Bundle.update()` now raises a `BundleException` (the cause is
+  chained) and sends `UPDATE_FAILED` when the new code can't be loaded, instead
+  of logging the error of a syntax or import error and sending `UPDATED`, and
+  instead of raising the raw exception of the module for any other error. The
+  previous code is restored and restarted. The new metadata is checked before
+  the bundle is stopped, and all the names of the module are cleared before the
+  reload, the dunder ones included: a removed attribute, or a removed activator,
+  no longer survives an update. The shell `update` command reports the failure
+  and stops
+
 ### Security
 
 * `Subject` has two new fields, `peer_address` (the other end of the

@@ -40,10 +40,11 @@ UNINSTALLED The bundle has been removed from the framework (only visible by rema
 
 The update process of a bundle is simple:
 
+* the metadata of the new source is read first: if it is invalid, nothing is stopped
 * if it was active, the bundle is stopped: other bundles are notified of this transition, and its services are unregistered
-* the module is updated, using the `importlib.reload() <https://docs.python.org/3/library/importlib.html#importlib.reload>`_ method
-* if the update fails, the previous version of the module is kept, but the bundle is not restarted.
-* if the update succeeds and the bundle was active, the bundle its restarted
+* every name of the module is removed, except the ones giving its identity (``__name__``, ``__file__``, ``__spec__``...), then the module is updated, using the `importlib.reload() <https://docs.python.org/3/library/importlib.html#importlib.reload>`_ method
+* if the update succeeds, the metadata is replaced, the bundle is restarted if it was active, and the ``UPDATED`` event is sent
+* if the update fails, whatever the exception raised by the new code, the previous version of the module is restored and restarted if the bundle was active, the ``UPDATE_FAILED`` event is sent and a :class:`~pelix.constants.BundleException` is raised, with the cause chained
 
 Bundle Activator
 ----------------
@@ -132,6 +133,88 @@ benefit from its typing.
    The previous declaration of the activator, *i.e.* declaring module member
    named ``activator``, is deprecated and its support will be removed in
    version 1.0.
+
+Bundle metadata
+---------------
+
+A bundle can describe itself in a TOML block, which the framework reads when
+the bundle is installed **without executing its module**: an invalid metadata
+refuses the installation before any module-level code runs.
+
+The block follows a ``.. pelix-bundle`` line in any module-level docstring (the
+top one, or a bare string placed later in the module), as the indented content
+of an RST comment, which Sphinx doesn't render:
+
+.. code-block:: python
+
+   """
+   Hello bundle.
+
+   .. pelix-bundle
+      version = "1.2.0"
+      name = "Hello"
+      description = "Greets the world"
+      vendor = "Example Inc."
+      license = "Apache-2.0"
+   """
+
+The same content can be given in a ``<module>.manifest.toml`` file placed next
+to the module (inside the package directory for a package, where it is named
+after the last part of the package name). This is the only form available to
+a module distributed without its source code, and it must be shipped with the
+package data. Both forms can be used: the same content in both gives a warning,
+different contents refuse the installation. More than one block in a module is
+refused too.
+
+The block is read with ``ast``, never from ``__doc__``, because running Python
+with ``-OO`` removes the docstrings.
+
+=============== =============================================================
+Header          Description
+=============== =============================================================
+symbolic-name   Must be the module name, when given
+version         Bundle version, used by :meth:`~pelix.framework.Bundle.get_version`
+                over ``__version__`` and ``__version_info__`` (a warning is
+                logged when it differs from ``__version__``)
+name            Human readable name
+description     Short description
+vendor          Name of the vendor
+license         License identifier
+doc-url         URL of the documentation
+scm             URL of the source code repository
+=============== =============================================================
+
+The other headers are kept as they are. The metadata is available through
+:meth:`Bundle.get_headers() <pelix.framework.Bundle.get_headers>`, as an
+immutable mapping (empty for a bundle which declares nothing). It is read at
+installation and replaced by a successful update only, so it never changes
+otherwise. An update whose new metadata is invalid fails before the bundle is
+stopped, and the previous metadata is kept.
+
+Bundle resources
+----------------
+
+A bundle can ship files other than Python code. The
+:meth:`Bundle.get_entry() <pelix.framework.Bundle.get_entry>` and
+:meth:`Bundle.find_entries() <pelix.framework.Bundle.find_entries>` methods give
+access to them, in the spirit of the OSGi ``getEntry()`` and ``findEntries()``:
+
+* for a module, the resources are in the ``<module>.res`` directory placed next
+  to the module (the dot prevents it from being imported as a package);
+* for a package, the resources are the files of the package.
+
+``get_entry()`` returns a `Traversable
+<https://docs.python.org/3/library/importlib.resources.abc.html#importlib.resources.abc.Traversable>`_
+(a file or a directory) or ``None``, ``find_entries()`` returns the sorted paths
+of the files matching an ``fnmatch`` pattern. Both work in a directory, an
+editable install and a zip archive. Absolute paths and paths containing ``..``
+raise a ``ValueError``.
+
+.. code-block:: python
+
+   # Next to hello.py: hello.res/templates/page.html
+   page = bundle.get_entry("templates/page.html").read_text()
+   templates = bundle.find_entries("templates", "*.html", recurse=True)
 
 Bundle Context
 --------------

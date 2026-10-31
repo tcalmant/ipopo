@@ -7,10 +7,16 @@ Tests the bundles handling.
 """
 
 import os
+import pathlib
+import sys
+import tempfile
+import textwrap
+import tomllib
 import unittest
-from typing import Any
+import zipfile
+from typing import Any, ClassVar
 
-from pelix.framework import Bundle, BundleContext, BundleException, FrameworkFactory
+from pelix.framework import Bundle, BundleContext, BundleEvent, BundleException, FrameworkFactory
 from tests import log_off, log_on
 
 # ------------------------------------------------------------------------------
@@ -340,12 +346,13 @@ def test_fct():
         with open(bundle_fullname, "w") as f:
             f.write(bundle_content.format(version="1.0.2", test="\n"))
 
-        # No error must be raised...
+        # The update fails...
         log_off()
-        bundle.update()
+        with self.assertRaises(BundleException):
+            bundle.update()
         log_on()
 
-        # ... but the state of the module shouldn't have changed
+        # ... and the state of the module shouldn't have changed
         self.assertTrue(module_.test_var, "Test variable should still be True")
 
         # Finally, change the test file to be a valid module
@@ -459,6 +466,433 @@ class LocalBundleTest(unittest.TestCase):
 
 
 # ------------------------------------------------------------------------------
+
+
+class BundleFilesTestCase(unittest.TestCase):
+    """
+    Base class of the tests installing bundles written in a temporary directory
+    """
+
+    def setUp(self):
+        """
+        Called before each test. Initiates a framework and a directory.
+        """
+        self.framework = FrameworkFactory.get_framework()
+        self.addCleanup(self.framework.delete, True)
+        self.framework.start()
+        self.context = self.framework.get_bundle_context()
+
+        tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(tmp.cleanup)
+        self.directory = pathlib.Path(tmp.name)
+        self.counter = 0
+
+        # Needed by the updates, which reload the modules
+        sys.path.insert(0, str(self.directory))
+        self.addCleanup(sys.path.remove, str(self.directory))
+
+    def tearDown(self):
+        """
+        Called after each test
+        """
+        self.framework.stop()
+        FrameworkFactory.delete_framework()
+
+    def write(self, relative: str, content: str) -> pathlib.Path:
+        """
+        Writes a file in the temporary directory
+        """
+        path = self.directory / relative
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(textwrap.dedent(content), encoding="utf-8")
+        return path
+
+    def install(self, source: str, files: dict[str, str] | None = None, *, package: bool = False) -> Bundle:
+        """
+        Installs a bundle with a new name. The files are relative to the
+        module file (inside the package for a package), "{name}" being
+        replaced by the last part of the bundle name.
+        """
+        self.counter += 1
+        name = f"tmp_bundle_{id(self)}_{self.counter}"
+        self.addCleanup(lambda: [sys.modules.pop(n) for n in list(sys.modules) if n.split(".")[0] == name])
+        base = f"{name}/" if package else ""
+        self.write(f"{base}__init__.py" if package else f"{name}.py", source)
+        for relative, content in (files or {}).items():
+            self.write(base + relative.replace("{name}", name), content)
+        return self.context.install_bundle(name, self.directory)
+
+
+class BundleMetadataTest(BundleFilesTestCase):
+    """
+    Tests the reading of the metadata of the bundles
+    """
+
+    BLOCK = """
+        \"\"\"
+        Documentation.
+
+        .. pelix-bundle
+           version = "1.2.3"
+           name = "Test"
+           [[provide]]
+           namespace = "osgi.service"
+           objectClass = ["a.B"]
+
+        More documentation.
+        \"\"\"
+        __version__ = "9.9.9"
+        """
+
+    def testBlockPlacements(self):
+        """
+        Tests the block in the top docstring, in a later string and indented
+        """
+        later = '"""Doc."""\nimport os\n\n"""\n.. pelix-bundle\n   version = "1.2.3"\n   name = "Test"\n"""\n'
+        indented = (
+            '"""\n    Doc.\n\n    .. pelix-bundle\n       version = "1.2.3"\n       name = "Test"\n"""\n'
+        )
+        for label, source in (("top", self.BLOCK), ("later", later), ("indented", indented)):
+            with self.subTest(label):
+                bundle = self.install(source)
+                headers = bundle.get_headers()
+                self.assertEqual(headers["version"], "1.2.3")
+                self.assertEqual(headers["name"], "Test")
+                # The metadata wins over the module attribute
+                self.assertEqual(bundle.get_version(), "1.2.3")
+
+    def testHeadersAreImmutable(self):
+        """
+        Tests that the metadata can't be modified, nested values included
+        """
+        headers = self.install(self.BLOCK).get_headers()
+        self.assertEqual(headers["provide"][0]["objectClass"], ("a.B",))
+        with self.assertRaises(TypeError):
+            headers["version"] = "2"
+        with self.assertRaises(TypeError):
+            headers["provide"][0]["objectClass"] = ()
+
+    def testNoMetadata(self):
+        """
+        Tests the bundles without metadata, with the previous version rules
+        """
+        for source, version in (
+            ("x = 1\n", "0.0.0"),
+            ("__version__ = '2.0'\n", "2.0"),
+            ("__version_info__ = (3, 1)\n", "3.1"),
+        ):
+            with self.subTest(source):
+                bundle = self.install(source)
+                self.assertEqual(dict(bundle.get_headers()), {})
+                self.assertEqual(bundle.get_version(), version)
+
+    def testVersionMismatch(self):
+        """
+        Tests the warning when the version header and __version__ differ
+        """
+        block = '"""\n.. pelix-bundle\n   version = "1.2.3"\n"""\n'
+        for source, warned in (
+            (block + "__version__ = '9.9.9'\n", True),
+            (block + "__version__ = '1.2.3'\n", False),
+            (block, False),
+            ("__version__ = '9.9.9'\n", False),
+        ):
+            with self.subTest(source):
+                if warned:
+                    with self.assertLogs("pelix.internals.metadata", "WARNING"):
+                        self.install(source)
+                else:
+                    with self.assertNoLogs("pelix.internals.metadata", "WARNING"):
+                        self.install(source)
+
+    def testSideFile(self):
+        """
+        Tests the side file of a module and of a package, and the unused one
+        """
+        bundle = self.install("x = 1\n", {"{name}.manifest.toml": 'version = "4.5.6"\n'})
+        self.assertEqual(bundle.get_version(), "4.5.6")
+
+        bundle = self.install("x = 1\n", {"{name}.manifest.toml": 'version = "7.8.9"\n'}, package=True)
+        self.assertEqual(bundle.get_version(), "7.8.9")
+
+        # Not a name of the supported convention
+        bundle = self.install("x = 1\n", {"{name}.toml": 'version = "1.0"\n'})
+        self.assertEqual(dict(bundle.get_headers()), {})
+
+    def testBlockAndSideFile(self):
+        """
+        Tests a block and a side file: same content is accepted with a warning
+        """
+        side = {"{name}.manifest.toml": 'name = "Test"\nversion = "1.2.3"\n'}
+        with self.assertLogs("pelix.internals.metadata", "WARNING"):
+            bundle = self.install(
+                self.BLOCK.replace("[[provide]]", "").replace("namespace", "#").replace("objectClass", "#"),
+                side,
+            )
+        self.assertEqual(bundle.get_headers()["version"], "1.2.3")
+
+        with self.assertRaises(BundleException):
+            self.install(self.BLOCK, {"{name}.manifest.toml": 'version = "0.0.1"\n'})
+
+    def testInvalidMetadata(self):
+        """
+        Tests the metadata which refuse the installation, without importing the module
+        """
+        block = '"""\n.. pelix-bundle\n   {}\n"""\nraise RuntimeError("imported")\n'
+        cases = {
+            "two blocks": '"""\n.. pelix-bundle\n   a = 1\n"""\n"""\n.. pelix-bundle\n   a = 1\n"""\nraise RuntimeError\n',
+            "bad TOML": block.format("version ="),
+            "version not a string": block.format("version = 1"),
+            "other symbolic name": block.format('symbolic-name = "other"'),
+            "syntax error": '"""\n.. pelix-bundle\n   a = 1\n"""\ndef x(:\n',
+        }
+        for label, source in cases.items():
+            with self.subTest(label):
+                before = len(self.framework.get_bundles())
+                with self.assertRaises(BundleException):
+                    self.install(source)
+                self.assertEqual(len(self.framework.get_bundles()), before)
+
+    def testUpdate(self):
+        """
+        Tests that the metadata follows the updates, and that an invalid one refuses them
+        """
+        bundle = self.install('"""\n.. pelix-bundle\n   version = "1.0"\n"""\n')
+        module_file = pathlib.Path(bundle.get_location())
+        module_file.write_text(
+            '"""\n.. pelix-bundle\n   version = "2.0"\n"""\n__version__ = "1.0"\n', encoding="utf-8"
+        )
+        with self.assertLogs("pelix.internals.metadata", "WARNING"):
+            bundle.update()
+        self.assertEqual(bundle.get_version(), "2.0")
+
+        module_file.write_text('"""\n.. pelix-bundle\n   version = \n"""\n', encoding="utf-8")
+        with self.assertRaises(BundleException):
+            bundle.update()
+        self.assertEqual(bundle.get_version(), "2.0")
+
+
+class BundleResourcesTest(BundleFilesTestCase):
+    """
+    Tests the resources of the bundles
+    """
+
+    FILES: ClassVar[dict[str, str]] = {
+        "{name}.res/a.txt": "A",
+        "{name}.res/sub/b.json": "{}",
+        "{name}.res/sub/c.txt": "C",
+        "{name}.res/sub/deep/d.txt": "D",
+    }
+
+    def check(self, bundle: Bundle) -> None:
+        """
+        Checks the entries of a bundle with the FILES
+        """
+        entry = bundle.get_entry("sub/c.txt")
+        assert entry is not None
+        self.assertEqual(entry.read_text(), "C")
+        assert bundle.get_entry("sub") is not None
+        assert bundle.get_entry("") is not None
+        self.assertIsNone(bundle.get_entry("missing.txt"))
+
+        for args, expected in (
+            ((), ["a.txt"]),
+            (("sub",), ["sub/b.json", "sub/c.txt"]),
+            (("", "*.txt", True), ["a.txt", "sub/c.txt", "sub/deep/d.txt"]),
+            (("sub", "*", True), ["sub/b.json", "sub/c.txt", "sub/deep/d.txt"]),
+            (("missing",), []),
+        ):
+            with self.subTest(args):
+                self.assertEqual(bundle.find_entries(*args), expected)
+
+    def testModule(self):
+        """
+        Tests the resources of a module bundle, in the <module>.res directory
+        """
+        bundle = self.install("x = 1\n", self.FILES)
+        self.check(bundle)
+
+    def testNoResources(self):
+        """
+        Tests a module without resources directory, and a module-level directory
+        """
+        bundle = self.install("x = 1\n")
+        self.assertIsNone(bundle.get_entry("a.txt"))
+        self.assertEqual(bundle.find_entries("", "*", True), [])
+
+    def testZip(self):
+        """
+        Tests the resources of a module bundle in a zip archive
+        """
+        self.counter += 1
+        name = f"tmp_bundle_zip_{id(self)}"
+        self.addCleanup(lambda: sys.modules.pop(name, None))
+        archive = self.directory / "bundle.zip"
+        with zipfile.ZipFile(archive, "w") as zipped:
+            zipped.writestr(f"{name}.py", "x = 1\n")
+            for relative, content in self.FILES.items():
+                zipped.writestr(relative.replace("{name}", name), content)
+        self.check(self.context.install_bundle(name, archive))
+
+    def testPackage(self):
+        """
+        Tests the resources of a package bundle, which are the files of the package
+        """
+        files = {"a.txt": "A", "sub/b.json": "{}", "sub/c.txt": "C", "sub/deep/d.txt": "D"}
+        bundle = self.install("x = 1\n", files, package=True)
+        entry = bundle.get_entry("sub/c.txt")
+        assert entry is not None
+        self.assertEqual(entry.read_text(), "C")
+        self.assertEqual(bundle.find_entries("", "*.txt", True), ["a.txt", "sub/c.txt", "sub/deep/d.txt"])
+
+    def testRefusedPaths(self):
+        """
+        Tests that the paths leaving the resources root are refused
+        """
+        bundle = self.install("x = 1\n", self.FILES)
+        self.write("secret.txt", "S")
+        for path in (
+            "../secret.txt",
+            "sub/../../secret.txt",
+            "..",
+            str(self.directory / "secret.txt"),
+            "/etc/passwd",
+            "\\x",
+        ):
+            with self.subTest(path):
+                with self.assertRaises(ValueError):
+                    bundle.get_entry(path)
+                with self.assertRaises(ValueError):
+                    bundle.find_entries(path)
+
+
+class BundleUpdateTest(BundleFilesTestCase):
+    """
+    Tests the update of the bundles
+    """
+
+    OLD = textwrap.dedent(
+        """
+        \"\"\"
+        .. pelix-bundle
+           version = "1.0"
+        \"\"\"
+        __stale__ = "old"
+        from pelix.constants import BundleActivator
+
+        # Calls are written in a file: a module can't share a list with the test
+        def log(call):
+            with open(__file__ + ".calls", "a") as calls:
+                calls.write(call + "\\n")
+
+        @BundleActivator
+        class Activator:
+            def start(self, context):
+                log("start")
+
+            def stop(self, context):
+                log("stop")
+        """
+    )
+
+    def setUp(self):
+        """
+        Called before each test. Installs and starts a bundle.
+        """
+        super().setUp()
+        self.bundle = self.install(self.OLD)
+        self.bundle.start()
+        self.events: list[int] = []
+        self.context.add_bundle_listener(self)
+        self.calls_file = pathlib.Path(self.bundle.get_location() + ".calls")
+        self.clear_calls()
+
+    def clear_calls(self) -> None:
+        """
+        Forgets the calls of the activator
+        """
+        self.calls_file.unlink(missing_ok=True)
+
+    def calls(self) -> list[str]:
+        """
+        Lists the calls of the activator
+        """
+        return self.calls_file.read_text().split() if self.calls_file.exists() else []
+
+    def bundle_changed(self, event: BundleEvent) -> None:
+        """
+        Records the bundle events
+        """
+        self.events.append(event.get_kind())
+
+    def update_to(self, source: str) -> None:
+        """
+        Writes a new source for the bundle and updates it
+        """
+        pathlib.Path(self.bundle.get_location()).write_text(textwrap.dedent(source), encoding="utf-8")
+        self.bundle.update()
+
+    def testFailures(self):
+        """
+        Tests the sources which can't be loaded: the old code comes back
+        """
+        # The sources with metadata are refused before the bundle is stopped
+        for label, source, cause, stopped in (
+            ("syntax error", "def broken(:\n", SyntaxError, True),
+            (
+                "syntax error with metadata",
+                self.OLD.replace("class Activator:", "class Activator(:"),
+                SyntaxError,
+                False,
+            ),
+            ("missing dependency", "import nonexistent_dependency\n", ImportError, True),
+            ("module level error", "raise RuntimeError('boom')\n", RuntimeError, True),
+            (
+                "invalid metadata",
+                self.OLD.replace('version = "1.0"', "version ="),
+                tomllib.TOMLDecodeError,
+                False,
+            ),
+        ):
+            with self.subTest(label):
+                self.clear_calls()
+                self.events.clear()
+                with self.assertRaises(BundleException) as raised:
+                    self.update_to(source)
+
+                self.assertIsInstance(raised.exception.__cause__ or raised.exception, cause)
+                self.assertEqual(self.calls(), ["stop", "start"] if stopped else [])
+                self.assertNotIn(BundleEvent.UPDATED, self.events)
+                self.assertEqual(self.events[-1], BundleEvent.UPDATE_FAILED)
+
+                # The previous code and metadata are back
+                self.assertEqual(self.bundle.get_state(), Bundle.ACTIVE)
+                self.assertEqual(self.bundle.get_version(), "1.0")
+                self.assertEqual(self.bundle.get_module().__stale__, "old")
+
+    def testStaleNames(self):
+        """
+        Tests that no name of the old code survives a successful update
+        """
+        self.update_to('"""\n.. pelix-bundle\n   version = "2.0"\n"""\nx = 1\n')
+        self.assertEqual(self.events[-1], BundleEvent.UPDATED)
+        self.assertEqual(self.bundle.get_version(), "2.0")
+        self.assertFalse(hasattr(self.bundle.get_module(), "__stale__"))
+        # No activator any more: the old one must not be started again
+        self.assertEqual(self.calls(), ["stop"])
+        self.assertEqual(self.bundle.get_state(), Bundle.ACTIVE)
+        self.assertTrue(self.bundle.get_module().__name__)
+
+    def testStoppedBundle(self):
+        """
+        Tests a failed update of a bundle which wasn't active
+        """
+        self.bundle.stop()
+        self.clear_calls()
+        with self.assertRaises(BundleException):
+            self.update_to("raise RuntimeError\n")
+        self.assertEqual(self.bundle.get_state(), Bundle.RESOLVED)
+        self.assertEqual(self.calls(), [])
 
 
 if __name__ == "__main__":

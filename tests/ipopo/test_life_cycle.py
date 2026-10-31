@@ -7,8 +7,9 @@ Tests the component life cycle
 """
 
 import unittest
+from unittest import mock
 
-from pelix.framework import FrameworkFactory
+from pelix.framework import BundleException, FrameworkFactory
 from pelix.ipopo import constants, decorators
 from pelix.ipopo.constants import IPopoEvent
 from pelix.ipopo.instance import StoredInstance
@@ -157,6 +158,44 @@ class LifeCycleTest(unittest.TestCase):
 
         # Clean up
         self.ipopo.kill(NAME_A)
+
+    def testAutoRestartFailedUpdate(self):
+        """
+        Tests that an auto-restart component survives a failed update of its
+        bundle, and is restarted once, if the bundle was running
+        """
+        instantiated: list[str] = []
+
+        class Listener:
+            def handle_ipopo_event(self, event):
+                if event.get_kind() == IPopoEvent.INSTANTIATED and event.get_component_name() == NAME_A:
+                    instantiated.append(NAME_A)
+
+        self.ipopo.add_listener(Listener())
+        bundle = self.framework.get_bundle_by_name("tests.ipopo.ipopo_bundle")
+        assert bundle is not None, "Bundle not found"
+
+        for label, active, restarted in (("active", True, 1), ("stopped", False, 0)):
+            with self.subTest(label):
+                self.ipopo.instantiate(self.module.FACTORY_A, NAME_A, {constants.IPOPO_AUTO_RESTART: True})
+                if not active:
+                    bundle.stop()
+                instantiated.clear()
+
+                # The reload fails: the previous code is restored
+                with (
+                    mock.patch("pelix.framework.reload_module", side_effect=RuntimeError("boom")),
+                    self.assertRaises(BundleException),
+                ):
+                    bundle.update()
+
+                self.assertEqual(instantiated, [NAME_A] * restarted)
+                self.assertEqual(self.ipopo.is_registered_instance(NAME_A), active)
+
+                if active:
+                    self.ipopo.kill(NAME_A)
+                else:
+                    bundle.start()
 
     def testSingleton(self):
         """
