@@ -8,10 +8,21 @@ services:
 
   mqtt-broker:
     image: eclipse-mosquitto
+    # Secrets made by mqtt/prepare.sh. Mosquitto wants its password file to be
+    # private and owned by its user
+    env_file: ./mqtt/.env
+    command: >-
+      sh -c "rm -f /mosquitto/data/passwd && mosquitto_passwd -c -b /mosquitto/data/passwd \"$$MQTT_TEST_USERNAME\" \"$$MQTT_TEST_PASSWORD\"
+      && chown mosquitto:mosquitto /mosquitto/data/passwd && chmod 600 /mosquitto/data/passwd
+      && exec mosquitto -c /mosquitto/config/mosquitto.conf"
     volumes:
       - ./mqtt/mosquitto.conf:/mosquitto/config/mosquitto.conf:z
+      - ./mqtt/certs:/mosquitto/certs:ro,z
     ports:
       - "1883:1883"
+      - "1884:1884"
+      - "8883:8883"
+      - "8884:8884"
 
   redis:
     image: redis

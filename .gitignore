@@ -74,3 +74,6 @@ _build/
 
 # Environment variables
 .env
+
+# Secrets of the test MQTT broker (tests-infra/mqtt/prepare.sh)
+/tests-infra/mqtt/certs/

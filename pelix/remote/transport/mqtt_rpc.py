@@ -37,16 +37,27 @@ import logging
 import threading
 import uuid
 from collections.abc import Callable, Iterable
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import pelix.remote
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference
-from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Validate
-from pelix.misc.mqtt_client import MqttClient, MqttMessage
-from pelix.remote import RemoteServiceError
+from pelix.ipopo import constants
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    HiddenProperty,
+    Invalidate,
+    Property,
+    Provides,
+    ValidateComponent,
+)
+from pelix.misc.mqtt_client import PROP_MQTT_PASSWORD, MqttClient, MqttConnectionConfig, MqttMessage
+from pelix.remote import RemoteServiceError, security
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.transport import commons
+from pelix.security import ANONYMOUS, SecurityError, run_as
+from pelix.security.core import restore_subject
 from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
@@ -64,9 +75,11 @@ __all__ = [
     "KEY_ERROR",
     "KEY_SENDER",
     "MQTTRPC_CONFIGURATION",
+    "PROP_MQTT_PEER_NAME",
     "PROP_MQTT_TOPIC",
     "TOPIC_REQUEST",
     "TOPIC_RESPONSE",
+    "TRANSPORT_MQTTRPC",
     "make_topic",
 ]
 
@@ -78,11 +91,28 @@ MQTTRPC_CONFIGURATION = "mqttrpc"
 PROP_MQTT_TOPIC = "mqttrpc.topic"
 """ Remote Service property: topic to use to contact the service """
 
+PROP_MQTT_PEER_NAME = "mqttrpc.peer.name"
+"""
+Exporter property: name of the subject the calls run as, i.e. every broker
+client allowed to publish requests. Anonymous if not set.
+"""
+
+TRANSPORT_MQTTRPC = "remote.mqttrpc"
+""" Transport of the subjects of the MQTT-RPC calls """
+
 _logger = logging.getLogger(__name__)
 
 # Topic suffixes
 TOPIC_REQUEST = "request"
 TOPIC_RESPONSE = "reply"
+
+# Bounds of the requests handled at once by an exporter: a flood of requests
+# must not start an unlimited number of threads
+_MAX_THREADS = 10
+_MAX_PENDING = 100  # running and queued
+
+# Characters which can't be in a single MQTT topic level
+_TOPIC_SPECIAL_CHARS = frozenset("/+#\0")
 
 # JSON dictionary keys
 KEY_ERROR = "err"
@@ -112,8 +142,8 @@ def make_topic(topic: str, suffix: str) -> str:
     pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
     (MQTTRPC_CONFIGURATION,),
 )
-@Property("_host", "mqtt.host", "localhost")
-@Property("_port", "mqtt.port", 1883)
+@Property("_peer_name", PROP_MQTT_PEER_NAME, None)
+@HiddenProperty("_mqtt_password", PROP_MQTT_PASSWORD, None)
 class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
     """
     MQTT-RPC Remote Services exporter
@@ -130,18 +160,22 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         self._topic = ""
         self.__real_topic = ""
 
-        # Topic to reply to requests
-        self.__reply_topic = ""
+        # MQTT broker password (hidden property)
+        self._mqtt_password: str | None = None
 
-        # MQTT server
-        self._host = ""
-        self._port = 0
+        # Subject of the callers
+        self._peer_name: str | None = None
 
         # MQTT client
         self.__mqtt: MqttClient | None = None
+        self.__broker_host: str | None = None
 
-    @Validate
-    def validate(self, context: BundleContext) -> None:
+        # Requests handling
+        self.__pool: ThreadPoolExecutor | None = None
+        self.__pending = threading.BoundedSemaphore(_MAX_PENDING)
+
+    @ValidateComponent(constants.ARG_BUNDLE_CONTEXT, constants.ARG_PROPERTIES)
+    def validate(self, context: BundleContext, properties: dict[str, Any] | None = None) -> None:
         """
         Component validated
         """
@@ -151,18 +185,19 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # Format the topic prefix
         self.__real_topic = self._topic.format(fw_uid=self._framework_uid)
 
-        # Normalize topic
-        self.__reply_topic = make_topic(self.__real_topic, TOPIC_RESPONSE)
+        self.__pool = ThreadPoolExecutor(_MAX_THREADS, thread_name_prefix="MQTT-RPC-Exporter")
 
         # Create the MQTT client
-        self.__mqtt = MqttClient()
+        config = MqttConnectionConfig.from_properties(properties or {}, self._mqtt_password)
+        self.__broker_host = config.host
+        self.__mqtt = config.make_client()
 
         # Customize callbacks
         self.__mqtt.on_connect = self.__on_connect
         self.__mqtt.on_message = self.__on_message
 
         # Prepare the connection
-        self.__mqtt.connect(self._host, self._port)
+        config.connect(self.__mqtt)
 
     @Invalidate
     def invalidate(self, context: BundleContext) -> None:
@@ -173,11 +208,15 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         if self.__mqtt is not None:
             self.__mqtt.disconnect()
 
+        if self.__pool is not None:
+            self.__pool.shutdown(wait=False, cancel_futures=True)
+
         # Call the parent
         super().invalidate(context)
 
         # Clean up members
         self.__mqtt = None
+        self.__pool = None
 
     def __on_connect(self, client: MqttClient, result_code: int) -> None:
         """
@@ -204,58 +243,104 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
             _logger.error("Error reading MQTT-RPC request: %s", ex)
             return
 
+        sender = data.get(KEY_SENDER) if isinstance(data, dict) else None
+        if sender == self._framework_uid:
+            # We published this message
+            return
+
+        if not sender or not isinstance(sender, str) or not _TOPIC_SPECIAL_CHARS.isdisjoint(sender):
+            # The reply topic is made of the sender UID: it must be a single topic level
+            _logger.debug("Ignoring an MQTT-RPC request without a valid sender")
+            return
+
+        # Each caller has its own reply topic, which the broker can restrict
+        reply_topic = make_topic(self.__real_topic, f"{TOPIC_RESPONSE}/{sender}")
+
+        if self.__pool is None or not self.__pending.acquire(blocking=False):
+            # Too many requests: tell the caller instead of letting it wait
+            _logger.warning("Too many pending MQTT-RPC requests: refusing one from %s", sender)
+            self.__reply(reply_topic, data, None, "Server busy")
+            return
+
         try:
-            if data[KEY_SENDER] == self._framework_uid:
-                # We published this message
-                return
-        except KeyError:
-            # Not sent by us
-            pass
+            self.__pool.submit(self.__handle_rpc, data, reply_topic)
+        except RuntimeError:
+            # Pool shut down while invalidating
+            self.__pending.release()
 
-        # Handle the request in a different thread
-        threading.Thread(name="MQTT-RPC-Exporter", target=self.__handle_rpc, args=(data,)).start()
-
-    def __handle_rpc(self, data: dict[str, Any]) -> None:
+    def __reply(self, topic: str, request: dict[str, Any], data: Any, error: str | None) -> None:
         """
-        Handles an RPC request (should be called in a specific thread)
+        Publishes the reply to a request
 
-        :param data: RPC description
+        :param topic: Reply topic of the caller
+        :param request: The request
+        :param data: Result of the call
+        :param error: Error message, if any
         """
-        assert self.__mqtt is not None
-
-        # Prepare the result dictionary
         result = {
-            KEY_ERROR: None,
-            KEY_DATA: None,
-            KEY_CORRELATION_ID: data.get(KEY_CORRELATION_ID),
+            KEY_ERROR: error,
+            KEY_DATA: data,
+            KEY_CORRELATION_ID: request.get(KEY_CORRELATION_ID),
             KEY_SENDER: self._framework_uid,
         }
 
-        # Extract parameters
-        try:
-            call_info = data[KEY_DATA]
-            if not call_info:
-                raise ValueError("No call information given")
-
-            method = call_info[0]
-            params = call_info[1:]
-        except (KeyError, IndexError, ValueError) as ex:
-            result[KEY_ERROR] = f"Endpoint name is missing: {ex}"
-        else:
-            try:
-                # Call the service
-                result[KEY_DATA] = self.dispatch(method, params)
-            except Exception:
-                # The details describe the server: only the log gets them
-                error_id = uuid.uuid4().hex
-                _logger.exception("Error %s calling %s", error_id, method)
-                result[KEY_ERROR] = f"Internal error. Error ID: {error_id}"
+        mqtt = self.__mqtt
+        if mqtt is None:
+            return
 
         try:
-            # Publish the result
-            self.__mqtt.publish(self.__reply_topic, json.dumps(result), qos=2)
-        except (ValueError, AttributeError) as ex:
+            mqtt.publish(topic, json.dumps(result), qos=2)
+        except (ValueError, TypeError) as ex:
             _logger.error("Error replying an RPC request: %s", ex)
+
+    def __handle_rpc(self, data: dict[str, Any], reply_topic: str) -> None:
+        """
+        Handles an RPC request (called in a thread of the pool)
+
+        :param data: RPC description
+        :param reply_topic: Topic to publish the result to
+        """
+        result: Any = None
+        error: str | None = None
+        try:
+            # Extract parameters
+            try:
+                call_info = data[KEY_DATA]
+                if not call_info:
+                    raise ValueError("No call information given")
+
+                method = call_info[0]
+                params = call_info[1:]
+            except (KeyError, IndexError, TypeError, ValueError) as ex:
+                error = f"Endpoint name is missing: {ex}"
+            else:
+                # The broker hands no identity: every caller is the configured peer
+                subject = (
+                    restore_subject(self._peer_name, transport=TRANSPORT_MQTTRPC)
+                    if self._peer_name
+                    else ANONYMOUS
+                )
+                try:
+                    # Call the service
+                    with run_as(subject):
+                        result = self.dispatch(method, params)
+                except SecurityError as ex:
+                    error = security.refusal_message(ex)
+                except Exception:
+                    # The details describe the server: only the log gets them
+                    error_id = uuid.uuid4().hex
+                    _logger.exception("Error %s calling %s", error_id, method)
+                    error = f"Internal error. Error ID: {error_id}"
+
+            self.__reply(reply_topic, data, result, error)
+        finally:
+            self.__pending.release()
+
+    def is_local_only(self) -> bool:
+        """
+        Only the local processes can call when the broker is on a loopback address
+        """
+        return security.is_loopback_host(self.__broker_host)
 
     def make_endpoint_properties(
         self, svc_ref: ServiceReference[Any], name: str, fw_uid: str | None
@@ -392,8 +477,7 @@ class _ServiceCallProxy:
     pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
     (MQTTRPC_CONFIGURATION,),
 )
-@Property("_host", "mqtt.host", "localhost")
-@Property("_port", "mqtt.port", 1883)
+@HiddenProperty("_mqtt_password", PROP_MQTT_PASSWORD, None)
 class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
     """
     MQTT-RPC Remote Services importer
@@ -406,9 +490,8 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         # Call parent
         super().__init__()
 
-        # MQTT server
-        self._host = ""
-        self._port = 0
+        # MQTT broker password (hidden property)
+        self._mqtt_password: str | None = None
 
         # MQTT client
         self.__mqtt: MqttClient | None = None
@@ -418,6 +501,9 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
 
         # Endpoints in use: Endpoint UID -> _MqttCallableProxy
         self.__waiting_endpoints: dict[str, Any] = {}
+
+        # Timeout of the calls
+        self.__timeout: float | None = None
 
     def make_service_proxy(self, endpoint: ImportEndpoint) -> Any:
         """
@@ -489,11 +575,18 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         self.__waiting[correlation_id] = proxy
         self.__waiting_endpoints.setdefault(endpoint_uid, set()).add(proxy)
 
-        # Subscribe to the reply
-        self.__mqtt.subscribe(make_topic(topic_prefix, TOPIC_RESPONSE))
+        # Subscribe to our own reply topic
+        self.__mqtt.subscribe(make_topic(topic_prefix, f"{TOPIC_RESPONSE}/{self._framework_uid}"))
 
         # Send the request
         self.__mqtt.publish(make_topic(topic_prefix, TOPIC_REQUEST), request, qos=2)
+
+        # Wait here, where the client limits are known: a lost reply must not block forever
+        replied = proxy._event.wait(self.__timeout)
+        self.__waiting_endpoints.get(endpoint_uid, set()).discard(proxy)
+        if not replied:
+            self.__waiting.pop(correlation_id, None)
+            raise RemoteServiceError("MQTT-RPC call timed out")
 
     def __on_message(self, client: MqttClient, message: MqttMessage) -> None:
         """
@@ -542,22 +635,24 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
             # Notify the proxy
             proxy.handle_result(result, error)
 
-    @Validate
-    def validate(self, context: BundleContext) -> None:
+    @ValidateComponent(constants.ARG_BUNDLE_CONTEXT, constants.ARG_PROPERTIES)
+    def validate(self, context: BundleContext, properties: dict[str, Any] | None = None) -> None:
         """
         Component validated
         """
         # Call the parent
         super().validate(context)
+        self.__timeout = commons.get_client_limits(context).timeout
 
         # Create the MQTT client
-        self.__mqtt = MqttClient()
+        config = MqttConnectionConfig.from_properties(properties or {}, self._mqtt_password)
+        self.__mqtt = config.make_client()
 
         # Customize callbacks
         self.__mqtt.on_message = self.__on_message
 
         # Prepare the connection
-        self.__mqtt.connect(self._host, self._port)
+        config.connect(self.__mqtt)
 
     @Invalidate
     def invalidate(self, context: BundleContext) -> None:

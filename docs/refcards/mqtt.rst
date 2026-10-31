@@ -16,6 +16,78 @@ Pelix provides a service to be notified of MQTT messages from different servers.
 It abstracts the underlying MQTT library (Eclipse Paho) to ensure the API stays
 the same despite library upgrades or changes.
 
+.. _mqtt-connection:
+
+Connection to the broker
+------------------------
+
+The MQTT components of Pelix (MQTT discovery and MQTT-RPC of the remote
+services, EventAdmin MQTT bridge) read the same instance properties to connect
+to their broker.
+They are parsed by :class:`pelix.misc.mqtt_client.MqttConnectionConfig`, which
+can also be used to configure a :class:`~pelix.misc.mqtt_client.MqttClient` in
+custom code.
+
+======================== =================== =============================================================
+Property                 Default             Description
+======================== =================== =============================================================
+mqtt.host                ``localhost``       Broker host name
+mqtt.port                1883, 8883 with TLS Broker port
+mqtt.keepalive           60                  Maximum delay (in seconds) between two exchanges
+mqtt.client_id           random              Client ID: it must be unique on the broker
+mqtt.max_queued_messages 1000                Maximum QoS 1 and 2 messages waiting to be sent (0: no limit)
+mqtt.username                                User name to authenticate on the broker
+mqtt.password                                Password of the user (hidden property)
+mqtt.tls                 ``False``           Connect with TLS
+mqtt.tls.ca_file         system authorities  Authorities trusted to verify the broker (PEM)
+mqtt.tls.cert_file                           Client certificate (PEM)
+mqtt.tls.key_file                            Private key of the client certificate (PEM)
+======================== =================== =============================================================
+
+TLS is enabled by ``mqtt.tls`` or by any of the ``mqtt.tls.*`` files.
+The broker certificate and its host name are always verified: give the
+certificate of a private authority with ``mqtt.tls.ca_file``.
+An invalid or missing TLS file stops the component at validation.
+
+``mqtt.password`` is declared as a hidden property: it is never visible in the
+service properties of the component.
+
+.. code-block:: python
+
+   ipopo.instantiate(
+       pelix.remote.FACTORY_DISCOVERY_MQTT,
+       "mqtt-discovery",
+       {
+           "mqtt.host": "broker.example.com",
+           "mqtt.tls.ca_file": "/etc/pelix/broker-ca.pem",
+           "mqtt.username": "pelix",
+           "mqtt.password": password,
+       },
+   )
+
+.. autoclass:: pelix.misc.mqtt_client.MqttConnectionConfig
+   :members: from_properties, make_client, connect
+
+Reconnection and disconnected publications
+------------------------------------------
+
+:class:`~pelix.misc.mqtt_client.MqttClient` reconnects to its broker when the
+connection is lost or can't be established, with a delay growing from 1 to 120
+seconds (Paho's reconnection). Each failed attempt is logged as a warning with
+its cause, a TLS verification error included. After a reconnection without the
+previous session, the client subscribes again to the topics given to
+:meth:`~pelix.misc.mqtt_client.MqttClient.subscribe`.
+
+While disconnected, :meth:`~pelix.misc.mqtt_client.MqttClient.publish` queues
+the QoS 1 and 2 messages, up to ``mqtt.max_queued_messages`` (the
+``max_queued_messages`` argument of the client), and sends them once connected:
+it returns their message ID, and
+:meth:`~pelix.misc.mqtt_client.MqttClient.wait_publication` tells when they
+are sent. A QoS 0 message while disconnected, or any message when the queue is
+full, is refused: ``publish()`` returns ``None``.
+
+The client also supports MQTT v5 (``protocol=MQTTv5``).
+
 MQTT service
 ------------
 

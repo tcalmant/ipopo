@@ -390,10 +390,11 @@ It can be configured with the following properties:
 Property          Default Value         Description
 ================= ===================== =======================================
 event.topics      (none)                The filter to select the events to share
-mqtt.host         localhost             The host name of the MQTT server
-mqtt.port         1883                  The port the MQTT server is bound to
 mqtt.topic.prefix ``/pelix/eventadmin`` The prefix to add to events before sending them over MQTT
 ================= ===================== =======================================
+
+The connection to the broker (host, port, TLS, credentials) is configured with
+the ``mqtt.*`` properties described in :ref:`mqtt-connection`.
 
 Events handled by this component, i.e. matching the filter given at
 instantiation time, and having the ``event.propagate`` property set to any

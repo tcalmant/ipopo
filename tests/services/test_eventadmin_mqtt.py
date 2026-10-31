@@ -9,7 +9,7 @@ Tests the EventAdmin MQTT bridge service
 import json
 import threading
 import unittest
-from typing import Any, cast
+from typing import Any, ClassVar, cast
 from unittest.mock import MagicMock
 
 import pelix.constants
@@ -21,7 +21,14 @@ from pelix.ipopo.constants import use_ipopo
 try:
     from pelix.misc.mqtt_client import MqttClient, MqttMessage
     from pelix.services.eventadmin_mqtt import EVENT_PROP_STARTING_SLASH, MqttEventAdminBridge
-    from tests.mqtt_utilities import find_mqtt_server
+    from tests.mqtt_utilities import (
+        MQTT_CERTS,
+        MQTT_PASSWORD,
+        MQTT_PORT_MTLS,
+        MQTT_USERNAME,
+        find_mqtt_server,
+        has_mqtt_secure_listeners,
+    )
 except ImportError:
     raise unittest.SkipTest("MQTT client library not available")
 
@@ -161,6 +168,9 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
     HOST = MQTT_SERVER
     PORT = 1883
 
+    # Connection of the bridge, the test clients use HOST and PORT
+    BRIDGE_MQTT: ClassVar[dict[str, Any]] = {"mqtt.host": MQTT_SERVER, "mqtt.port": PORT}
+
     framework: pelix.framework.Framework
 
     def assertDictContains(self, subset: dict[Any, Any], container: dict[Any, Any]) -> None:
@@ -219,8 +229,7 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
                 "mqtt-bridge",
                 {
                     pelix.services.PROP_EVENT_TOPICS: event_filter,
-                    "mqtt.host": self.HOST,
-                    "mqtt.port": self.PORT,
+                    **self.BRIDGE_MQTT,
                     "mqtt.topic.prefix": mqtt_prefix,
                 },
             )
@@ -476,3 +485,25 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
                 self.assertEqual(event.post.called, shared)
                 if shared:
                     self.assertEqual(event.post.call_args[0][0], topic)
+
+
+class EventAdminMqttBridgeTlsTest(EventAdminMqttBridgeTest):
+    """
+    Runs the bridge tests with a bridge connected over TLS, with a client
+    certificate and a password
+    """
+
+    BRIDGE_MQTT: ClassVar[dict[str, Any]] = {
+        "mqtt.host": MQTT_SERVER,
+        "mqtt.port": MQTT_PORT_MTLS,
+        "mqtt.tls.ca_file": str(MQTT_CERTS / "ca.crt"),
+        "mqtt.tls.cert_file": str(MQTT_CERTS / "client.crt"),
+        "mqtt.tls.key_file": str(MQTT_CERTS / "client.key"),
+        "mqtt.username": MQTT_USERNAME,
+        "mqtt.password": MQTT_PASSWORD,
+    }
+
+    @classmethod
+    def setUpClass(cls) -> None:
+        if not has_mqtt_secure_listeners():
+            raise unittest.SkipTest("The MQTT broker has no TLS nor password listener")

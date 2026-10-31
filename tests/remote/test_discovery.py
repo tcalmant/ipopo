@@ -25,8 +25,11 @@ Tests remote services discovery using the JSON-RPC transport
 """
 
 import importlib.util
+import json
+import os
 import queue
 import sys
+import tempfile
 import threading
 import time
 import traceback
@@ -343,11 +346,55 @@ class HttpTransportsTest(unittest.TestCase):
         if not is_server_reachable("localhost", 1883):
             self.skipTest("No MQTT broker on localhost:1883: can't test MQTT discovery")
 
-        try:
-            self._run_test("pelix.remote.discovery.mqtt", pelix.remote.FACTORY_DISCOVERY_MQTT)
-        except queue.Empty:
-            # Process error
-            self.fail("Remote framework took to long to reply")
+        with tempfile.TemporaryDirectory() as folder:
+            key_file = os.path.join(folder, "group.key")
+            with open(key_file, "wb") as file:
+                file.write(b"k" * 32)
+            os.chmod(key_file, 0o600)
+
+            for opts in ({}, {security.PROP_DISCOVERY_KEY_FILE: key_file}):
+                with self.subTest(opts=opts):
+                    try:
+                        self._run_test(
+                            "pelix.remote.discovery.mqtt", pelix.remote.FACTORY_DISCOVERY_MQTT, opts
+                        )
+                    except queue.Empty:
+                        # Process error
+                        self.fail("Remote framework took to long to reply")
+
+    def test_mqtt_signed_messages(self) -> None:
+        """
+        With a group key, the MQTT discovery only handles the messages signed with it
+        """
+        if importlib.util.find_spec("paho") is None:
+            self.skipTest("paho is missing: can't test MQTT discovery")
+
+        from pelix.remote.discovery.mqtt import MqttDiscovery
+
+        key = b"k" * 32
+        discovery = MqttDiscovery()
+        discovery._framework_uid = "local-fw"
+        discovery.__dict__["_MqttDiscovery__signer"] = security.DiscoverySigner(key)
+        discovery._registry = registry = mock.MagicMock()
+        handle = vars(MqttDiscovery)["_MqttDiscovery__on_message"].__get__(discovery)
+
+        signed = json.dumps(security.DiscoverySigner(key).sign({"event": "lost", "payload": "fw-2"}))
+        for name, payload in (
+            ("unsigned", b"fw-2"),
+            (
+                "other key",
+                json.dumps(security.DiscoverySigner(b"o" * 32).sign({"event": "lost", "payload": "fw-3"})),
+            ),
+            (
+                "other event",
+                json.dumps(security.DiscoverySigner(key).sign({"event": "discover", "payload": "fw-4"})),
+            ),
+            ("signed", signed),
+            ("replayed", signed),
+        ):
+            with self.subTest(name=name):
+                handle(None, mock.Mock(topic="pelix/app/remote-services/lost", payload=payload))
+        registry.lost_framework.assert_called_once_with("fw-2")
 
     def test_redis(self) -> None:
         """

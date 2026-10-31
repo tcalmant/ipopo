@@ -24,6 +24,7 @@ Tests remote services transport and discovery based on MQTT
     limitations under the License.
 """
 
+import json
 import queue
 import threading
 import time
@@ -36,8 +37,18 @@ import pelix.remote
 from pelix.framework import Framework, FrameworkFactory, create_framework
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
+from pelix.misc.mqtt_client import MqttClient
 from pelix.remote import security
-from tests.mqtt_utilities import find_mqtt_server
+from pelix.remote.transport import mqtt_rpc
+from pelix.security import AccessDenied, Authorization, Permission, Subject, get_current_subject
+from tests.mqtt_utilities import (
+    MQTT_CERTS,
+    MQTT_PASSWORD,
+    MQTT_PORT_MTLS,
+    MQTT_USERNAME,
+    find_mqtt_server,
+    has_mqtt_secure_listeners,
+)
 from tests.utilities import WrappedProcess
 
 try:
@@ -129,15 +140,16 @@ class RemoteService:
 
 
 def load_framework(
-    app_id: str, mqtt_server: str, transport: str, components: Iterable[tuple[str, str]]
+    app_id: str, mqtt_props: dict[str, Any], transport: str, components: Iterable[tuple[str, str]]
 ) -> Framework:
     """
     Starts a Pelix framework in the local process
 
     :param app_id: Application ID
-    :param mqtt_server: Host of the MQTT broker to use. It is given explicitly as
-                        the peer process is spawned, i.e. it reimports this module:
-                        looking for the broker on its own could give another result
+    :param mqtt_props: Properties of the connection to the MQTT broker. They are
+                       given explicitly as the peer process is spawned, i.e. it
+                       reimports this module: looking for the broker on its own
+                       could give another result
     :param transport: Name of the transport bundle to install
     :param components: Tuples (factory, name) of instances to start
     """
@@ -158,12 +170,12 @@ def load_framework(
         ipopo.instantiate(
             pelix.remote.FACTORY_DISCOVERY_MQTT,
             "mqtt-discovery",
-            {"mqtt.host": mqtt_server, "application.id": app_id},
+            {**mqtt_props, "application.id": app_id},
         )
 
         # Start other components
         for factory, name in components:
-            ipopo.instantiate(factory, name, {"mqtt.host": mqtt_server})
+            ipopo.instantiate(factory, name, dict(mqtt_props))
 
     return framework
 
@@ -171,7 +183,7 @@ def load_framework(
 def export_framework(
     state_queue: Queue,
     app_id: str,
-    mqtt_server: str,
+    mqtt_props: dict[str, Any],
     transport: str,
     components: Iterable[tuple[str, str]],
 ) -> None:
@@ -180,13 +192,13 @@ def export_framework(
 
     :param state_queue: Queue to store status
     :param app_id: Application ID
-    :param mqtt_server: Host of the MQTT broker to use
+    :param mqtt_props: Properties of the connection to the MQTT broker
     :param transport: Name of the transport bundle to install
     :param components: Tuples (factory, name) of instances to start
     """
     try:
         # Load the framework
-        framework = load_framework(app_id, mqtt_server, transport, components)
+        framework = load_framework(app_id, mqtt_props, transport, components)
         context = framework.get_bundle_context()
 
         # Register the exported service
@@ -221,11 +233,17 @@ class MqttTransportsTest(unittest.TestCase):
     """
 
     def __run_test(
-        self, transport_bundle: str, exporter_factory: str, importer_factory: str, test_kwargs: bool = True
+        self,
+        mqtt_props: dict[str, Any],
+        transport_bundle: str,
+        exporter_factory: str,
+        importer_factory: str,
+        test_kwargs: bool = True,
     ) -> None:
         """
         Runs a remote service call test
 
+        :param mqtt_props: Properties of the connection to the MQTT broker
         :param transport_bundle: Transport implementation bundle to use
         :param exporter_factory: Name of the RS exporter factory
         :param importer_factory: Name of the RS importer factory
@@ -233,8 +251,6 @@ class MqttTransportsTest(unittest.TestCase):
         :raise queue.Empty: Peer took to long to answer
         :raise ValueError: Test failed
         """
-        assert MQTT_SERVER is not None
-
         # Define components
         components = [(exporter_factory, "rs-exporter"), (importer_factory, "rs-importer")]
 
@@ -243,7 +259,7 @@ class MqttTransportsTest(unittest.TestCase):
         status_queue = Queue()
         peer = WrappedProcess(
             target=export_framework,
-            args=(status_queue, APP_ID, MQTT_SERVER, transport_bundle, components),
+            args=(status_queue, APP_ID, mqtt_props, transport_bundle, components),
         )
         peer.start()
 
@@ -254,8 +270,12 @@ class MqttTransportsTest(unittest.TestCase):
             self.assertEqual(state, "ready")
 
             # Load the local framework (after the fork)
-            framework = load_framework(APP_ID, MQTT_SERVER, transport_bundle, components)
+            framework = load_framework(APP_ID, mqtt_props, transport_bundle, components)
             context = framework.get_bundle_context()
+
+            # The broker password is never a service property
+            for any_ref in context.get_all_service_references(None) or []:
+                self.assertNotIn(MQTT_PASSWORD, repr(any_ref.get_properties()))
 
             # Look for the remote service
             for _ in range(60):
@@ -355,8 +375,10 @@ class MqttTransportsTest(unittest.TestCase):
         """
         Tests the MQTT-RPC transport
         """
+        assert MQTT_SERVER is not None
         try:
             self.__run_test(
+                {"mqtt.host": MQTT_SERVER},
                 "pelix.remote.transport.mqtt_rpc",
                 pelix.remote.FACTORY_TRANSPORT_MQTTRPC_EXPORTER,
                 pelix.remote.FACTORY_TRANSPORT_MQTTRPC_IMPORTER,
@@ -365,6 +387,241 @@ class MqttTransportsTest(unittest.TestCase):
         except queue.Empty:
             # Process error
             self.fail("Remote framework took to long to reply")
+
+    def test_mqttrpc_secure(self) -> None:
+        """
+        Tests the MQTT-RPC transport and MQTT discovery over TLS, with a
+        client certificate and a password
+        """
+        if not has_mqtt_secure_listeners():
+            self.skipTest("The MQTT broker has no TLS nor password listener")
+
+        assert MQTT_SERVER is not None
+        mqtt_props = {
+            "mqtt.host": MQTT_SERVER,
+            "mqtt.port": MQTT_PORT_MTLS,
+            "mqtt.tls.ca_file": str(MQTT_CERTS / "ca.crt"),
+            "mqtt.tls.cert_file": str(MQTT_CERTS / "client.crt"),
+            "mqtt.tls.key_file": str(MQTT_CERTS / "client.key"),
+            "mqtt.username": MQTT_USERNAME,
+            "mqtt.password": MQTT_PASSWORD,
+        }
+        try:
+            self.__run_test(
+                mqtt_props,
+                "pelix.remote.transport.mqtt_rpc",
+                pelix.remote.FACTORY_TRANSPORT_MQTTRPC_EXPORTER,
+                pelix.remote.FACTORY_TRANSPORT_MQTTRPC_IMPORTER,
+                False,
+            )
+        except queue.Empty:
+            # Process error
+            self.fail("Remote framework took to long to reply")
+
+
+class BlockingService:
+    """
+    Exported service whose calls wait for an event
+    """
+
+    def __init__(self) -> None:
+        self.release = threading.Event()
+
+    def wait(self) -> str:
+        self.release.wait(30)
+        return "done"
+
+
+class PeerAuthorization:
+    """
+    Grants test.mqtt to the subject named "peer" only
+    """
+
+    def is_permitted(self, permission: Permission, subject: Subject | None = None) -> bool:
+        subject = subject or get_current_subject()
+        return subject.name == "peer" and permission.action == "test.mqtt"
+
+    def check_permitted(self, permission: Permission, subject: Subject | None = None) -> None:
+        if not self.is_permitted(permission, subject):
+            raise AccessDenied(str(permission))
+
+
+class MqttRpcExporterTest(unittest.TestCase):
+    """
+    Tests the MQTT-RPC exporter against raw MQTT callers
+    """
+
+    def setUp(self) -> None:
+        self.framework: Framework | None = None
+        self.client: MqttClient | None = None
+
+    def tearDown(self) -> None:
+        self._stop()
+
+    def _start(
+        self, exporter_props: dict[str, Any] | None = None, service_props: dict[str, Any] | None = None
+    ) -> None:
+        """
+        Exports a blocking service and connects a raw MQTT client
+
+        :param exporter_props: Extra properties of the exporter
+        :param service_props: Extra properties of the exported service
+        """
+        assert MQTT_SERVER is not None
+        self.framework = create_framework(
+            ["pelix.ipopo.core", "pelix.remote.dispatcher", "pelix.remote.transport.mqtt_rpc"]
+        )
+        self.framework.start()
+        context = self.framework.get_bundle_context()
+        with use_ipopo(context) as ipopo:
+            ipopo.instantiate(
+                pelix.remote.FACTORY_TRANSPORT_MQTTRPC_EXPORTER,
+                "rs-exporter",
+                {"mqtt.host": MQTT_SERVER, **(exporter_props or {})},
+            )
+
+        self.service = BlockingService()
+        context.register_service(
+            SVC_SPEC, self.service, {pelix.remote.PROP_EXPORTED_INTERFACES: "*", **(service_props or {})}
+        )
+
+        dispatcher_ref = context.get_service_reference(pelix.remote.RemoteServiceDispatcher)
+        assert dispatcher_ref is not None
+        dispatcher = context.get_service(dispatcher_ref)
+        endpoint = dispatcher.get_endpoints()[0]
+        self.method = f"{endpoint.name}.wait"
+        self.topic = endpoint.get_properties()[mqtt_rpc.PROP_MQTT_TOPIC]
+
+        # Replies, by topic
+        self.replies: queue.Queue[tuple[str, dict[str, Any]]] = queue.Queue()
+        connected = threading.Event()
+        self.client = MqttClient()
+        self.client.on_connect = lambda clt, rc: connected.set()
+        self.client.on_message = lambda clt, msg: self.replies.put((msg.topic, json.loads(msg.payload)))
+        self.client.connect(MQTT_SERVER)
+        self.assertTrue(connected.wait(10))
+        self.client.subscribe(mqtt_rpc.make_topic(self.topic, f"{mqtt_rpc.TOPIC_RESPONSE}/#"), 1)
+        self._wait_ready()
+
+    def _stop(self) -> None:
+        """
+        Stops the framework and the raw client
+        """
+        if self.client is not None:
+            self.service.release.set()
+            self.client.disconnect()
+            self.client = None
+
+        if self.framework is not None:
+            FrameworkFactory.delete_framework()
+            self.framework = None
+
+    def _request(self, sender: Any, correlation_id: str) -> None:
+        """
+        Sends a request to the exported service
+
+        :param sender: Value of the sender field
+        :param correlation_id: Request correlation ID
+        """
+        request = {mqtt_rpc.KEY_DATA: [self.method], mqtt_rpc.KEY_CORRELATION_ID: correlation_id}
+        if sender is not None:
+            request[mqtt_rpc.KEY_SENDER] = sender
+        assert self.client is not None
+        self.client.publish(mqtt_rpc.make_topic(self.topic, mqtt_rpc.TOPIC_REQUEST), json.dumps(request), 1)
+
+    def _wait_ready(self) -> None:
+        """
+        Waits for the exporter to answer, i.e. to be subscribed
+        """
+        self.service.release.set()
+        for _ in range(40):
+            self._request("probe", "probe")
+            try:
+                self.replies.get(True, 0.5)
+            except queue.Empty:
+                continue
+            break
+        else:
+            self.fail("MQTT-RPC exporter not ready")
+
+        # Late replies of the probes
+        time.sleep(0.5)
+        while not self.replies.empty():
+            self.replies.get_nowait()
+        self.service.release.clear()
+
+    def test_reply_topic(self) -> None:
+        """
+        Each caller gets the replies on its own topic, invalid senders get none
+        """
+        self._start()
+        self.service.release.set()
+
+        caller = str(uuid.uuid4())
+        self._request(caller, "valid")
+        topic, reply = self.replies.get(True, 10)
+        self.assertEqual(topic, mqtt_rpc.make_topic(self.topic, f"{mqtt_rpc.TOPIC_RESPONSE}/{caller}"))
+        self.assertEqual(reply[mqtt_rpc.KEY_CORRELATION_ID], "valid")
+        self.assertEqual(reply[mqtt_rpc.KEY_DATA], "done")
+
+        for sender in (None, "", "a/b", "+", "#", 42):
+            with self.subTest(sender=sender):
+                self._request(sender, "invalid")
+                self.assertRaises(queue.Empty, self.replies.get, True, 1)
+
+    def test_bounded_requests(self) -> None:
+        """
+        A flood of requests uses a bounded number of threads, the requests
+        beyond the bound are refused at once
+        """
+        self._start()
+        threads_before = threading.active_count()
+
+        extra = 5
+        total = mqtt_rpc._MAX_PENDING + extra
+        for idx in range(total):
+            self._request("flood", str(idx))
+
+        # Calls are blocked: only the refused ones get a reply
+        busy = [self.replies.get(True, 10)[1] for _ in range(extra)]
+        self.assertTrue(all(reply[mqtt_rpc.KEY_ERROR] == "Server busy" for reply in busy))
+        self.assertRaises(queue.Empty, self.replies.get, True, 1)
+        self.assertLessEqual(threading.active_count(), threads_before + mqtt_rpc._MAX_THREADS)
+
+        # The accepted calls are all handled once released
+        self.service.release.set()
+        done = [self.replies.get(True, 10)[1] for _ in range(total - extra)]
+        self.assertTrue(all(reply[mqtt_rpc.KEY_DATA] == "done" for reply in done))
+
+    def test_authorization(self) -> None:
+        """
+        The calls run as the configured peer, and are checked against the permission of the export
+        """
+        self._start()
+        context = self.framework.get_bundle_context() if self.framework else None
+        assert context is not None
+
+        # peer name, declared permission, expected data, expected error
+        cases: list[tuple[str | None, str | None, str | None, str | None]] = [
+            # Loopback broker: an export which declares nothing stays callable
+            (None, None, "done", None),
+            (None, "test.mqtt", None, "Authentication required"),
+            ("other", "test.mqtt", None, "Access denied"),
+            ("peer", "test.mqtt", "done", None),
+        ]
+        for peer, permission, data, error in cases:
+            with self.subTest(peer=peer, permission=permission):
+                self._stop()
+                self._start(
+                    {mqtt_rpc.PROP_MQTT_PEER_NAME: peer} if peer else None,
+                    {security.PROP_PERMISSION: permission} if permission else None,
+                )
+                assert self.framework is not None
+                self.framework.get_bundle_context().register_service(Authorization, PeerAuthorization(), {})
+                self.service.release.set()
+                self._request("caller", "auth")
+                reply = self.replies.get(True, 10)[1]
+                self.assertEqual((reply[mqtt_rpc.KEY_DATA], reply[mqtt_rpc.KEY_ERROR]), (data, error))
 
 
 # ------------------------------------------------------------------------------

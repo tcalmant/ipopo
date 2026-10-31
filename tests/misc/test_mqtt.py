@@ -7,10 +7,9 @@ Tests the MQTT client module
 """
 
 import logging
-import os
 import socket
-import sys
 import threading
+import time
 import unittest
 import uuid
 from typing import cast
@@ -23,7 +22,16 @@ except ImportError:
     # Missing requirement: not a fatal error
     raise unittest.SkipTest("MQTT client dependency missing: skip test")
 
-from tests.mqtt_utilities import find_mqtt_server
+from tests.mqtt_utilities import (
+    MQTT_CERTS,
+    MQTT_PASSWORD,
+    MQTT_PORT_MTLS,
+    MQTT_PORT_PASSWORD,
+    MQTT_PORT_TLS,
+    MQTT_USERNAME,
+    find_mqtt_server,
+    has_mqtt_secure_listeners,
+)
 
 # ------------------------------------------------------------------------------
 
@@ -65,6 +73,15 @@ def _disconnect_client(client: mqtt.MqttClient) -> None:
     if pair_r is not None:
         pair_r.shutdown(socket.SHUT_RDWR)
         pair_r.close()
+
+
+def _find_free_port() -> int:
+    """
+    Returns a local TCP port nothing listens on
+    """
+    with socket.socket() as sock:
+        sock.bind(("localhost", 0))
+        return sock.getsockname()[1]
 
 
 class MqttClientTest(unittest.TestCase):
@@ -234,96 +251,126 @@ class MqttClientTest(unittest.TestCase):
 
     def test_reconnect(self) -> None:
         """
-        Tests client reconnection
+        Tests the reconnection after a disconnection by the broker, and the
+        renewal of the subscriptions the broker forgot
         """
         assert MQTT_SERVER is not None
+        topic = f"pelix/test/mqtt/reconnect/{uuid.uuid4()!s}"
+        client_id = mqtt.MqttClient.generate_id("rc-")
 
-        if os.name == "posix":
-            # FIXME: try harder
-            self.skipTest("This test doesn't work on POSIX...")
+        client = mqtt.MqttClient(client_id)
+        connections = threading.Semaphore(0)
+        messages: list[bytes] = []
+        client.on_connect = lambda clt, rc: connections.release() if rc == 0 else None
+        client.on_message = lambda clt, msg: messages.append(msg.payload)
 
-        # Avoid typo
-        topic = "/pelix/test"
-
-        # Create clients
-        client = mqtt.MqttClient()
-        client_2 = mqtt.MqttClient()
-
-        # Enable Paho logging as this test can fail easily
-        client.raw_client.enable_logger()
-
-        event_connect = threading.Event()
-        event_disconnect = threading.Event()
-        event_message = threading.Event()
-
-        client_2_connected = threading.Event()
-
-        def on_connect(clt: mqtt.MqttClient, result_code: int) -> None:
-            # Subscribe to test messages
-            clt.subscribe(topic, 2)
-
-            # Continue the test
-            event_connect.set()
-
-        def on_disconnect(clt: mqtt.MqttClient, result_code: int) -> None:
-            event_disconnect.set()
-
-        def on_message(clt: mqtt.MqttClient, msg: mqtt.MqttMessage) -> None:
-            event_message.set()
-
-        client.on_connect = on_connect
-        client.on_disconnect = on_disconnect
-        client.on_message = on_message
-
-        # Setup client 2
-        client_2.on_connect = lambda *_: client_2_connected.set()
-
-        # Connect
+        sender = mqtt.MqttClient()
         client.connect(MQTT_SERVER, 1883, 10)
-        client_2.connect(MQTT_SERVER, 1883)
-
+        sender.connect(MQTT_SERVER, blocking=True)
         try:
-            if not event_connect.wait(5):
-                # Connection failed
-                self.fail("MQTT connection timeout")
+            self.assertTrue(connections.acquire(timeout=5), "Connection timeout")
 
-            if not client_2_connected.wait(5):
-                self.fail("Second client connection timeout")
+            # Subscribed once, outside of on_connect
+            client.subscribe(topic, 1)
+            time.sleep(0.5)
+            sender.wait_publication(cast(int, sender.publish(topic, "before", 1, wait=True)), 5)
 
-            # Send something from client 2 to test client
-            mid = client_2.publish(topic, "dummy1", qos=2, wait=True)
-            assert mid is not None
-            client_2.wait_publication(mid, 5)
+            # Same client ID with a clean session: the broker disconnects the client
+            # and forgets its session, subscriptions included
+            intruder = mqtt.MqttClient(client_id, clean_session=True)
+            intruder.connect(MQTT_SERVER, blocking=True)
+            time.sleep(0.5)
+            intruder.disconnect()
 
-            # Ensure we get it
-            if not event_message.wait(5):
-                self.fail("Message not received")
-            event_message.clear()
-
-            # Disconnect test client
-            event_connect.clear()
-            _disconnect_client(client)
-
-            # Wait for the reconnection event
-            if not event_connect.wait(20):
-                self.fail("Connection event not received")
-
-            # Test a new message
-            mid = client_2.publish(topic, "dummy2", qos=2, wait=True)
-            assert mid is not None
-            client_2.wait_publication(mid, 5)
-
-            # Ensure we get it
-            if not event_message.wait(5):
-                self.fail("Message not received")
-            event_message.clear()
-
-            # NOTE: Disconnection event is not received on reconnect
-            if not event_disconnect.is_set():
-                print("Disconnection event not received", file=sys.stderr)
+            self.assertTrue(connections.acquire(timeout=20), "No reconnection")
+            time.sleep(0.5)
+            sender.wait_publication(cast(int, sender.publish(topic, "after", 1, wait=True)), 5)
+            time.sleep(1)
+            self.assertEqual(messages, [b"before", b"after"])
         finally:
-            # Clean up
-            client_2.disconnect()
+            sender.disconnect()
+            client.disconnect()
+
+    def test_disconnected_publish(self) -> None:
+        """
+        Messages published while disconnected: QoS 1 and 2 are queued, up to a
+        limit, and sent once connected; QoS 0 is refused
+        """
+        assert MQTT_SERVER is not None
+        topic = f"pelix/test/mqtt/queued/{uuid.uuid4()!s}"
+
+        listener = mqtt.MqttClient()
+        received: list[bytes] = []
+        subscribed = threading.Event()
+        listener.on_subscribe = lambda clt, mid, codes: subscribed.set()
+        listener.on_message = lambda clt, msg: received.append(msg.payload)
+        listener.connect(MQTT_SERVER, blocking=True)
+        listener.subscribe(topic, 2)
+
+        client = mqtt.MqttClient(max_queued_messages=2)
+        try:
+            self.assertTrue(subscribed.wait(5))
+
+            # Never connected yet
+            self.assertIsNone(client.publish(topic, "qos0", 0))
+            queued = [client.publish(topic, f"qos{qos}", qos, wait=True) for qos in (1, 2)]
+            self.assertNotIn(None, queued)
+            self.assertIsNone(client.publish(topic, "full", 1), "Queue limit ignored")
+
+            client.connect(MQTT_SERVER)
+            for mid in queued:
+                self.assertTrue(client.wait_publication(cast(int, mid), 10))
+            time.sleep(1)
+            self.assertEqual(sorted(received), [b"qos1", b"qos2"])
+        finally:
+            client.disconnect()
+            listener.disconnect()
+
+    def test_connection_failure(self) -> None:
+        """
+        A failed connection is logged as a warning and retried, TLS failures included
+        """
+        assert MQTT_SERVER is not None
+        cases: list[tuple[str, dict[str, object]]] = [
+            ("nothing listening", {"mqtt.port": _find_free_port()}),
+        ]
+        if has_mqtt_secure_listeners():
+            cases.append(("untrusted broker", {"mqtt.port": MQTT_PORT_TLS, "mqtt.tls": True}))
+
+        for name, props in cases:
+            with self.subTest(name=name):
+                config = mqtt.MqttConnectionConfig.from_properties({"mqtt.host": MQTT_SERVER, **props})
+                client = config.make_client()
+                try:
+                    with self.assertLogs("pelix.misc.mqtt_client", logging.WARNING) as log_ctx:
+                        config.connect(client)
+                        # Retried after 1 second, then 2
+                        time.sleep(4)
+                finally:
+                    client.disconnect()
+                failures = [line for line in log_ctx.output if "Can't connect" in line]
+                self.assertGreaterEqual(len(failures), 2, log_ctx.output)
+
+    def test_mqtt_v5(self) -> None:
+        """
+        Tests a client using MQTT v5
+        """
+        assert MQTT_SERVER is not None
+        topic = f"pelix/test/mqtt/v5/{uuid.uuid4()!s}"
+        client = mqtt.MqttClient(protocol=mqtt.MQTTv5)
+        received = EventData[mqtt.MqttMessage]()
+        subscribed = threading.Event()
+        client.on_subscribe = lambda clt, mid, codes: subscribed.set()
+        client.on_message = lambda clt, msg: received.set(msg)
+        client.connect(MQTT_SERVER, blocking=True)
+        try:
+            client.subscribe(topic, 1)
+            self.assertTrue(subscribed.wait(5))
+            self.assertTrue(client.wait_publication(cast(int, client.publish(topic, "v5", 1, wait=True)), 5))
+            self.assertTrue(received.wait(5))
+            assert received.data is not None
+            self.assertEqual(received.data.payload, b"v5")
+        finally:
             client.disconnect()
 
     def test_will(self) -> None:
@@ -345,15 +392,7 @@ class MqttClientTest(unittest.TestCase):
             else:
                 event_connect.raise_exception(RuntimeError(f"Connection failed with code {result_code}"))
 
-        def on_disconnect(clt: mqtt.MqttClient, result_code: int) -> None:
-            if result_code != 0:
-                # Disconnected unwillingly: stop the timer
-                # -- IMPLEMENTATION SPECIFIC --
-                clt._MqttClient__stop_timer()  # type: ignore
-                # == IMPLEMENTATION SPECIFIC ==
-
         client.on_connect = on_connect
-        client.on_disconnect = on_disconnect
 
         # Create client 2
         client_2 = mqtt.MqttClient()
@@ -495,17 +534,32 @@ class MqttClientTest(unittest.TestCase):
             if not event_connect.wait(5):
                 self.fail("Connection timeout")
 
-            # Publish in a tight loop: the shorter the delay between the call to
-            # the Paho client and the storage of the event, the more likely the
-            # publication is notified in between
-            for idx in range(100):
-                mid = client.publish(msg_topic, f"value-{idx}", wait=True)
-                self.assertIsNotNone(mid)
-                assert mid is not None
-                self.assertTrue(
-                    client.wait_publication(mid, 5),
-                    f"Publication {idx} (mid={mid}) was not notified",
-                )
+            for qos in (0, 1, 2):
+                with self.subTest(qos=qos):
+                    # Publish in a tight loop: the shorter the delay between the call to
+                    # the Paho client and the storage of the event, the more likely the
+                    # publication is notified in between
+                    for idx in range(100):
+                        mid = client.publish(msg_topic, f"value-{idx}", qos, wait=True)
+                        self.assertIsNotNone(mid)
+                        assert mid is not None
+                        self.assertTrue(
+                            client.wait_publication(mid, 5),
+                            f"Publication {idx} (mid={mid}) was not notified",
+                        )
+
+            # Acknowledgements received while other threads publish used to dead lock
+            def burst_loop(end: float = time.monotonic() + 2) -> None:
+                while time.monotonic() < end:
+                    client.publish(msg_topic, "burst", 1)
+
+            bursts = [threading.Thread(target=burst_loop, daemon=True) for _ in range(4)]
+            for burst in bursts:
+                burst.start()
+            for burst in bursts:
+                burst.join(20)
+                self.assertFalse(burst.is_alive(), "Publication burst blocked")
+
         finally:
             client.disconnect()
 
@@ -648,6 +702,86 @@ class MqttClientTest(unittest.TestCase):
             # Invalid filters (text after wildcard
             for invalid_filter in ("first/#/fourth", "#/second/#", "#/third/#", "#/fourth"):
                 self.assertFalse(mqtt.MqttClient.topic_matches(invalid_filter, topic))
+
+
+class MqttConnectionConfigTest(unittest.TestCase):
+    """
+    Tests the connection configuration shared by the MQTT components
+    """
+
+    def test_from_properties(self) -> None:
+        """
+        Tests the parsing of the ``mqtt.*`` properties
+        """
+        ca = "/some/ca.crt"
+        cases: list[tuple[dict[str, object], str, int, bool]] = [
+            ({}, "localhost", 1883, False),
+            ({"mqtt.host": "broker", "mqtt.port": "1884"}, "broker", 1884, False),
+            ({"mqtt.tls": True}, "localhost", 8883, True),
+            ({"mqtt.tls": "true"}, "localhost", 8883, True),
+            ({"mqtt.tls": "false"}, "localhost", 1883, False),
+            # A TLS file without the flag must not fall back to clear text
+            ({"mqtt.tls.ca_file": ca}, "localhost", 8883, True),
+            ({"mqtt.tls": False, "mqtt.tls.cert_file": "c.pem", "mqtt.port": 9883}, "localhost", 9883, True),
+        ]
+        for props, host, port, tls in cases:
+            with self.subTest(props=props):
+                config = mqtt.MqttConnectionConfig.from_properties(props, "secret")
+                self.assertEqual(config.host, host)
+                self.assertEqual(config.port or (8883 if config.use_tls else 1883), port)
+                self.assertEqual(config.use_tls, tls)
+                self.assertEqual(config.keepalive, 60)
+                self.assertNotIn("secret", repr(config))
+                self.assertEqual(config.max_queued_messages, mqtt.DEFAULT_MAX_QUEUED_MESSAGES)
+
+        self.assertEqual(
+            mqtt.MqttConnectionConfig.from_properties({"mqtt.max_queued_messages": "5"}).max_queued_messages,
+            5,
+        )
+
+    def test_connect(self) -> None:
+        """
+        Tests the connection to the TLS and password listeners of the broker
+        """
+        if not has_mqtt_secure_listeners():
+            self.skipTest("The MQTT broker has no TLS nor password listener")
+
+        ca = str(MQTT_CERTS / "ca.crt")
+        user = {"mqtt.username": MQTT_USERNAME}
+        mtls = {
+            "mqtt.port": MQTT_PORT_MTLS,
+            "mqtt.tls.ca_file": ca,
+            "mqtt.tls.cert_file": str(MQTT_CERTS / "client.crt"),
+            "mqtt.tls.key_file": str(MQTT_CERTS / "client.key"),
+            **user,
+        }
+        cases: list[tuple[dict[str, object], str | None, bool]] = [
+            ({"mqtt.port": MQTT_PORT_PASSWORD}, None, False),
+            ({"mqtt.port": MQTT_PORT_PASSWORD, **user}, "wrong", False),
+            ({"mqtt.port": MQTT_PORT_PASSWORD, **user}, MQTT_PASSWORD, True),
+            ({"mqtt.tls.ca_file": ca}, None, True),
+            # The broker certificate is checked against the system authorities
+            ({"mqtt.port": MQTT_PORT_TLS, "mqtt.tls": True}, None, False),
+            # Host name not in the broker certificate
+            ({"mqtt.host": "127.0.0.2", "mqtt.tls.ca_file": ca}, None, False),
+            ({**mtls, "mqtt.tls.cert_file": None, "mqtt.tls.key_file": None}, MQTT_PASSWORD, False),
+            (mtls, MQTT_PASSWORD, True),
+        ]
+        for props, password, expected in cases:
+            with self.subTest(props=props, password=password):
+                config = mqtt.MqttConnectionConfig.from_properties(props, password)
+                connected = threading.Event()
+                client = config.make_client()
+                client.on_connect = lambda clt, rc, evt=connected: evt.set() if rc == 0 else None
+                config.connect(client)
+                try:
+                    self.assertEqual(connected.wait(5 if expected else 2), expected)
+                finally:
+                    client.disconnect()
+
+        # Invalid TLS files are refused before connecting
+        with self.assertRaises(OSError):
+            mqtt.MqttConnectionConfig.from_properties({"mqtt.tls.ca_file": "/missing/ca.crt"}).make_client()
 
 
 # ------------------------------------------------------------------------------

@@ -145,6 +145,34 @@ Unreleased
   the multicast discovery from its reading thread
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
+* The MQTT discovery, MQTT-RPC and EventAdmin MQTT bridge components can connect to their broker with
+  TLS and credentials, with the new `mqtt.tls`, `mqtt.tls.ca_file`,
+  `mqtt.tls.cert_file`, `mqtt.tls.key_file`, `mqtt.username` and
+  `mqtt.password` (hidden) properties, plus `mqtt.client_id` and
+  `mqtt.keepalive`. The broker certificate and host name are always verified.
+  They are read by the new `pelix.misc.mqtt_client.MqttConnectionConfig`, shared
+  by all the MQTT components (fixed #55)
+* **Breaking:** the MQTT-RPC exporter publishes each reply on a topic of its
+  caller (`<topic>/reply/<caller framework UID>`) instead of one reply topic
+  shared by all callers, so that broker ACLs can restrict who reads them. An
+  MQTT-RPC importer of iPOPO 3.2 doesn't receive the replies of a 3.3 exporter,
+  and vice-versa: update all the frameworks sharing a broker together
+* The MQTT-RPC exporter handles at most 10 requests at once and keeps at most
+  100 waiting, instead of starting one thread per message: the requests beyond
+  are refused at once with a "Server busy" error
+* Fixed a dead lock of `MqttClient.publish()` when publishing with a QoS of 1
+  or 2 from several threads. `MqttClient.wait_publication()` now returns
+  `False` when the client is disconnected while waiting
+* `MqttClient` relies on the reconnection of Paho only (delay from 1 to 120
+  seconds), instead of also running its own timer, logs each failed connection
+  as a warning with its cause (TLS errors were silent), and subscribes again
+  to its topics after a reconnection without session
+* `MqttClient.publish()` returns the message ID of the QoS 1 and 2 messages it
+  queues while disconnected, sent on reconnection, instead of `None` although
+  the message was sent later. The queue is bounded by the new
+  `max_queued_messages` argument and `mqtt.max_queued_messages` property
+  (1000 by default)
+* `MqttClient` works with MQTT v5: the constructor raised a `ValueError`
 
 ### HTTP service
 
@@ -276,6 +304,11 @@ Unreleased
   endpoints must match to be imported
 * The multicast discovery signs its packets with a key shared by the group,
   and ignores the others, when `pelix.remote.discovery.key.file` is set
+* The MQTT discovery signs its messages the same way with
+  `pelix.remote.discovery.key.file`. MQTT-RPC calls run as the subject named
+  by the new `mqttrpc.peer.name` exporter property (anonymous by default), and
+  the MQTT-RPC importer gives up waiting for a reply after
+  `pelix.remote.client.timeout`
 * A refused remote call gets an `Access denied` or `Authentication required`
   error, without the permission it lacked
 * New `pelix.remote.allowed_clients` property of the exporters and of the
