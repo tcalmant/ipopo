@@ -16,6 +16,10 @@ Unreleased
 
 ### Security
 
+* `Subject` has two new fields, `peer_address` (the other end of the
+  connection) and `client_address` (the client, as told by the trusted proxies),
+  set by the HTTP services and the remote shell and shown by `whoami`.
+  `restore_subject()` takes them too
 * **Breaking:** the HTTP services now bind to `127.0.0.1` by default, instead
   of `0.0.0.0`. Set `pelix.http.address` to `0.0.0.0` to accept connections
   from other machines, for example to export remote services
@@ -240,6 +244,45 @@ Unreleased
 
 ### Remote
 
+* **Breaking:** a call to an exported service is refused unless the caller
+  holds the `pelix.remote.call:<endpoint name>` permission, when the transport
+  can be reached from other hosts (HTTP service not bound to a loopback
+  address, or remote MQTT broker). Exports reachable from the local host only
+  are not affected. Set the `pelix.remote.permission` property of the exported
+  service to `*` to allow every caller as before, or to the permission to
+  check. The calls run as the authenticated caller, so the decorators of
+  `pelix.security.decorators` also apply to the exported methods. See the
+  "Authentication and authorization" section of the remote services
+  reference card
+* **Breaking:** the dispatcher servlet follows the same rule: reading and
+  sending endpoints from other hosts needs `pelix.remote.endpoints.read` and
+  `pelix.remote.endpoints.publish`. Set its `pelix.remote.allowed_clients`
+  property to the network of a multicast discovery group to accept its
+  anonymous requests, or its `pelix.remote.permission` property to `*` to
+  accept every one as before
+* **Breaking:** when an exported specification is a `Protocol` decorated with
+  `@Specification`, only its methods can be called remotely, not the other
+  public methods of the implementation
+* **Breaking:** imported services have a `service.ranking` of at most -1, so
+  that a peer can't outrank the local services. The
+  `pelix.remote.import.max_ranking` framework property changes the cap
+* New `pelix.remote.auth.required` property of the XML-RPC, JSON-RPC and
+  Jabsorb-RPC exporters: requests without credentials get a 401 error
+* The importers send credentials given by the
+  `pelix.remote.credentials.provider` services, only over HTTPS or to a
+  loopback host. `pelix.remote.security` provides one reading a TOML file,
+  keyed by the origin of the peer
+* New `pelix.remote.import.filter` framework property: an LDAP filter the
+  endpoints must match to be imported
+* The multicast discovery signs its packets with a key shared by the group,
+  and ignores the others, when `pelix.remote.discovery.key.file` is set
+* A refused remote call gets an `Access denied` or `Authentication required`
+  error, without the permission it lacked
+* New `pelix.remote.allowed_clients` property of the exporters and of the
+  dispatcher servlet: addresses and networks (IPv4, IPv6, CIDR) whose clients
+  are allowed without permission, for example the network of a multicast
+  discovery group. The client address is the one resolved behind the trusted
+  proxies
 * Removed the etcd2 discovery provider
   (`pelix.rsa.providers.discovery.discovery_etcd`) and the `etcd2` extra,
   deprecated since iPOPO 3.1.0: use the etcd3 one

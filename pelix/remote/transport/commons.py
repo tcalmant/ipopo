@@ -42,8 +42,7 @@ from pelix import constants
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo.decorators import Invalidate, Property, Provides, Validate
-from pelix.remote import PROP_CLIENT_MAX_RESPONSE_SIZE, PROP_CLIENT_TIMEOUT, RemoteServiceError
-from pelix.utilities import get_remote_method
+from pelix.remote import PROP_CLIENT_MAX_RESPONSE_SIZE, PROP_CLIENT_TIMEOUT, RemoteServiceError, security
 
 # ------------------------------------------------------------------------------
 
@@ -149,6 +148,7 @@ def read_response(response: http.client.HTTPResponse, max_size: int | None) -> b
 
 @Provides(pelix.remote.RemoteServiceExportProvider)
 @Property("_kinds", pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED)
+@Property("_allowed_clients", security.PROP_ALLOWED_CLIENTS, None)
 class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
     """
     Abstract Remote Services exporter
@@ -166,6 +166,10 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
 
         # Handled configurations
         self._kinds: list[str] = []
+
+        # Clients allowed without permission: the property, then its parsed networks
+        self._allowed_clients: Any = None
+        self._allowed_networks: tuple[Any, ...] = ()
 
         # Exported services: Name -> ExportEndpoint
         self.__endpoints: dict[str, pelix.remote.beans.ExportEndpoint] = {}
@@ -195,12 +199,20 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
 
         # Get the service
         try:
-            service = self.__endpoints[matching].instance
+            endpoint = self.__endpoints[matching]
         except KeyError:
             raise RemoteServiceError(f"Unknown endpoint: {matching}")
 
-        # Get the method: only the public API of the service can be called remotely
-        method_ref = get_remote_method(service, method_name)
+        assert self._context is not None
+        reference = endpoint.reference
+        security.check_call(
+            self._context, reference.get_properties(), matching, self.is_local_only(), self._allowed_networks
+        )
+
+        # Get the method: only the public API of the exported specifications can be called remotely
+        method_ref = security.get_remote_method(
+            endpoint.instance, method_name, pelix.remote.beans.compute_exported_specifications(reference)
+        )
         if method_ref is None:
             # Same error as an unknown method: a caller must not be able to tell
             # a refused method from a missing one
@@ -212,6 +224,15 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
             return method_ref(**params)
 
         return method_ref(*params)
+
+    def is_local_only(self) -> bool:
+        """
+        Tells if the transport can only be reached from the local host, in which case
+        exported services which declare no permission can be called by anybody
+
+        :return: True if only local callers can reach the transport
+        """
+        return False
 
     def handles(self, configs: None | str | Iterable[str]) -> bool:
         """
@@ -345,6 +366,9 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
         """
         Component validated
         """
+        # Refuse an invalid entry rather than ignore it: it was meant to restrict something
+        self._allowed_networks = security.parse_networks(self._allowed_clients)
+
         # Store the context
         self._context = context
 
@@ -413,7 +437,9 @@ class AbstractRpcServiceImporter(abc.ABC, pelix.remote.RemoteServiceImportEndpoi
                 return
 
             # Register it as a service
-            svc_reg = self._context.register_service(endpoint.specifications, svc, endpoint.properties)
+            # The peer must not be able to outrank the local services
+            properties = security.cap_ranking(self._context, endpoint.properties)
+            svc_reg = self._context.register_service(endpoint.specifications, svc, properties)
 
             # Store references
             self.__registrations[endpoint.uid] = svc_reg
@@ -427,7 +453,10 @@ class AbstractRpcServiceImporter(abc.ABC, pelix.remote.RemoteServiceImportEndpoi
         with self.__lock:
             try:
                 # Update service registration properties
-                self.__registrations[endpoint.uid].set_properties(endpoint.properties)
+                assert self._context is not None
+                self.__registrations[endpoint.uid].set_properties(
+                    security.cap_ranking(self._context, endpoint.properties)
+                )
             except KeyError:
                 # Unknown end point
                 return

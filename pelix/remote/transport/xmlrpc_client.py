@@ -28,6 +28,7 @@ Pelix remote services: XML-RPC client transports applying the client limits
 import http.client
 import io
 import xmlrpc.client as xmlrpclib
+from collections.abc import Mapping
 from typing import Any
 
 from pelix.remote.transport.commons import ClientLimits, read_response
@@ -77,12 +78,17 @@ class _XmlRpcSafeTransport(LimitedTransportMixIn, xmlrpclib.SafeTransport):
     pass
 
 
-def make_client_transport(url: str, limits: ClientLimits) -> xmlrpclib.Transport:
+def make_client_transport(
+    url: str, limits: ClientLimits, headers: Mapping[str, str] | None = None
+) -> xmlrpclib.Transport:
     """
     Prepares the transport of an XML-RPC server proxy, applying the client limits
 
     :param url: URL of the server
     :param limits: The client limits
+    :param headers: Headers to add to the requests (see :func:`pelix.remote.security.get_auth_headers`)
     :return: A transport for the ``ServerProxy`` of ``xmlrpc.client``
     """
-    return (_XmlRpcSafeTransport if url.lower().startswith("https:") else _XmlRpcTransport)(limits)
+    # The proxies ignore their own headers argument when given a transport
+    transport_class = _XmlRpcSafeTransport if url.lower().startswith("https:") else _XmlRpcTransport
+    return transport_class(limits, headers=list((headers or {}).items()))

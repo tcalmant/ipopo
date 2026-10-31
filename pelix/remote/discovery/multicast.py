@@ -49,6 +49,7 @@ import pelix.remote
 from pelix.framework import BundleContext
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
 from pelix.ipv6utils import ipproto_ipv6
+from pelix.remote import security
 from pelix.remote.beans import ExportEndpoint
 from pelix.utilities import to_bytes, to_str
 
@@ -278,6 +279,7 @@ def close_multicast_socket(sock: socket.socket, address: str) -> None:
 @Requires("_registry", pelix.remote.RemoteServiceRegistry)
 @Property("_group", "multicast.group", "239.0.0.1")
 @Property("_port", "multicast.port", 42000)
+@Property("_key_file", security.PROP_DISCOVERY_KEY_FILE, None)
 class MulticastDiscovery:
     """
     Remote services discovery and notification using multicast packets
@@ -301,6 +303,10 @@ class MulticastDiscovery:
         self._port = 42000
         self._socket: socket.socket | None = None
         self._target: tuple[str, int] | None = None
+
+        # Signature of the packets, if a group key is given
+        self._key_file: str | None = None
+        self._signer: security.DiscoverySigner | None = None
 
         # Reception loop
         self._stop_event = threading.Event()
@@ -383,37 +389,39 @@ class MulticastDiscovery:
         # Send the data
         self._socket.sendto(data, 0, target)
 
+    def __send_event(self, packet: dict[str, Any]) -> None:
+        """
+        Sends an event to the multicast group, signed if a group key is given
+
+        :param packet: The event packet
+        """
+        if self._signer is not None:
+            packet = self._signer.sign(packet)
+        self.__send_packet(json.dumps(packet))
+
     def _send_discovery(self) -> None:
         """
         Sends a discovery packet, requesting others to indicate their services
         """
-        # Send a JSON request
-        data = json.dumps(self.__make_basic_dict("discovery"))
-        self.__send_packet(data)
+        self.__send_event(self.__make_basic_dict("discovery"))
 
     def endpoints_added(self, endpoints: list[ExportEndpoint]) -> None:
         """
         Multiple endpoints have been created
         """
-        # Send a JSON event
-        data = json.dumps(self._make_endpoints_dict("add", endpoints))
-        self.__send_packet(data)
+        self.__send_event(self._make_endpoints_dict("add", endpoints))
 
     def endpoint_updated(self, endpoint: ExportEndpoint, old_properties: dict[str, Any] | None) -> None:
         """
         An end point is updated
         """
-        # Send a JSON event
-        data = json.dumps(self._make_endpoint_dict("update", endpoint))
-        self.__send_packet(data)
+        self.__send_event(self._make_endpoint_dict("update", endpoint))
 
     def endpoint_removed(self, endpoint: ExportEndpoint) -> None:
         """
         An end point is removed
         """
-        # Send a JSON event
-        data = json.dumps(self._make_endpoint_dict("remove", endpoint))
-        self.__send_packet(data)
+        self.__send_event(self._make_endpoint_dict("remove", endpoint))
 
     def _handle_packet(self, sender: tuple[str, int], raw_data: str) -> None:
         """
@@ -425,6 +433,11 @@ class MulticastDiscovery:
         """
         # Decode content
         data = json.loads(raw_data)
+        if self._signer is not None:
+            data = self._signer.verify(data)
+            if data is None:
+                _logger.debug("Ignoring a packet without a valid signature from %s", sender)
+                return
 
         # Avoid handling our own packets
         sender_uid = data["sender"]
@@ -505,6 +518,15 @@ class MulticastDiscovery:
 
         # Get the framework UID
         self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
+
+        # Fail here rather than run unsigned when a key was asked for
+        self._signer = security.DiscoverySigner.from_file(self._key_file) if self._key_file else None
+        if self._signer is None:
+            _logger.warning(
+                "Multicast discovery packets are not signed: any host of the network can announce endpoints. "
+                "Set %s to share a group key",
+                security.PROP_DISCOVERY_KEY_FILE,
+            )
 
         # Create the socket
         self._socket, address, self._port = create_multicast_socket(self._group, self._port)

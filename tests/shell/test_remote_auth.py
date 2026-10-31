@@ -514,6 +514,11 @@ operator = ["pelix.shell.read", "jobs.read"]
         client.login("thomas", "good")
         self.assertEqual(client.command("test.admin_only"), "granted")
 
+        # The address of the client is kept in the subject, even when it is refreshed
+        identity = whoami(client.command("whoami"))
+        self.assertIn(identity["Client"], ("127.0.0.1", "::1"))
+        self.assertEqual(identity["Peer"], identity["Client"])
+
         client = self.connect(remote, tls=True)
         client.login("certuser", "good")
         self.assertIn("AccessDenied", client.command("test.admin_only"))
@@ -710,6 +715,8 @@ class SessionSubjectTest(unittest.TestCase):
                 "Transport": "-",
                 "Groups": "ops",
                 "Roles": "operator",
+                "Client": "-",
+                "Peer": "-",
             },
         )
 

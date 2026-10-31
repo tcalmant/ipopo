@@ -39,9 +39,11 @@ import pelix.remote
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
+from pelix.remote import security
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.transport import commons
 from pelix.remote.transport.xmlrpc_client import make_client_transport
+from pelix.security import SecurityError
 from pelix.utilities import check_xml_no_doctype, to_str
 
 # ------------------------------------------------------------------------------
@@ -106,6 +108,9 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher, pelix.http.Servlet):
         # in case of error
         try:
             return self._dispatch_method(name, params)
+        except SecurityError as ex:
+            # An expected answer, not an internal error
+            raise xmlrpclib.Fault(1, security.refusal_message(ex)) from None
         except Exception:
             # The stdlib would send the error message: only the log gets the details
             error_id = uuid.uuid4().hex
@@ -148,6 +153,7 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher, pelix.http.Servlet):
 @Provides(pelix.remote.RemoteServiceExportProvider)
 @Requires("_http", pelix.http.HTTPService)
 @Property("_path", pelix.http.HTTP_SERVLET_PATH, "/XML-RPC")
+@Property("_auth_required", security.PROP_AUTH_REQUIRED, None)
 @Property(
     "_kinds",
     pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
@@ -172,6 +178,13 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
         # XML-RPC servlet
         self._servlet: pelix.http.Servlet | None = None
+        self._auth_required: bool | None = None
+
+    def is_local_only(self) -> bool:
+        """
+        Tells if the HTTP service can only be reached from the local host
+        """
+        return security.is_loopback_host(self._http.get_access()[0])
 
     def get_access(self) -> str:
         """
@@ -204,7 +217,11 @@ class XmlRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # Create/register the servlet
         self._servlet = _XmlRpcServlet(self.dispatch)
         self._path = self._path or ""
-        self._http.register_servlet(self._path, self._servlet)
+        # Without the property, the setting of the HTTP service applies
+        parameters = (
+            None if self._auth_required is None else {pelix.http.HTTP_AUTH_REQUIRED: self._auth_required}
+        )
+        self._http.register_servlet(self._path, self._servlet, parameters)
 
     @Invalidate
     def invalidate(self, context: BundleContext) -> None:
@@ -229,17 +246,19 @@ class _ServiceCallProxy:
     Service call proxy
     """
 
-    def __init__(self, name: str, url: str, limits: commons.ClientLimits) -> None:
+    def __init__(self, name: str, url: str, limits: commons.ClientLimits, headers: dict[str, str]) -> None:
         """
         Sets up the call proxy
 
         :param name: End point name
         :param url: End point URL
         :param limits: Limits of the calls
+        :param headers: Authentication headers
         """
         self.__name = name
         self.__url = url
         self.__limits = limits
+        self.__headers = headers
 
     def __getattr__(self, name: str) -> Any:
         """
@@ -252,7 +271,7 @@ class _ServiceCallProxy:
         proxy = xmlrpclib.ServerProxy(
             self.__url,
             allow_none=True,
-            transport=make_client_transport(self.__url, self.__limits),
+            transport=make_client_transport(self.__url, self.__limits, self.__headers),
         )
         return getattr(proxy, f"{self.__name}.{name}")
 
@@ -296,7 +315,9 @@ class XmlRpcServiceImporter(commons.AbstractRpcServiceImporter):
             access_url = access_url.format(server=local_server)
 
         # Return the proxy
-        return _ServiceCallProxy(endpoint.name, access_url, commons.get_client_limits(self._context))
+        assert self._context is not None
+        headers = security.get_auth_headers(self._context, "remote.xmlrpc", access_url, endpoint.properties)
+        return _ServiceCallProxy(endpoint.name, access_url, commons.get_client_limits(self._context), headers)
 
     def clear_service_proxy(self, endpoint: ImportEndpoint) -> None:
         """

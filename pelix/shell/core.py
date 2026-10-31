@@ -313,6 +313,8 @@ class _ShellService(parser.Shell, ShellService):
         session.write_line("Transport     : {0}", subject.transport or "-")
         session.write_line("Groups        : {0}", ", ".join(sorted(subject.groups)) or "-")
         session.write_line("Roles         : {0}", ", ".join(sorted(subject.roles)) or "-")
+        session.write_line("Client        : {0}", subject.client_address or "-")
+        session.write_line("Peer          : {0}", subject.peer_address or "-")
 
     @Completion(BUNDLE)
     @CommandPermission(PERMISSION_READ)

@@ -36,6 +36,7 @@ no permission check.
 """
 
 import argparse
+import dataclasses
 import errno
 import importlib
 import ipaddress
@@ -629,6 +630,13 @@ class RemoteConsole(socketserver.StreamRequestHandler):
             login = self._login(client_ip)
             if login is None:
                 return
+
+            if not self._shell.is_unix():
+                # No proxy in front of the shell: the peer is the client
+                login = (
+                    dataclasses.replace(login[0], peer_address=client_ip, client_address=client_ip),
+                    login[1],
+                )
 
             # Prepare the session: commands reading their own input share the reader
             # and its limits

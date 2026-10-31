@@ -38,6 +38,10 @@ May this subject do this?                      :class:`Authorizer`            po
 Plus exactly one facade, :class:`Authorization`, which is what application code
 injects or reaches through :func:`use_authorization`.
 
+The remote services use this layer to authorize the calls to the exported services,
+with the ``pelix.remote.call`` permission, and to send credentials to their peers: see
+:ref:`remote_services_security`.
+
 Bundles
 =======
 
@@ -70,6 +74,21 @@ resolved once, when the subject is authenticated, so a queued execution path car
 its identity with it and needs no service call at the far end. The price is stated
 next to the benefit: a membership change reaches a caller at their next
 authentication, not immediately.
+
+Where the transport knows it, the subject also tells where the request came from:
+
+* ``peer_address`` is the other end of the connection, a reverse proxy if there is one;
+* ``client_address`` is the client, as told by the ``X-Forwarded-For`` header of the
+  trusted proxies only (``pelix.http.proxy.trusted``, see :doc:`http`), the peer address
+  otherwise. It is only as reliable as those proxies.
+
+The HTTP services set both on every request, the anonymous ones included, and the
+remote shell sets both to the address of its TCP client (``whoami`` shows them). They
+are ignored when comparing subjects: where a request comes from doesn't change who the
+caller is.
+
+.. versionadded:: 3.3.0
+   The ``peer_address`` and ``client_address`` fields.
 
 Identifiers are compared exactly
 --------------------------------

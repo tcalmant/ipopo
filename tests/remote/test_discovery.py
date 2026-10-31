@@ -40,6 +40,7 @@ import pelix.remote
 from pelix.framework import Bundle, Framework, FrameworkFactory, create_framework
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
+from pelix.remote import security
 from tests.utilities import WrappedProcess, is_server_reachable
 
 try:
@@ -142,7 +143,10 @@ def load_framework(
             {pelix.http.HTTP_SERVICE_ADDRESS: "0.0.0.0", pelix.http.HTTP_SERVICE_PORT: 0},
         )
 
-        ipopo.instantiate(pelix.remote.FACTORY_REGISTRY_SERVLET, "dispatcher-servlet")
+        # Peers discover each other anonymously
+        ipopo.instantiate(
+            pelix.remote.FACTORY_REGISTRY_SERVLET, "dispatcher-servlet", {security.PROP_PERMISSION: "*"}
+        )
 
         # Start other components
         for component in components:
@@ -181,7 +185,10 @@ def export_framework(
         # Register the exported service
         event = threading.Event()
         context.register_service(
-            SVC_SPEC, RemoteService(state_queue, event), {pelix.remote.PROP_EXPORTED_INTERFACES: "*"}
+            SVC_SPEC,
+            RemoteService(state_queue, event),
+            # Bound to all interfaces, for the multicast discovery: callers need a permission
+            {pelix.remote.PROP_EXPORTED_INTERFACES: "*", security.PROP_PERMISSION: "*"},
         )
 
         # Send the ready state

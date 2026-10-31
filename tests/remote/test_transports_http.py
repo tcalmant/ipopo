@@ -38,6 +38,8 @@ import pelix.remote
 from pelix.framework import Framework, FrameworkFactory, create_framework
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
+from pelix.remote import security
+from pelix.security import AccessDenied, AuthenticationRequired
 from tests.utilities import WrappedProcess
 
 try:
@@ -150,7 +152,10 @@ def load_framework(transport: str, components: Iterable[tuple[str, str]]) -> Fra
             {pelix.http.HTTP_SERVICE_ADDRESS: "0.0.0.0", pelix.http.HTTP_SERVICE_PORT: 0},
         )
 
-        ipopo.instantiate(pelix.remote.FACTORY_REGISTRY_SERVLET, "dispatcher-servlet")
+        # Peers discover each other anonymously
+        ipopo.instantiate(
+            pelix.remote.FACTORY_REGISTRY_SERVLET, "dispatcher-servlet", {security.PROP_PERMISSION: "*"}
+        )
 
         # Start the multicast discovery
         ipopo.instantiate(pelix.remote.FACTORY_DISCOVERY_MULTICAST, "multicast-discovery")
@@ -178,7 +183,10 @@ def export_framework(state_queue: Queue, transport: str, components: Iterable[tu
         # Register the exported service
         event = threading.Event()
         context.register_service(
-            SVC_SPEC, RemoteService(state_queue, event), {pelix.remote.PROP_EXPORTED_INTERFACES: "*"}
+            SVC_SPEC,
+            RemoteService(state_queue, event),
+            # Bound to all interfaces, for the multicast discovery: callers need a permission
+            {pelix.remote.PROP_EXPORTED_INTERFACES: "*", security.PROP_PERMISSION: "*"},
         )
 
         # Send the ready state
@@ -512,6 +520,28 @@ class RpcServletsTest(unittest.TestCase):
                 servlet.do_POST(request, response)
                 self.assertNotIn("secret detail", str(response.content))
                 self.assertIn("secret detail", "\n".join(logs.output))
+
+    def test_refusals(self) -> None:
+        """
+        A refused call gets a fixed message, without the permission it lacked
+        """
+        for error, message in (
+            (AuthenticationRequired("Not permitted: secret.permission"), "Authentication required"),
+            (AccessDenied("Not permitted: secret.permission"), "Access denied"),
+        ):
+
+            def refuse(*_: Any, error: Exception = error) -> None:
+                raise error
+
+            # The RSA servlet is not covered by the remote services authorization
+            for servlet, body, content_type in make_rpc_servlets([])[:3]:
+                with self.subTest(servlet=type(servlet).__name__, error=type(error).__name__):
+                    servlet._dispatch_method = refuse
+                    response = FakeResponse()
+                    servlet.do_POST(FakeRequest(body, content_type), response)
+                    self.assertEqual(response.code, 200)
+                    self.assertIn(message, str(response.content))
+                    self.assertNotIn("secret.permission", str(response.content))
 
 
 # ------------------------------------------------------------------------------

@@ -12,6 +12,7 @@ import socket
 import unittest
 from typing import Any
 
+from pelix.remote import security
 from pelix.remote.discovery.multicast import (
     MulticastDiscovery,
     close_multicast_socket,
@@ -222,6 +223,25 @@ class PacketHandlingTest(unittest.TestCase):
         with self.assertLogs("pelix.remote.discovery.multicast", "WARNING") as log_ctx:
             self._handle({"sender": "other-fw", "event": "shrubbery"})
         self.assertTrue(any("Unknown event" in line for line in log_ctx.output))
+
+    def test_signed_packets(self) -> None:
+        """
+        With a group key, only the packets signed with it are handled
+        """
+        key = b"k" * 32
+        self.discovery._signer = security.DiscoverySigner(key)
+        packet = {"sender": "other-fw", "event": "remove", "uid": "uid-1"}
+        signed = security.DiscoverySigner(key).sign(packet)
+        for name, data in (
+            ("unsigned", packet),
+            ("other key", security.DiscoverySigner(b"o" * 32).sign(packet)),
+            ("tampered", {**signed, "uid": "uid-2"}),
+            ("signed", signed),
+            ("replayed", signed),
+        ):
+            with self.subTest(name=name):
+                self._handle(data)
+        self.assertListEqual(self.registry.removed, ["uid-1"])
 
     def test_make_packets(self) -> None:
         """

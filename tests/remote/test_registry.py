@@ -12,7 +12,7 @@ from typing import Any
 import pelix.constants
 import pelix.framework
 import pelix.remote
-from pelix.remote import beans
+from pelix.remote import beans, security
 
 # ------------------------------------------------------------------------------
 
@@ -139,6 +139,33 @@ class ImportsRegistryTest(unittest.TestCase):
 
         # Refuse endpoints the same framework UID
         self.assertFalse(self.service.add(endpoint_local), "ImportEndpoint local framework")
+
+    def testImportFilter(self) -> None:
+        """
+        Tests that the import filter of the framework selects the endpoints
+        """
+        # Framework properties can't be updated: start another framework
+        pelix.framework.FrameworkFactory.delete_framework()
+        framework = pelix.framework.create_framework(
+            ["pelix.ipopo.core", "pelix.remote.registry"],
+            {security.PROP_IMPORT_FILTER: "(&(objectClass=allowed.*)(endpoint.framework.uuid=peer))"},
+        )
+        framework.start()
+        context = framework.get_bundle_context()
+        svc_ref = context.get_service_reference(pelix.remote.RemoteServiceRegistry)
+        assert svc_ref is not None
+        registry = context.get_service(svc_ref)
+
+        for uid, spec, framework_uid, expected in (
+            ("1", "allowed.spec", "peer", True),
+            ("2", "other.spec", "peer", False),
+            ("3", "allowed.spec", "other", False),
+        ):
+            with self.subTest(spec=spec, framework_uid=framework_uid):
+                properties = {pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID: framework_uid}
+                endpoint = beans.ImportEndpoint(uid, framework_uid, ["config"], "name", spec, properties)
+                self.assertEqual(registry.add(endpoint), expected)
+                self.assertEqual(registry.contains(endpoint), expected)
 
     def testUpdate(self) -> None:
         """

@@ -29,7 +29,7 @@ Based on a modified version of the 3rd-party package jsonrpclib-pelix.
 
 import logging
 import uuid
-from collections.abc import Callable, Iterable
+from collections.abc import Callable, Iterable, Mapping
 from typing import Any
 
 import jsonrpclib.config
@@ -41,9 +41,11 @@ import pelix.remote
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
+from pelix.remote import security
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.transport import commons
 from pelix.remote.transport.xmlrpc_client import LimitedTransportMixIn
+from pelix.security import SecurityError
 from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
@@ -112,7 +114,11 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
 
         # Call the other method outside the except block, to avoid messy logs
         # in case of error
-        return self._dispatch_method(name, params)
+        try:
+            return self._dispatch_method(name, params)
+        except SecurityError as ex:
+            # An expected answer, not an internal error
+            return jsonrpclib.jsonrpc.Fault(-32001, security.refusal_message(ex))
 
     def do_POST(
         self, request: pelix.http.AbstractHTTPServletRequest, response: pelix.http.AbstractHTTPServletResponse
@@ -149,6 +155,7 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
 @Provides(pelix.remote.RemoteServiceExportProvider)
 @Requires("_http", pelix.http.HTTPService)
 @Property("_path", pelix.http.HTTP_SERVLET_PATH, "/JSON-RPC")
+@Property("_auth_required", security.PROP_AUTH_REQUIRED, None)
 @Property(
     "_kinds",
     pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
@@ -174,6 +181,13 @@ class JsonRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
         # JSON-RPC servlet
         self._servlet: pelix.http.Servlet | None = None
+        self._auth_required: bool | None = None
+
+    def is_local_only(self) -> bool:
+        """
+        Tells if the HTTP service can only be reached from the local host
+        """
+        return security.is_loopback_host(self._http.get_access()[0])
 
     def get_access(self) -> str:
         """
@@ -205,7 +219,11 @@ class JsonRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
         # Create/register the servlet
         self._servlet = _JsonRpcServlet(self.dispatch)
-        self._http.register_servlet(self._path, self._servlet)
+        # Without the property, the setting of the HTTP service applies
+        parameters = (
+            None if self._auth_required is None else {pelix.http.HTTP_AUTH_REQUIRED: self._auth_required}
+        )
+        self._http.register_servlet(self._path, self._servlet, parameters)
 
     @Invalidate
     def invalidate(self, context: BundleContext) -> None:
@@ -234,18 +252,27 @@ class _JsonRpcSafeTransport(LimitedTransportMixIn, jsonrpclib.jsonrpc.SafeTransp
     pass
 
 
-def make_client_transport(url: str, limits: commons.ClientLimits) -> jsonrpclib.jsonrpc.Transport:
+def make_client_transport(
+    url: str, limits: commons.ClientLimits, headers: Mapping[str, str] | None = None
+) -> jsonrpclib.jsonrpc.Transport:
     """
     Prepares the transport of a JSON-RPC server proxy, applying the client limits
 
     :param url: URL of the server
     :param limits: The client limits
+    :param headers: Headers to add to the requests (see :func:`pelix.remote.security.get_auth_headers`)
     :return: A transport for the ``ServerProxy`` of ``jsonrpclib``
     """
     config = jsonrpclib.config.DEFAULT
     if url.lower().startswith("https:"):
-        return _JsonRpcSafeTransport(limits, config, None)
-    return _JsonRpcTransport(limits, config)
+        transport = _JsonRpcSafeTransport(limits, config, None)
+    else:
+        transport = _JsonRpcTransport(limits, config)
+
+    # The proxies ignore their own headers argument when given a transport
+    if headers:
+        transport.push_headers(dict(headers))
+    return transport
 
 
 class _ServiceCallProxy:
@@ -253,17 +280,19 @@ class _ServiceCallProxy:
     Service call proxy
     """
 
-    def __init__(self, name: str, url: str, limits: commons.ClientLimits) -> None:
+    def __init__(self, name: str, url: str, limits: commons.ClientLimits, headers: dict[str, str]) -> None:
         """
         Sets up the call proxy
 
         :param name: End point name
         :param url: End point URL
         :param limits: Limits of the calls
+        :param headers: Authentication headers
         """
         self.__name = name
         self.__url = url
         self.__limits = limits
+        self.__headers = headers
 
     def __getattr__(self, name: str) -> Any:
         """
@@ -274,7 +303,8 @@ class _ServiceCallProxy:
         # underlying proxy reuses the same connection when possible: sometimes
         # it means sending a request before retrieving a result
         proxy = jsonrpclib.jsonrpc.ServerProxy(
-            self.__url, transport=make_client_transport(self.__url, self.__limits)
+            self.__url,
+            transport=make_client_transport(self.__url, self.__limits, self.__headers),
         )
         return getattr(proxy, f"{self.__name}.{name}")
 
@@ -318,7 +348,9 @@ class JsonRpcServiceImporter(commons.AbstractRpcServiceImporter):
             access_url = access_url.format(server=local_server)
 
         # Return the proxy
-        return _ServiceCallProxy(endpoint.name, access_url, commons.get_client_limits(self._context))
+        assert self._context is not None
+        headers = security.get_auth_headers(self._context, "remote.jsonrpc", access_url, endpoint.properties)
+        return _ServiceCallProxy(endpoint.name, access_url, commons.get_client_limits(self._context), headers)
 
     def clear_service_proxy(self, endpoint: ImportEndpoint) -> None:
         """

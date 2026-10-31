@@ -260,6 +260,171 @@ Property                                  Default value Description
    response is no longer accepted.
 
 
+.. _remote_services_security:
+
+Authentication and authorization
+================================
+
+.. versionadded:: 3.3.0
+
+The remote services rely on :doc:`security` to know who calls an exported
+service and to decide whether the call is allowed. The HTTP based transports
+(XML-RPC, JSON-RPC, Jabsorb-RPC) get the caller from the HTTP service, which
+authenticates the requests carrying credentials (HTTP Basic, or any
+``HttpAuthenticator``, see :doc:`http`); MQTT-RPC calls are made by the peer
+identity configured on the MQTT-RPC components (see :doc:`mqtt`).
+
+Calls to exported services
+--------------------------
+
+Each call is checked before the method is looked up, depending on the
+``pelix.remote.permission`` property of the exported service:
+
+=========================== ================================ ======================================================
+``pelix.remote.permission`` Transport reachable from         Call allowed when
+=========================== ================================ ======================================================
+not set                     the local host only (loopback)   always (the 3.2 behaviour)
+not set                     other hosts                      the caller holds ``pelix.remote.call:<endpoint name>``
+``"*"``                     anywhere                         always, anonymous callers included
+any other permission        anywhere                         the caller holds that permission
+=========================== ================================ ======================================================
+
+A transport is *local* when its HTTP service is bound to a loopback address
+(the default ``127.0.0.1``), or when the MQTT broker is on the local host. A
+grant of ``pelix.remote.call`` without resource covers every exported service.
+The decorators of :mod:`pelix.security.decorators` work on the methods of an
+exported service too, as the call runs as the caller.
+
+When the exported specification is a class found in the class hierarchy of the
+service (a ``Protocol`` decorated with ``@Specification``), only its methods
+can be called, not the other public methods of the implementation. A service
+exported with string specifications keeps exposing all of its public methods.
+
+The ``pelix.remote.allowed_clients`` property of an exporter component (and of the
+dispatcher servlet) lists addresses and networks, IPv4 or IPv6 in CIDR form, separated
+by commas or spaces: ``172.14.0.0/16, 10.0.0.5, fd00::/8``. A client whose address is in
+one of them is allowed by itself, without any permission; the other ones follow the
+rules above. The address is the ``client_address`` of the subject, so behind a reverse
+proxy it is the one the trusted proxies tell (``pelix.http.proxy.trusted``), and the
+peer address without them. An invalid entry, such as ``10.0.0.5/24`` (host bits set),
+keeps the component from validating, with the reason in the log. MQTT-RPC callers have
+no address: this property doesn't apply to them.
+
+A refused call gets a fixed error (``Authentication required`` or
+``Access denied``), and a ``pelix/security/ACCESS_DENIED`` audit event is
+posted with the permission.
+
+To answer the requests without credentials with a 401 error, so that standard
+clients send their credentials, set the ``pelix.remote.auth.required`` property
+of the exporter component to ``True``. Without it, the
+``pelix.http.auth.required`` setting of the HTTP service applies.
+
+The dispatcher servlet follows the same rules: when the HTTP service is
+reachable from other hosts, reading the endpoints needs
+``pelix.remote.endpoints.read`` and sending endpoints (the ``POST`` of the
+multicast discovery) needs ``pelix.remote.endpoints.publish``. Its
+``pelix.remote.permission`` property replaces both, and ``"*"`` lets every
+caller in. As the dispatcher servlet is a servlet, its ``pelix.http.auth.required``
+property asks for credentials.
+
+.. note::
+
+   The requests of the dispatcher servlet to the discovered frameworks don't
+   carry credentials, as they are sent in clear text. A multicast discovery
+   group spanning several hosts therefore needs its network in the
+   ``pelix.remote.allowed_clients`` property of the dispatcher servlets, for
+   example ``10.0.0.0/24``, along with the signed announcements (see below).
+
+Credentials of the importers
+----------------------------
+
+The importers ask the ``pelix.remote.credentials.provider`` services
+(:class:`~pelix.remote.security.RemoteCredentialsProvider`) for the credentials
+to send to a peer, in ranking order. Credentials are only sent over HTTPS, where
+the client checks the certificate of the server against the trust store of the
+system, or to a loopback host: otherwise a forged announcement could collect
+them. User names and passwords are sent with HTTP Basic.
+
+The ``pelix.remote.security`` bundle provides a file-based implementation,
+``pelix.remote.credentials.file.factory``, whose ``pelix.remote.credentials.file``
+property gives the path to a TOML file. Credentials are selected by the
+*origin* of the peer only (scheme, host and port), never by what the discovery
+announces:
+
+.. code-block:: toml
+
+    [[peer]]
+    origin = "https://peer.example:8443"
+    username = "batch"
+    password = "..."
+
+The file is read when the component is validated, and a warning is logged if
+other users can read it.
+
+Imported services
+-----------------
+
+=================================== ======= ==============================================================
+Framework property                  Default Description
+=================================== ======= ==============================================================
+``pelix.remote.import.max_ranking`` -1      Highest ``service.ranking`` an imported service can have
+``pelix.remote.import.filter``      (none)  LDAP filter the properties of an endpoint must match to be imported
+=================================== ======= ==============================================================
+
+The ranking cap keeps a peer from outranking the local services: with the
+default value, a local service of the default ranking always wins over an
+imported one. The import filter applies to the ``objectClass`` (the exported
+specifications) and the other properties of the endpoint, for example
+``(&(objectClass=sample.*)(endpoint.framework.uuid=...))``. An invalid filter
+refuses every endpoint.
+
+Signed announcements
+--------------------
+
+The multicast discovery signs its packets, and ignores the unsigned ones, when
+its ``pelix.remote.discovery.key.file`` property gives the path to a file
+holding a key shared by the group (at least 16 bytes, for example made with
+``openssl rand -hex 32``). The signature (HMAC-SHA256) proves that the sender
+holds the key, not which framework it is. It carries a timestamp and a nonce,
+so a captured packet is refused after 60 seconds or when replayed: the clocks
+of the group must be synchronized. The MQTT discovery uses the same
+property (see :doc:`mqtt`); the mDNS discovery doesn't (Java peers couldn't read the signature),
+and the Redis and ZooKeeper discoveries rely on the access control and TLS of
+their server.
+
+Example
+-------
+
+An exporter, reachable from other hosts, allowing the ``batch`` user (see the
+worked example of :doc:`security`) to call its services:
+
+.. code-block:: toml
+
+    # policy.toml
+    [roles.remote-callers]
+    users = ["batch"]
+
+    [permissions]
+    remote-callers = ["pelix.remote.call"]
+
+.. code-block:: shell
+
+    install pelix.security.core
+    start $?
+    # ... the .htpasswd store and the policy file, as in the security reference card
+    instantiate pelix.http.auth.basic.factory http-auth
+    instantiate pelix.http.service.basic.factory httpd pelix.http.address=0.0.0.0 pelix.https.cert_file=...
+    instantiate pelix-jsonrpc-exporter-factory exporter pelix.remote.auth.required=True
+
+The importer gives the credentials of ``batch`` for that peer:
+
+.. code-block:: shell
+
+    install pelix.remote.security
+    start $?
+    instantiate pelix.remote.credentials.file.factory credentials pelix.remote.credentials.file=/etc/pelix/peers.toml
+
+
 Providers included with Pelix/iPOPO
 ===================================
 
@@ -308,6 +473,9 @@ multicast.group 239.0.0.1     The multicast group (address) to join to send and 
 multicast.port  42000         The multicast port to listen to
 =============== ============= =================================================
 
+The ``pelix.remote.discovery.key.file`` property enables the signature of the
+packets (see :ref:`remote_services_security`).
+
 .. versionchanged:: 3.3.0
    The socket is bound to the multicast group instead of all the addresses
    (except on Windows, which doesn't allow it), so that it no longer accepts
@@ -332,8 +500,9 @@ and instantiate the associated components:
    install pelix.remote.dispatcher
    start $?
 
-   # Instantiate the dispatcher servlet
-   instantiate pelix-remote-dispatcher-servlet-factory dispatcher-servlet
+   # Instantiate the dispatcher servlet: it must accept the anonymous requests of the
+   # discovered frameworks, as the HTTP service is reachable from other hosts
+   instantiate pelix-remote-dispatcher-servlet-factory dispatcher-servlet pelix.remote.allowed_clients=192.168.1.0/24
 
    # Install and start the multicast discovery with the default parameters
    install pelix.remote.discovery.multicast
@@ -400,8 +569,9 @@ and instantiate the associated components:
    install pelix.remote.dispatcher
    start $?
 
-   # Instantiate the dispatcher servlet
-   instantiate pelix-remote-dispatcher-servlet-factory dispatcher-servlet
+   # Instantiate the dispatcher servlet: it must accept the anonymous requests of the
+   # discovered frameworks, as the HTTP service is reachable from other hosts
+   instantiate pelix-remote-dispatcher-servlet-factory dispatcher-servlet pelix.remote.allowed_clients=192.168.1.0/24
 
    # Install and start the mDNS discovery with the default parameters
    install pelix.remote.discovery.mdns
@@ -724,3 +894,22 @@ the following API:
 
 .. autoclass:: pelix.remote.registry.ImportsRegistry
    :members:
+
+
+Security
+--------
+
+Helpers shared by the transports and the discoveries, in the
+``pelix.remote.security`` module (see :ref:`remote_services_security`):
+
+.. autoclass:: pelix.remote.security.RemoteCredentialsProvider
+   :members:
+
+.. autofunction:: pelix.remote.security.check_call
+
+.. autofunction:: pelix.remote.security.get_remote_method
+
+.. autofunction:: pelix.remote.security.get_auth_headers
+
+.. autoclass:: pelix.remote.security.DiscoverySigner
+   :members: from_file, sign, verify

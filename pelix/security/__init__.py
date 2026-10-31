@@ -266,6 +266,14 @@ class Subject:
     Kept apart from ``method``: two transports can use the same mechanism, and an audit
     must tell an administration shell login from a service call.
     """
+    # compare=False: where a request comes from doesn't change who the caller is
+    peer_address: str | None = field(default=None, compare=False)
+    """ Address of the other end of the connection: a reverse proxy, if there is one """
+    client_address: str | None = field(default=None, compare=False)
+    """
+    Address of the client, as told by the trusted reverse proxies (the peer address
+    without one). Only as reliable as those proxies
+    """
 
     def __post_init__(self) -> None:
         # frozen=True is not immutability: the caller may still hold the mapping it gave
@@ -280,7 +288,8 @@ class Subject:
         return (
             f"Subject(name={self.name!r}, groups={sorted(self.groups)}, "
             f"roles={sorted(self.roles)}, attributes=[{', '.join(sorted(self.attributes))}], "
-            f"authenticated={self.authenticated}, method={self.method!r}, transport={self.transport!r})"
+            f"authenticated={self.authenticated}, method={self.method!r}, transport={self.transport!r}, "
+            f"peer_address={self.peer_address!r}, client_address={self.client_address!r})"
         )
 
 

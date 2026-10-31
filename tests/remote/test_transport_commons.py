@@ -12,7 +12,7 @@ import time
 import unittest
 import uuid
 import xmlrpc.client as xmlrpclib
-from typing import Any, Self, cast
+from typing import Any, Protocol, Self, cast
 from unittest import mock
 
 import jsonrpclib.jsonrpc
@@ -23,10 +23,13 @@ import pelix.remote
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides
-from pelix.remote import RemoteServiceDispatcher, RemoteServiceError, json_rpc, xml_rpc
+from pelix.ipopo.instance import StoredInstance
+from pelix.remote import RemoteServiceDispatcher, RemoteServiceError, json_rpc, security, xml_rpc
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.transport import commons, jabsorb_rpc, xmlrpc_client
 from pelix.rsa.providers.distribution.xmlrpc import XmlRpcImportContainer
+from pelix.security import ANONYMOUS, AccessDenied, AuthenticationRequired, Authorization, Subject, run_as
+from tests.remote.test_security import FakeAuthorization
 
 # ------------------------------------------------------------------------------
 
@@ -88,6 +91,24 @@ class DummyService:
         return self._secret
 
 
+@pelix.constants.Specification("sample.typed")
+class TypedSpec(Protocol):
+    """
+    Specification of the typed service
+    """
+
+    def call_me(self) -> Any: ...
+
+
+class TypedService(DummyService, TypedSpec):
+    """
+    Exported service implementing a typed specification and an extra public method
+    """
+
+    def extra(self) -> str:
+        return "extra"
+
+
 @ComponentFactory(TEST_EXPORTER_FACTORY)
 @Provides(pelix.remote.RemoteServiceExportProvider)
 @Property("_kinds", pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED, (TEST_CONFIGURATION,))
@@ -105,12 +126,16 @@ class Exporter(commons.AbstractRpcServiceExporter):
 
         self.events: list[int] = []
         self.raise_exception = False
+        self.local_only = True
 
     def clear(self) -> None:
         """
         Clears the state
         """
         del self.events[:]
+
+    def is_local_only(self) -> bool:
+        return self.local_only
 
     def make_endpoint_properties(
         self, svc_ref: ServiceReference[Any], name: str, fw_uid: str | None
@@ -415,6 +440,59 @@ class AbstractCommonExporterTest(unittest.TestCase):
         # Unregister the service
         svc_reg.unregister()
 
+    def testExportDispatchSecurity(self) -> None:
+        """
+        Tests the authorization of the calls and the restriction to the exported specification
+        """
+        exporter = self._install_exporter()
+        context = self.framework.get_bundle_context()
+        context.register_service(Authorization, FakeAuthorization({"granted"}), {})
+        alice = Subject("alice", authenticated=True)
+
+        # local only, export permission, subject, method, expected exception
+        cases: list[tuple[bool, str | None, Subject, str, type[Exception] | None]] = [
+            (True, None, ANONYMOUS, "call_me", None),
+            (True, None, ANONYMOUS, "extra", RemoteServiceError),
+            (False, None, ANONYMOUS, "call_me", AuthenticationRequired),
+            (False, None, alice, "call_me", AccessDenied),
+            (False, "*", ANONYMOUS, "call_me", None),
+            (False, "granted", alice, "call_me", None),
+            (True, "other", alice, "call_me", AccessDenied),
+            # Clients of the allowed networks need no permission
+            (False, None, Subject("anonymous", client_address="10.0.0.7"), "call_me", None),
+            (False, "other", Subject("anonymous", client_address="fd00::7"), "call_me", None),
+            (False, None, Subject("anonymous", client_address="10.0.1.7"), "call_me", AuthenticationRequired),
+            (False, None, Subject("anonymous", client_address="10.0.0.7"), "extra", RemoteServiceError),
+        ]
+        exporter._allowed_networks = security.parse_networks("10.0.0.0/24, fd00::/8")
+        for local_only, permission, subject, method, expected in cases:
+            with self.subTest(
+                local_only=local_only, permission=permission, subject=subject.name, method=method
+            ):
+                exporter.local_only = local_only
+                properties: dict[str, Any] = {pelix.remote.PROP_EXPORTED_INTERFACES: "*"}
+                if permission is not None:
+                    properties[security.PROP_PERMISSION] = permission
+                service = TypedService()
+                svc_reg = context.register_service(TypedSpec, service, properties)
+                try:
+                    name = f"{self.dispatcher.get_endpoints()[0].name}.{method}"
+                    with run_as(subject):
+                        if expected is None:
+                            self.assertEqual(exporter.dispatch(name, []), service.value)
+                        else:
+                            self.assertRaises(expected, exporter.dispatch, name, [])
+                            self.assertListEqual(service.events, [])
+                finally:
+                    svc_reg.unregister()
+
+        # An invalid entry is refused at validation, not ignored
+        with use_ipopo(context) as ipopo:
+            ipopo.instantiate(
+                TEST_EXPORTER_FACTORY, "invalid", {security.PROP_ALLOWED_CLIENTS: "10.0.0.0/33"}
+            )
+            self.assertEqual(ipopo.get_instance_details("invalid")["state"], StoredInstance.ERRONEOUS)
+
     def testExportRename(self) -> None:
         """
         Tests the rename of an exported endpoint
@@ -567,10 +645,18 @@ class AbstractCommonImporterTest(unittest.TestCase):
         self.assertListEqual(importer.events, [IMPORT_MAKE], "Importer not called after registration")
         importer.clear()
 
+        # Imported services rank below the local ones, whatever the peer says
+        context = self.framework.get_bundle_context()
+        svc_ref = context.get_service_reference("some.spec")
+        assert svc_ref is not None
+        self.assertEqual(svc_ref.get_property(pelix.constants.SERVICE_RANKING), -1)
+
         # Update it
         props = endpoint.properties.copy()
         props["other.value"] = 42
+        props[pelix.constants.SERVICE_RANKING] = 1000
         self.registry.update(endpoint.uid, props)
+        self.assertEqual(svc_ref.get_property(pelix.constants.SERVICE_RANKING), -1)
 
         # The import has not been called
         self.assertListEqual(importer.events, [], "Importer called after update")
@@ -656,6 +742,7 @@ class HostileServer:
         self.port: int = self.__server.getsockname()[1]
         self.__stop = threading.Event()
         self.__thread = threading.Thread(target=self.__serve, daemon=True)
+        self.requests: list[bytes] = []
 
     def __enter__(self) -> Self:
         self.__thread.start()
@@ -674,7 +761,7 @@ class HostileServer:
                 return
 
             with client:
-                client.recv(65536)
+                self.requests.append(client.recv(65536))
                 if self.__body is not None:
                     client.sendall(
                         b"HTTP/1.1 200 OK\r\nContent-Type: text/xml\r\n"
@@ -732,28 +819,34 @@ class ClientLimitsTest(unittest.TestCase):
 
     def test_proxies(self) -> None:
         """
-        Tests that the proxies of the imported services apply the limits
+        Tests that the proxies of the imported services apply the limits and send the headers
         """
         context = mock.Mock(get_property={pelix.remote.PROP_CLIENT_TIMEOUT: 0.5}.get)
+        limits = commons.get_client_limits(context)
+        headers = {"Authorization": "Basic dXNlcjpwYXNz"}
         container = XmlRpcImportContainer()
-
-        with (
-            HostileServer(None) as server,
-            mock.patch.object(container, "_get_bundle_context", lambda: context),
-        ):
-            url = f"http://127.0.0.1:{server.port}/"
-            limits = commons.get_client_limits(context)
-            for proxy in (
-                json_rpc._ServiceCallProxy("name", url, limits),
-                xml_rpc._ServiceCallProxy("name", url, limits),
-                jabsorb_rpc._ServiceCallProxy("name", url, limits),
-                container._prepare_proxy(mock.Mock(get_remoteservice_id=lambda: (("ns", url), 1))),
+        with mock.patch.object(container, "_get_bundle_context", lambda: context):
+            for make_proxy, sends_headers in (
+                (lambda url: json_rpc._ServiceCallProxy("name", url, limits, headers), True),
+                (lambda url: xml_rpc._ServiceCallProxy("name", url, limits, headers), True),
+                (lambda url: jabsorb_rpc._ServiceCallProxy("name", url, limits, headers), True),
+                (
+                    lambda url: container._prepare_proxy(
+                        mock.Mock(get_remoteservice_id=lambda: (("ns", url), 1))
+                    ),
+                    False,
+                ),
             ):
-                with self.subTest(proxy=type(proxy).__module__):
-                    start = time.monotonic()
-                    with self.assertRaises(TimeoutError):
-                        proxy.method()
-                    self.assertLess(time.monotonic() - start, 5)
+                # One server each: it handles a single client at a time
+                with HostileServer(None) as server:
+                    proxy = make_proxy(f"http://127.0.0.1:{server.port}/")
+                    with self.subTest(proxy=type(proxy).__module__):
+                        start = time.monotonic()
+                        with self.assertRaises(TimeoutError):
+                            proxy.method()
+                        self.assertLess(time.monotonic() - start, 5)
+                        if sends_headers:
+                            self.assertIn(b"authorization: basic dxnlcjpwyxnz", server.requests[-1].lower())
 
 
 # ------------------------------------------------------------------------------

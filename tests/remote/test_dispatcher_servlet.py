@@ -20,7 +20,8 @@ import pelix.remote
 from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
-from pelix.remote import beans
+from pelix.ipopo.instance import StoredInstance
+from pelix.remote import beans, security
 from pelix.remote.transport.commons import ClientLimits
 from pelix.utilities import to_str
 from tests.remote.test_transport_commons import HostileServer
@@ -601,3 +602,68 @@ class DispatcherTest(unittest.TestCase):
                 self.assertFalse(self.servlet.send_discovered("127.0.0.1", server.port, "/"))
                 self.assertIsNone(self.servlet.grab_endpoint("127.0.0.1", server.port, "/", "uid"))
                 self.assertLess(time.monotonic() - start, 5)
+
+
+class DispatcherServletClientsTest(unittest.TestCase):
+    """
+    Tests the clients the dispatcher servlet lets in without permission
+    """
+
+    def setUp(self) -> None:
+        self.framework = pelix.framework.create_framework(
+            ("pelix.ipopo.core", "pelix.http.basic", "pelix.remote.dispatcher", "pelix.remote.registry")
+        )
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
+        self.framework.start()
+
+    def test_allowed_clients(self) -> None:
+        """
+        Clients of the allowed networks are let in, as resolved behind the trusted proxies only
+        """
+        trusted = "127.0.0.0/8, ::1"
+        # Allowed clients, trusted proxies, X-Forwarded-For, expected status
+        cases: list[tuple[str | None, str | None, str | None, int]] = [
+            (None, None, None, 403),
+            ("127.0.0.1, ::1", None, None, 200),
+            ("203.0.113.0/24", trusted, "203.0.113.7", 200),
+            ("203.0.113.0/24", trusted, "198.51.100.1", 403),
+            ("203.0.113.0/24", None, "203.0.113.7", 403),
+            ("2001:db8::/32", trusted, "2001:db8::5", 200),
+            ("2001:db8::/32", trusted, "203.0.113.7", 403),
+        ]
+        with use_ipopo(self.framework.get_bundle_context()) as ipopo:
+            for allowed, proxies, forwarded, expected in cases:
+                with self.subTest(allowed=allowed, proxies=proxies, forwarded=forwarded):
+                    # Reachable from other hosts: the permission rules apply
+                    http = ipopo.instantiate(
+                        "pelix.http.service.basic.factory",
+                        "http-server",
+                        {
+                            "pelix.http.address": "0.0.0.0",
+                            "pelix.http.port": 0,
+                            "pelix.http.proxy.trusted": proxies,
+                        },
+                    )
+                    ipopo.instantiate(
+                        pelix.remote.FACTORY_REGISTRY_SERVLET,
+                        "servlet",
+                        {security.PROP_ALLOWED_CLIENTS: allowed},
+                    )
+                    try:
+                        conn = httplib.HTTPConnection("127.0.0.1", http.get_access()[1])
+                        headers = {"X-Forwarded-For": forwarded} if forwarded else {}
+                        conn.request("GET", "/pelix-dispatcher/endpoints", headers=headers)
+                        status = conn.getresponse().status
+                        conn.close()
+                    finally:
+                        ipopo.kill("servlet")
+                        ipopo.kill("http-server")
+                    self.assertEqual(status, expected)
+
+            # An invalid entry is refused at validation, not ignored
+            ipopo.instantiate(
+                pelix.remote.FACTORY_REGISTRY_SERVLET,
+                "invalid",
+                {security.PROP_ALLOWED_CLIENTS: "10.0.0.1/24"},
+            )
+            self.assertEqual(ipopo.get_instance_details("invalid")["state"], StoredInstance.ERRONEOUS)
