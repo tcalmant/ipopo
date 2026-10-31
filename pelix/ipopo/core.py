@@ -41,6 +41,7 @@ from pelix.ipopo import constants
 from pelix.ipopo.constants import IPopoEventListener, IPopoService
 from pelix.ipopo.contexts import ComponentContext, FactoryContext, Requirement
 from pelix.ipopo.instance import StoredInstance
+from pelix.security import to_secret
 from pelix.utilities import add_listener, is_string, remove_listener
 
 # ------------------------------------------------------------------------------
@@ -1105,6 +1106,8 @@ class _IPopoService(IPopoService):
           qualified exception class) and ``message``. The exception itself is
           returned by ``get_instance_error()``
         * ``error_trace``: Formatted traceback of the last validation error, or ``None``
+        * ``hidden_properties``: A dictionary name -> :class:`~pelix.security.Secret` (or ``None``
+          when unset) of the properties declared with ``@HiddenProperty``
 
         :param name: The name of a component instance
         :return: A dictionary of details
@@ -1191,6 +1194,22 @@ class _IPopoService(IPopoService):
                 else:
                     result["properties"] = {"ERROR": "No component context found"}
 
+                # Hidden properties, as the secrets the component holds: tools can tell
+                # which ones are set without revealing them
+                getter = getattr(
+                    stored_instance.instance,
+                    f"{constants.IPOPO_HIDDEN_PROPERTY_PREFIX}{constants.IPOPO_GETTER_SUFFIX}",
+                    None,
+                )
+                result["hidden_properties"] = (
+                    {
+                        key: getter(stored_instance.instance, key) if getter is not None else None
+                        for key in stored_instance.context.factory_context.hidden_properties
+                    }
+                    if stored_instance.context is not None
+                    else {}
+                )
+
                 # All done
                 return result
 
@@ -1245,7 +1264,8 @@ class _IPopoService(IPopoService):
         * ``name``: The factory name
         * ``bundle``: The Bundle object of the bundle providing the factory
         * ``properties``: Copy of the components properties defined by the factory
-        * ``hidden_properties``: Copy of the declared default values of the
+        * ``hidden_properties``: Copy of the declared default values, as
+          :class:`~pelix.security.Secret` owned by the factory, of the
           properties declared with ``@HiddenProperty`` (never their current,
           possibly confidential, runtime value)
         * ``requirements``: List of the requirements defined by the factory
@@ -1296,7 +1316,9 @@ class _IPopoService(IPopoService):
             # Declared default values of the properties declared with
             # @HiddenProperty (never their current, possibly confidential,
             # runtime value)
-            result["hidden_properties"] = dict(context.hidden_properties)
+            result["hidden_properties"] = {
+                key: to_secret(value, context.name) for key, value in context.hidden_properties.items()
+            }
 
             # Requirements (list of dictionaries)
             handler_requires = cast(

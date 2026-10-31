@@ -27,6 +27,7 @@ from pelix.ipopo.constants import (
     IPopoWaitingList,
     use_ipopo,
 )
+from pelix.security import Secret
 from tests.ipopo.configadmin_bundle import (
     FACTORY_BASIC,
     PID_GATED,
@@ -848,7 +849,7 @@ class ConfiguredInstanceTest(unittest.TestCase):
         A configuration entry named after a hidden property must be ignored
         """
         instance = self.get_instance("configadmin-hidden")
-        self.assertEqual(instance._secret, "declared-secret")
+        self.assertEqual(instance._secret, Secret("declared-secret"))
 
         config = self.config.get_configuration(PID_HIDDEN)
         config.update({"name": "configured", "secret": "from-configuration"})
@@ -856,7 +857,7 @@ class ConfiguredInstanceTest(unittest.TestCase):
 
         # The visible property has been updated, the hidden one hasn't
         self.assertEqual(instance._name, "configured")
-        self.assertEqual(instance._secret, "declared-secret")
+        self.assertEqual(instance._secret, Secret("declared-secret"))
 
         # ... and the value of the configuration hasn't become public
         with use_ipopo(self.context) as ipopo:
@@ -885,14 +886,14 @@ class ConfiguredInstanceTest(unittest.TestCase):
         dot, must update it confidentially
         """
         instance = self.get_instance("configadmin-hidden")
-        self.assertEqual(instance._secret, "declared-secret")
+        self.assertEqual(instance._secret, Secret("declared-secret"))
 
         config = self.config.get_configuration(PID_HIDDEN)
         config.update({"name": "configured", ".secret": "rotated-secret"})
         self.pause()
 
         self.assertEqual(instance._name, "configured")
-        self.assertEqual(instance._secret, "rotated-secret")
+        self.assertEqual(instance._secret, Secret("rotated-secret"))
 
         # ... and the value still hasn't become public
         with use_ipopo(self.context) as ipopo:
@@ -911,11 +912,11 @@ class ConfiguredInstanceTest(unittest.TestCase):
         config = self.config.get_configuration(PID_HIDDEN)
         config.update({"name": "configured", ".secret": "rotated-secret"})
         self.pause()
-        self.assertEqual(instance._secret, "rotated-secret")
+        self.assertEqual(instance._secret, Secret("rotated-secret"))
 
         config.update({"name": "configured"})
         self.pause()
-        self.assertEqual(instance._secret, "declared-secret")
+        self.assertEqual(instance._secret, Secret("declared-secret"))
 
     def testPidSurvivesConfigurationDeletion(self) -> None:
         """

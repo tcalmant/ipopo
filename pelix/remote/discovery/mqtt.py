@@ -50,6 +50,7 @@ from pelix.ipopo.decorators import (
 from pelix.misc.mqtt_client import PROP_MQTT_PASSWORD, MqttClient, MqttConnectionConfig, MqttMessage
 from pelix.remote import beans, security
 from pelix.remote.edef_io import EDEFReader, EDEFWriter
+from pelix.security import Secret
 from pelix.utilities import to_bytes, to_str
 
 # ------------------------------------------------------------------------------
@@ -107,7 +108,7 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         self._framework_uid: str = ""
 
         # MQTT broker password (hidden property)
-        self._mqtt_password: str | None = None
+        self._mqtt_password: Secret[str] | None = None
 
         # Signature of the messages
         self._key_file: str | None = None

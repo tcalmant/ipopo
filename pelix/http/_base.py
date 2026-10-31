@@ -54,7 +54,7 @@ from pelix.http import auth, cors
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo import constants
 from pelix.ipopo.decorators import HiddenProperty, Modified, Property
-from pelix.security import ANONYMOUS, ATTRIBUTE_SESSION_ID, Subject
+from pelix.security import ANONYMOUS, ATTRIBUTE_SESSION_ID, Secret, Subject
 
 # ------------------------------------------------------------------------------
 
@@ -618,7 +618,7 @@ class AbstractHttpService(http.HTTPService):
         # SSL Parameters
         self._cert_file: str | None = None
         self._key_file: str | None = None
-        self._key_password: str | None = None
+        self._key_password: Secret[str] | None = None
 
         # Validation flag
         self._validated = False
@@ -785,8 +785,9 @@ class AbstractHttpService(http.HTTPService):
         for name in properties.keys() & _RESTART_FIELDS.keys():
             # Still served with the previous value: the component must not tell otherwise
             setattr(self, _RESTART_FIELDS[name], old_properties.get(name))
-            # A configuration from the shell gives "8080" for 8080
-            if str(properties[name]) != str(old_properties.get(name)):
+            # A configuration from the shell gives "8080" for 8080, the text of a secret is a mask
+            new, old = properties[name], old_properties.get(name)
+            if new != old and (isinstance(new, Secret) or str(new) != str(old)):
                 restart.append(name)
         if restart:
             self.log(

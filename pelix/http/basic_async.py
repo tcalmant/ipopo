@@ -940,7 +940,9 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                 # Create the SSL context
                 ssl_context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
                 ssl_context.load_cert_chain(
-                    certfile=self._cert_file, keyfile=self._key_file, password=self._key_password
+                    certfile=self._cert_file,
+                    keyfile=self._key_file,
+                    password=self._key_password.reveal() if self._key_password else None,
                 )
 
             # Create the site

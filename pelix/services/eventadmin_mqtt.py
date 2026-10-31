@@ -43,6 +43,7 @@ from pelix.ipopo.decorators import (
     ValidateComponent,
 )
 from pelix.misc.mqtt_client import PROP_MQTT_PASSWORD, MqttClient, MqttConnectionConfig, MqttMessage
+from pelix.security import Secret
 from pelix.utilities import to_iterable, to_str
 
 if TYPE_CHECKING:
@@ -96,7 +97,7 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
         Sets up the members
         """
         # MQTT configuration
-        self._mqtt_password: str | None = None
+        self._mqtt_password: Secret[str] | None = None
         self._mqtt_topic: str = DEFAULT_MQTT_TOPIC
 
         # MQTT Client

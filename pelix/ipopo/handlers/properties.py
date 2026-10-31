@@ -35,6 +35,7 @@ from pelix.internals.registry import ServiceRegistration
 from pelix.ipopo.contexts import ComponentContext
 from pelix.ipopo.handlers import constants
 from pelix.ipopo.instance import StoredInstance
+from pelix.security import to_secret
 
 # ------------------------------------------------------------------------------
 
@@ -159,6 +160,9 @@ class PropertiesHandler(constants.Handler):
             :param name: The property name
             :param new_value: The new property value
             """
+            if not public_properties:
+                new_value = to_secret(new_value, stored_instance.name)
+
             # Get the previous value
             old_value = properties.get(name)
             if new_value != old_value:

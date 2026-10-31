@@ -32,6 +32,7 @@ from pelix import ldapfilter
 from pelix.constants import OBJECTCLASS
 from pelix.framework import BundleContext
 from pelix.ipopo import constants
+from pelix.security import to_secret
 from pelix.utilities import is_string
 
 T = TypeVar("T")
@@ -567,6 +568,8 @@ class ComponentContext:
         self.__hidden_properties.update(
             {key: value for key, value in properties.items() if key in hidden_props_keys}
         )
+        for key, value in self.__hidden_properties.items():
+            self.__hidden_properties[key] = to_secret(value, name)
 
         # Public properties
         self.properties = factory_context.properties.copy()
