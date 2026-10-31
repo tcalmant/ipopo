@@ -53,9 +53,11 @@ from pelix.ipopo.decorators import (
     ValidateComponent,
 )
 from pelix.misc.mqtt_client import PROP_MQTT_PASSWORD, MqttClient, MqttConnectionConfig, MqttMessage
-from pelix.remote import RemoteServiceError
+from pelix.remote import RemoteServiceError, security
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.transport import commons
+from pelix.security import ANONYMOUS, SecurityError, run_as
+from pelix.security.core import restore_subject
 from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
@@ -73,9 +75,11 @@ __all__ = [
     "KEY_ERROR",
     "KEY_SENDER",
     "MQTTRPC_CONFIGURATION",
+    "PROP_MQTT_PEER_NAME",
     "PROP_MQTT_TOPIC",
     "TOPIC_REQUEST",
     "TOPIC_RESPONSE",
+    "TRANSPORT_MQTTRPC",
     "make_topic",
 ]
 
@@ -86,6 +90,15 @@ MQTTRPC_CONFIGURATION = "mqttrpc"
 
 PROP_MQTT_TOPIC = "mqttrpc.topic"
 """ Remote Service property: topic to use to contact the service """
+
+PROP_MQTT_PEER_NAME = "mqttrpc.peer.name"
+"""
+Exporter property: name of the subject the calls run as, i.e. every broker
+client allowed to publish requests. Anonymous if not set.
+"""
+
+TRANSPORT_MQTTRPC = "remote.mqttrpc"
+""" Transport of the subjects of the MQTT-RPC calls """
 
 _logger = logging.getLogger(__name__)
 
@@ -129,6 +142,7 @@ def make_topic(topic: str, suffix: str) -> str:
     pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
     (MQTTRPC_CONFIGURATION,),
 )
+@Property("_peer_name", PROP_MQTT_PEER_NAME, None)
 @HiddenProperty("_mqtt_password", PROP_MQTT_PASSWORD, None)
 class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
     """
@@ -149,8 +163,12 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # MQTT broker password (hidden property)
         self._mqtt_password: str | None = None
 
+        # Subject of the callers
+        self._peer_name: str | None = None
+
         # MQTT client
         self.__mqtt: MqttClient | None = None
+        self.__broker_host: str | None = None
 
         # Requests handling
         self.__pool: ThreadPoolExecutor | None = None
@@ -171,6 +189,7 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
         # Create the MQTT client
         config = MqttConnectionConfig.from_properties(properties or {}, self._mqtt_password)
+        self.__broker_host = config.host
         self.__mqtt = config.make_client()
 
         # Customize callbacks
@@ -295,9 +314,18 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
             except (KeyError, IndexError, TypeError, ValueError) as ex:
                 error = f"Endpoint name is missing: {ex}"
             else:
+                # The broker hands no identity: every caller is the configured peer
+                subject = (
+                    restore_subject(self._peer_name, transport=TRANSPORT_MQTTRPC)
+                    if self._peer_name
+                    else ANONYMOUS
+                )
                 try:
                     # Call the service
-                    result = self.dispatch(method, params)
+                    with run_as(subject):
+                        result = self.dispatch(method, params)
+                except SecurityError as ex:
+                    error = security.refusal_message(ex)
                 except Exception:
                     # The details describe the server: only the log gets them
                     error_id = uuid.uuid4().hex
@@ -307,6 +335,12 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
             self.__reply(reply_topic, data, result, error)
         finally:
             self.__pending.release()
+
+    def is_local_only(self) -> bool:
+        """
+        Only the local processes can call when the broker is on a loopback address
+        """
+        return security.is_loopback_host(self.__broker_host)
 
     def make_endpoint_properties(
         self, svc_ref: ServiceReference[Any], name: str, fw_uid: str | None
@@ -468,6 +502,9 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         # Endpoints in use: Endpoint UID -> _MqttCallableProxy
         self.__waiting_endpoints: dict[str, Any] = {}
 
+        # Timeout of the calls
+        self.__timeout: float | None = None
+
     def make_service_proxy(self, endpoint: ImportEndpoint) -> Any:
         """
         Creates the proxy for the given ImportEndpoint
@@ -544,6 +581,13 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         # Send the request
         self.__mqtt.publish(make_topic(topic_prefix, TOPIC_REQUEST), request, qos=2)
 
+        # Wait here, where the client limits are known: a lost reply must not block forever
+        replied = proxy._event.wait(self.__timeout)
+        self.__waiting_endpoints.get(endpoint_uid, set()).discard(proxy)
+        if not replied:
+            self.__waiting.pop(correlation_id, None)
+            raise RemoteServiceError("MQTT-RPC call timed out")
+
     def __on_message(self, client: MqttClient, message: MqttMessage) -> None:
         """
         An MQTT reply has been received
@@ -598,6 +642,7 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         """
         # Call the parent
         super().validate(context)
+        self.__timeout = commons.get_client_limits(context).timeout
 
         # Create the MQTT client
         config = MqttConnectionConfig.from_properties(properties or {}, self._mqtt_password)

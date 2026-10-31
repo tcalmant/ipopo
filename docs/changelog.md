@@ -294,6 +294,11 @@ Unreleased
   endpoints must match to be imported
 * The multicast discovery signs its packets with a key shared by the group,
   and ignores the others, when `pelix.remote.discovery.key.file` is set
+* The MQTT discovery signs its messages the same way with
+  `pelix.remote.discovery.key.file`. MQTT-RPC calls run as the subject named
+  by the new `mqttrpc.peer.name` exporter property (anonymous by default), and
+  the MQTT-RPC importer gives up waiting for a reply after
+  `pelix.remote.client.timeout`
 * A refused remote call gets an `Access denied` or `Authentication required`
   error, without the permission it lacked
 * New `pelix.remote.allowed_clients` property of the exporters and of the

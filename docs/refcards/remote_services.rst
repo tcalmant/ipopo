@@ -388,7 +388,9 @@ holding a key shared by the group (at least 16 bytes, for example made with
 holds the key, not which framework it is. It carries a timestamp and a nonce,
 so a captured packet is refused after 60 seconds or when replayed: the clocks
 of the group must be synchronized. The MQTT discovery uses the same
-property (see :doc:`mqtt`); the mDNS discovery doesn't (Java peers couldn't read the signature),
+property (see :doc:`mqtt`): as the will message the broker sends when a framework
+disappears can't carry a valid signature, a signed group only sees the
+frameworks which stop cleanly as lost. The mDNS discovery doesn't (Java peers couldn't read the signature),
 and the Redis and ZooKeeper discoveries rely on the access control and TLS of
 their server.
 
@@ -836,6 +838,13 @@ On a shared broker, use its ACLs to restrict who can publish requests and read
 the replies: the broker authenticates the clients, MQTT-RPC itself doesn't.
 The exporter handles at most 10 requests at once, keeps at most 100 waiting,
 and refuses the others with a ``Server busy`` error.
+
+The broker doesn't tell who sent a request: the calls run as the subject named
+by the ``mqttrpc.peer.name`` property of the exporter (its groups and roles come
+from the membership providers of :mod:`pelix.security.core`), anonymous when it
+is not set. The broker is *local* (see the authorization table above) when
+``mqtt.host`` is a loopback address. The importer waits for a reply at most
+``pelix.remote.client.timeout`` seconds.
 
 To use the MQTT providers, you'll need to install the following bundles and
 instantiate the associated components:

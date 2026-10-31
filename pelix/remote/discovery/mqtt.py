@@ -29,6 +29,7 @@ Eclipse Foundation: see http://www.eclipse.org/paho
     limitations under the License.
 """
 
+import json
 import logging
 from collections.abc import Iterable
 from typing import Any
@@ -47,7 +48,7 @@ from pelix.ipopo.decorators import (
     ValidateComponent,
 )
 from pelix.misc.mqtt_client import PROP_MQTT_PASSWORD, MqttClient, MqttConnectionConfig, MqttMessage
-from pelix.remote import beans
+from pelix.remote import beans, security
 from pelix.remote.edef_io import EDEFReader, EDEFWriter
 from pelix.utilities import to_bytes, to_str
 
@@ -82,6 +83,7 @@ ENDPOINT_EVENTS = (EVENT_ADD, EVENT_UPDATE, EVENT_REMOVE)
 @Requires("_dispatcher", pelix.remote.RemoteServiceDispatcher)
 @Requires("_registry", pelix.remote.RemoteServiceRegistry)
 @HiddenProperty("_mqtt_password", PROP_MQTT_PASSWORD, None)
+@Property("_key_file", security.PROP_DISCOVERY_KEY_FILE, None)
 @Property("_prefix", "topic.prefix", "pelix/{appid}/remote-services")
 @Property("_appid", "application.id", None)
 class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
@@ -106,6 +108,10 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
 
         # MQTT broker password (hidden property)
         self._mqtt_password: str | None = None
+
+        # Signature of the messages
+        self._key_file: str | None = None
+        self.__signer: security.DiscoverySigner | None = None
 
         # MQTT topic Properties
         self._prefix = ""
@@ -133,6 +139,15 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         if not self._framework_uid:
             raise ValueError(f"A Framework UID must be set with property {constants.FRAMEWORK_UID}")
 
+        # Fail here rather than run unsigned when a key was asked for
+        self.__signer = security.DiscoverySigner.from_file(self._key_file) if self._key_file else None
+        if self.__signer is None:
+            _logger.warning(
+                "MQTT discovery messages are not signed: any client of the broker can announce endpoints. "
+                "Set %s to share a group key",
+                security.PROP_DISCOVERY_KEY_FILE,
+            )
+
         # Create the MQTT client
         config = MqttConnectionConfig.from_properties(properties, self._mqtt_password)
         self.__mqtt = config.make_client()
@@ -142,7 +157,8 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         self.__mqtt.on_disconnect = self.__on_disconnect
         self.__mqtt.on_message = self.__on_message
 
-        # Prepare the will packet
+        # Prepare the will packet. Its signature would be outdated when the broker
+        # sends it: signed groups only see the frameworks which stop cleanly as lost
         self.__mqtt.set_will(self._make_topic(EVENT_LOST), to_bytes(self._framework_uid), qos=2)
 
         # Prepare the connection
@@ -208,10 +224,22 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         event = topic.rsplit("/", 1)[1]
 
         try:
+            payload: str | bytes = message.payload
+            if self.__signer is not None:
+                # The event is signed with the payload: it can't be replayed as another one
+                try:
+                    content = self.__signer.verify(json.loads(payload))
+                except ValueError:
+                    content = None
+                if content is None or content.get("event") != event or "payload" not in content:
+                    _logger.debug("Ignoring an MQTT discovery message without a valid signature: %s", topic)
+                    return
+                payload = str(content["payload"])
+
             parameter: Any
             if event in ENDPOINT_EVENTS:
                 # Parse the endpoints (from EDEF XML to ImportEndpoint)
-                endpoints_descr = EDEFReader().parse(message.payload)
+                endpoints_descr = EDEFReader().parse(payload)
                 endpoints = [endpoint.to_import() for endpoint in endpoints_descr]
 
                 if not endpoints or endpoints[0].framework == self._framework_uid:
@@ -222,7 +250,7 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
                 parameter = endpoints
             else:
                 # Give the payload as is to other event handlers
-                parameter = message.payload
+                parameter = to_bytes(payload)
 
             try:
                 getattr(self, f"_handle_{event}")(parameter)
@@ -241,6 +269,8 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         :return: The local message ID
         """
         assert self.__mqtt is not None
+        if self.__signer is not None:
+            payload = json.dumps(self.__signer.sign({"event": event, "payload": to_str(payload)}))
 
         # Publish the MQTT message (QoS 2 - Exactly Once)
         return self.__mqtt.publish(self._make_topic(event), payload, qos=2, wait=wait)

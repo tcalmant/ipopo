@@ -40,6 +40,7 @@ from pelix.ipopo.constants import use_ipopo
 from pelix.misc.mqtt_client import MqttClient
 from pelix.remote import security
 from pelix.remote.transport import mqtt_rpc
+from pelix.security import AccessDenied, Authorization, Permission, Subject, get_current_subject
 from tests.mqtt_utilities import (
     MQTT_CERTS,
     MQTT_PASSWORD,
@@ -431,14 +432,40 @@ class BlockingService:
         return "done"
 
 
+class PeerAuthorization:
+    """
+    Grants test.mqtt to the subject named "peer" only
+    """
+
+    def is_permitted(self, permission: Permission, subject: Subject | None = None) -> bool:
+        subject = subject or get_current_subject()
+        return subject.name == "peer" and permission.action == "test.mqtt"
+
+    def check_permitted(self, permission: Permission, subject: Subject | None = None) -> None:
+        if not self.is_permitted(permission, subject):
+            raise AccessDenied(str(permission))
+
+
 class MqttRpcExporterTest(unittest.TestCase):
     """
     Tests the MQTT-RPC exporter against raw MQTT callers
     """
 
     def setUp(self) -> None:
+        self.framework: Framework | None = None
+        self.client: MqttClient | None = None
+
+    def tearDown(self) -> None:
+        self._stop()
+
+    def _start(
+        self, exporter_props: dict[str, Any] | None = None, service_props: dict[str, Any] | None = None
+    ) -> None:
         """
         Exports a blocking service and connects a raw MQTT client
+
+        :param exporter_props: Extra properties of the exporter
+        :param service_props: Extra properties of the exported service
         """
         assert MQTT_SERVER is not None
         self.framework = create_framework(
@@ -448,11 +475,15 @@ class MqttRpcExporterTest(unittest.TestCase):
         context = self.framework.get_bundle_context()
         with use_ipopo(context) as ipopo:
             ipopo.instantiate(
-                pelix.remote.FACTORY_TRANSPORT_MQTTRPC_EXPORTER, "rs-exporter", {"mqtt.host": MQTT_SERVER}
+                pelix.remote.FACTORY_TRANSPORT_MQTTRPC_EXPORTER,
+                "rs-exporter",
+                {"mqtt.host": MQTT_SERVER, **(exporter_props or {})},
             )
 
         self.service = BlockingService()
-        context.register_service(SVC_SPEC, self.service, {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+        context.register_service(
+            SVC_SPEC, self.service, {pelix.remote.PROP_EXPORTED_INTERFACES: "*", **(service_props or {})}
+        )
 
         dispatcher_ref = context.get_service_reference(pelix.remote.RemoteServiceDispatcher)
         assert dispatcher_ref is not None
@@ -470,11 +501,20 @@ class MqttRpcExporterTest(unittest.TestCase):
         self.client.connect(MQTT_SERVER)
         self.assertTrue(connected.wait(10))
         self.client.subscribe(mqtt_rpc.make_topic(self.topic, f"{mqtt_rpc.TOPIC_RESPONSE}/#"), 1)
+        self._wait_ready()
 
-    def tearDown(self) -> None:
-        self.service.release.set()
-        self.client.disconnect()
-        FrameworkFactory.delete_framework()
+    def _stop(self) -> None:
+        """
+        Stops the framework and the raw client
+        """
+        if self.client is not None:
+            self.service.release.set()
+            self.client.disconnect()
+            self.client = None
+
+        if self.framework is not None:
+            FrameworkFactory.delete_framework()
+            self.framework = None
 
     def _request(self, sender: Any, correlation_id: str) -> None:
         """
@@ -486,6 +526,7 @@ class MqttRpcExporterTest(unittest.TestCase):
         request = {mqtt_rpc.KEY_DATA: [self.method], mqtt_rpc.KEY_CORRELATION_ID: correlation_id}
         if sender is not None:
             request[mqtt_rpc.KEY_SENDER] = sender
+        assert self.client is not None
         self.client.publish(mqtt_rpc.make_topic(self.topic, mqtt_rpc.TOPIC_REQUEST), json.dumps(request), 1)
 
     def _wait_ready(self) -> None:
@@ -513,7 +554,7 @@ class MqttRpcExporterTest(unittest.TestCase):
         """
         Each caller gets the replies on its own topic, invalid senders get none
         """
-        self._wait_ready()
+        self._start()
         self.service.release.set()
 
         caller = str(uuid.uuid4())
@@ -533,7 +574,7 @@ class MqttRpcExporterTest(unittest.TestCase):
         A flood of requests uses a bounded number of threads, the requests
         beyond the bound are refused at once
         """
-        self._wait_ready()
+        self._start()
         threads_before = threading.active_count()
 
         extra = 5
@@ -551,6 +592,36 @@ class MqttRpcExporterTest(unittest.TestCase):
         self.service.release.set()
         done = [self.replies.get(True, 10)[1] for _ in range(total - extra)]
         self.assertTrue(all(reply[mqtt_rpc.KEY_DATA] == "done" for reply in done))
+
+    def test_authorization(self) -> None:
+        """
+        The calls run as the configured peer, and are checked against the permission of the export
+        """
+        self._start()
+        context = self.framework.get_bundle_context() if self.framework else None
+        assert context is not None
+
+        # peer name, declared permission, expected data, expected error
+        cases: list[tuple[str | None, str | None, str | None, str | None]] = [
+            # Loopback broker: an export which declares nothing stays callable
+            (None, None, "done", None),
+            (None, "test.mqtt", None, "Authentication required"),
+            ("other", "test.mqtt", None, "Access denied"),
+            ("peer", "test.mqtt", "done", None),
+        ]
+        for peer, permission, data, error in cases:
+            with self.subTest(peer=peer, permission=permission):
+                self._stop()
+                self._start(
+                    {mqtt_rpc.PROP_MQTT_PEER_NAME: peer} if peer else None,
+                    {security.PROP_PERMISSION: permission} if permission else None,
+                )
+                assert self.framework is not None
+                self.framework.get_bundle_context().register_service(Authorization, PeerAuthorization(), {})
+                self.service.release.set()
+                self._request("caller", "auth")
+                reply = self.replies.get(True, 10)[1]
+                self.assertEqual((reply[mqtt_rpc.KEY_DATA], reply[mqtt_rpc.KEY_ERROR]), (data, error))
 
 
 # ------------------------------------------------------------------------------
