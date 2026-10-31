@@ -145,7 +145,7 @@ Unreleased
   the multicast discovery from its reading thread
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
-* The MQTT discovery and MQTT-RPC components can connect to their broker with
+* The MQTT discovery, MQTT-RPC and EventAdmin MQTT bridge components can connect to their broker with
   TLS and credentials, with the new `mqtt.tls`, `mqtt.tls.ca_file`,
   `mqtt.tls.cert_file`, `mqtt.tls.key_file`, `mqtt.username` and
   `mqtt.password` (hidden) properties, plus `mqtt.client_id` and

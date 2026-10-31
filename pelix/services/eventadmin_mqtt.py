@@ -32,8 +32,17 @@ import logging
 from typing import TYPE_CHECKING, Any, cast
 
 from pelix import constants, services
-from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
-from pelix.misc.mqtt_client import MqttClient, MqttMessage
+from pelix.ipopo import constants as ipopo_constants
+from pelix.ipopo.decorators import (
+    ComponentFactory,
+    HiddenProperty,
+    Invalidate,
+    Property,
+    Provides,
+    Requires,
+    ValidateComponent,
+)
+from pelix.misc.mqtt_client import PROP_MQTT_PASSWORD, MqttClient, MqttConnectionConfig, MqttMessage
 from pelix.utilities import to_iterable, to_str
 
 if TYPE_CHECKING:
@@ -73,8 +82,7 @@ _PRIVATE_TOPIC_PREFIX = "pelix/security/"
 @Provides(services.ServiceEventHandler, "_controller")
 @Requires("_event", services.EventAdmin)
 @Property("_event_topics", services.PROP_EVENT_TOPICS, None)
-@Property("_host", "mqtt.host", "localhost")
-@Property("_port", "mqtt.port", 1883)
+@HiddenProperty("_mqtt_password", PROP_MQTT_PASSWORD, None)
 @Property("_mqtt_topic", "mqtt.topic.prefix", DEFAULT_MQTT_TOPIC)
 class MqttEventAdminBridge(services.ServiceEventHandler):
     """
@@ -88,8 +96,7 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
         Sets up the members
         """
         # MQTT configuration
-        self._host: str = "localhost"
-        self._port: int = 1883
+        self._mqtt_password: str | None = None
         self._mqtt_topic: str = DEFAULT_MQTT_TOPIC
 
         # MQTT Client
@@ -104,8 +111,8 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
         # Framework UID
         self._framework_uid: str | None = None
 
-    @Validate
-    def _validate(self, context: "BundleContext") -> None:
+    @ValidateComponent(ipopo_constants.ARG_BUNDLE_CONTEXT, ipopo_constants.ARG_PROPERTIES)
+    def _validate(self, context: "BundleContext", properties: dict[str, Any]) -> None:
         """
         Component validated
         """
@@ -121,7 +128,8 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
             self._mqtt_topic = self._mqtt_topic[:-1]
 
         # Create the MQTT client
-        self._mqtt = MqttClient()
+        config = MqttConnectionConfig.from_properties(properties, self._mqtt_password)
+        self._mqtt = config.make_client()
 
         # Customize callbacks
         self._mqtt.on_connect = self.__on_connect
@@ -132,7 +140,7 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
         self._controller = False
 
         # Prepare the connection
-        self._mqtt.connect(self._host, self._port)
+        config.connect(self._mqtt)
 
     @Invalidate
     def _invalidate(self, context: "BundleContext") -> None:
