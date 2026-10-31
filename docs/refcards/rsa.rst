@@ -125,6 +125,10 @@ Property                       Default value Description
 ``ecf.xmlrpc.server.timeout``  30            XML-RPC requests timeout
 ============================== ============= ==================================
 
+The calls of the imported services are bounded by the
+``pelix.remote.client.timeout`` and ``pelix.remote.client.max_response_size``
+framework properties of the remote services (30 seconds and 16 MiB by default).
+
 Other properties are available but not presented here as they describe constants
 used to mimic the Java side configuration.
 

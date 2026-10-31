@@ -26,6 +26,7 @@ from pelix.ipopo.decorators import ComponentFactory, Property, Provides
 from pelix.remote import RemoteServiceDispatcher, RemoteServiceError, json_rpc, xml_rpc
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.transport import commons, jabsorb_rpc
+from pelix.rsa.providers.distribution.xmlrpc import XmlRpcImportContainer
 
 # ------------------------------------------------------------------------------
 
@@ -728,14 +729,19 @@ class ClientLimitsTest(unittest.TestCase):
         Tests that the proxies of the imported services apply the limits
         """
         context = mock.Mock(get_property={pelix.remote.PROP_CLIENT_TIMEOUT: 0.5}.get)
+        container = XmlRpcImportContainer()
 
-        with HostileServer(None) as server:
+        with (
+            HostileServer(None) as server,
+            mock.patch.object(container, "_get_bundle_context", lambda: context),
+        ):
             url = f"http://127.0.0.1:{server.port}/"
             limits = commons.get_client_limits(context)
             for proxy in (
                 json_rpc._ServiceCallProxy("name", url, limits),
                 xml_rpc._ServiceCallProxy("name", url, limits),
                 jabsorb_rpc._ServiceCallProxy("name", url, limits),
+                container._prepare_proxy(mock.Mock(get_remoteservice_id=lambda: (("ns", url), 1))),
             ):
                 with self.subTest(proxy=type(proxy).__module__):
                     start = time.monotonic()
