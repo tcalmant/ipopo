@@ -3,8 +3,8 @@
 """
 Pelix security package.
 
-Defines the identity beans, the exceptions, the service specifications and the current
-subject of the authentication and authorization layer.
+Defines the identity beans, the exceptions, the service specifications, the current
+subject of the authentication and authorization layer and the Secret value type.
 
 This module is importable with no framework running: like :mod:`pelix.constants` and
 :mod:`pelix.utilities`, it imports nothing but the standard library and
@@ -41,11 +41,14 @@ against remote callers, not against locally installed bundles.
 import contextlib
 import contextvars
 import hashlib
+import hmac
+import secrets
+import sys
 from collections.abc import Generator, Iterable, Mapping
 from dataclasses import dataclass, field
 from enum import Enum
 from types import MappingProxyType
-from typing import TYPE_CHECKING, Any, ClassVar, Protocol
+from typing import TYPE_CHECKING, Any, ClassVar, Generic, NoReturn, Protocol, TypeVar, final
 
 from pelix.constants import BundleException, Specification
 
@@ -64,6 +67,7 @@ __docformat__ = "restructuredtext en"
 __all__ = [
     "ANONYMOUS",
     "ATTRIBUTE_SESSION_ID",
+    "AUDIT_SECRET_REVEAL",
     "EVENT_PROP_AUTHENTICATED",
     "EVENT_PROP_DECLARATION",
     "EVENT_PROP_KIND",
@@ -103,11 +107,13 @@ __all__ = [
     "Decision",
     "MembershipProvider",
     "Permission",
+    "Secret",
     "SecurityError",
     "Subject",
     "UsernamePassword",
     "get_current_subject",
     "run_as",
+    "to_secret",
     "use_authorization",
 ]
 
@@ -205,6 +211,9 @@ EVENT_PROP_PERMISSION = "permission"
 
 EVENT_PROP_DECLARATION = "declaration"
 """ Event property: the security decorator which refused a call """
+
+AUDIT_SECRET_REVEAL = "pelix.security.secret.reveal"
+""" Audit event (PEP 578) raised by Secret.reveal(), with the owner and the caller module """
 
 # ------------------------------------------------------------------------------
 
@@ -656,6 +665,149 @@ class Authorization(Protocol):
         :return: True if the subject belongs to the group
         """
         ...
+
+
+# ------------------------------------------------------------------------------
+
+_T = TypeVar("_T")
+""" Type of the value of a secret """
+
+# Process-random, so that the hash of a secret is neither the one of its value nor
+# comparable across processes
+_SECRET_HASH_KEY = secrets.token_bytes(32)
+
+
+def _equal_values(mine: Any, theirs: Any) -> bool:
+    """
+    Compares two values, in constant time if both are str or both are bytes
+    """
+    if isinstance(mine, str) and isinstance(theirs, str):
+        mine, theirs = mine.encode(), theirs.encode()
+    if isinstance(mine, bytes) and isinstance(theirs, bytes):
+        # Constant time: comparing a token must not leak its prefix through timing
+        return hmac.compare_digest(mine, theirs)
+    return bool(mine == theirs)
+
+
+@final
+class Secret(Generic[_T]):
+    """
+    An immutable wrapper around a confidential value: a ``str`` or ``bytes`` password
+    or token, an ``int`` PIN, a dictionary of credentials...
+
+    The value is masked wherever text is made from it (``repr``, ``str``, f-strings,
+    tracebacks of locals) and refuses pickling: :meth:`reveal` is the only way to read
+    it, and it raises the :data:`AUDIT_SECRET_REVEAL` audit event. ``==`` only compares
+    two secrets (in constant time for text): :meth:`equals` checks a plain value and
+    raises the audit event too. This is not a protection
+    against local code (slots, ``gc`` and ``ctypes`` reach the value, and a ``str``
+    can't be wiped from memory), it makes every disclosure explicit and observable.
+    """
+
+    __slots__ = ("__owner", "__value")
+
+    def __init__(self, value: _T, owner: str | None = None) -> None:
+        """
+        :param value: The confidential value
+        :param owner: Name of the bundle or component the secret was created for
+        :raise TypeError: The value is already a secret
+        """
+        if isinstance(value, Secret):
+            raise TypeError("A secret can't wrap another one: use to_secret()")
+
+        object.__setattr__(self, "_Secret__value", value)
+        object.__setattr__(self, "_Secret__owner", owner)
+
+    def __setattr__(self, name: str, value: Any) -> NoReturn:
+        raise AttributeError("Secret is immutable")
+
+    def __delattr__(self, name: str) -> NoReturn:
+        raise AttributeError("Secret is immutable")
+
+    @property
+    def owner(self) -> str | None:
+        """
+        Name of the bundle or component the secret was created for (not confidential)
+        """
+        return self.__owner
+
+    def reveal(self) -> _T:
+        """
+        Returns the confidential value, raising the :data:`AUDIT_SECRET_REVEAL` audit
+        event with the owner of the secret and the name of the calling module.
+
+        :return: The wrapped value
+        """
+        sys.audit(AUDIT_SECRET_REVEAL, self.__owner, sys._getframe(1).f_globals.get("__name__"))
+        return self.__value
+
+    def __repr__(self) -> str:
+        return "Secret(***)"
+
+    def __str__(self) -> str:
+        return "***"
+
+    def __format__(self, format_spec: str) -> str:
+        return "***"
+
+    def equals(self, plain: Any) -> bool:
+        """
+        Compares the value with a plain one, in constant time if both are str or both
+        are bytes. It tells whether a guess is right, so it raises the
+        :data:`AUDIT_SECRET_REVEAL` audit event, like :meth:`reveal`.
+
+        :param plain: A plain value, e.g. the password given by a client
+        :return: True if both values are equal
+        """
+        sys.audit(AUDIT_SECRET_REVEAL, self.__owner, sys._getframe(1).f_globals.get("__name__"))
+        return _equal_values(self.__value, plain)
+
+    def __eq__(self, other: object) -> bool:
+        """
+        Compares the values of two secrets, without raising the audit event. A secret is
+        never equal to a plain value: see :meth:`equals`
+        """
+        if not isinstance(other, Secret):
+            return NotImplemented
+        return _equal_values(self.__value, other.__value)
+
+    def __hash__(self) -> int:
+        value = self.__value
+        if isinstance(value, str):
+            value = value.encode()
+        if isinstance(value, bytes):
+            return hash(hmac.digest(_SECRET_HASH_KEY, value, "sha256"))
+        # Raises a TypeError for an unhashable value
+        return hash((_SECRET_HASH_KEY, value))
+
+    def __bool__(self) -> bool:
+        return bool(self.__value)
+
+    def __len__(self) -> int:
+        # Raises a TypeError if the value has no length
+        return len(self.__value)
+
+    def __reduce_ex__(self, protocol: Any) -> NoReturn:
+        raise TypeError("A secret can't be pickled")
+
+    def __copy__(self) -> "Secret[_T]":
+        return self
+
+    def __deepcopy__(self, memo: Any) -> "Secret[_T]":
+        return self
+
+
+def to_secret(value: _T | Secret[_T] | None, owner: str | None = None) -> Secret[_T] | None:
+    """
+    Wraps a value in a :class:`Secret`, keeping an existing secret and its owner as is.
+
+    :param value: A plain value, a secret or None
+    :param owner: Owner of the secret if one is created
+    :return: The secret, or None if the value was None
+    """
+    if value is None or isinstance(value, Secret):
+        return value
+    return Secret(value, owner)
 
 
 # ------------------------------------------------------------------------------

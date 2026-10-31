@@ -38,6 +38,14 @@ Unreleased
 
 ### Security
 
+* Added `pelix.security.Secret`, an immutable wrapper of a confidential value
+  (a `str` or `bytes` password, an `int` PIN, a dictionary of credentials...),
+  masked in its text forms (`***`), compared with another secret in constant
+  time, with a plain value only by `equals()` (audited like `reveal()`), hashed
+  with a process-random key, refused
+  by pickle and JSON, whose `reveal()` method raises the
+  `pelix.security.secret.reveal` audit event (PEP 578) with its owner and the
+  calling module. See the security reference card
 * `Subject` has two new fields, `peer_address` (the other end of the
   connection) and `client_address` (the client, as told by the trusted proxies),
   set by the HTTP services and the remote shell and shown by `whoami`.
@@ -335,6 +343,15 @@ Unreleased
 * Fixed a component killed by a `FrameworkException` raised in `@Validate`: it
   was set back to `VALID` then invalidated without the iPOPO service, so that
   `instantiate()` raised a `ValueError` to its caller
+* **Breaking:** the values of the properties declared with `@HiddenProperty`
+  are `pelix.security.Secret` objects owned by the component instance: the
+  declared default, the values given to `instantiate()`, the confidential
+  updates of a `.name` key (from `reconfigure()` or Configuration Admin), the
+  values the component sets itself and those given to `@Modified`. The
+  component calls `reveal()` to read the value: `str()` gives `***`.
+  `get_factory_details()["hidden_properties"]` gives `Secret` objects owned by
+  the factory. The bundled components (HTTP, remote shell, XMPP shell, MQTT,
+  Redis) are adapted
 
 ### Shell
 
