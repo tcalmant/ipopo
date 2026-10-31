@@ -49,7 +49,8 @@ Assuming a simple case where your pretty printer configurator receives the
 configuration has a unique class name, you may well use that name.
 
 .. note:: The default persistence stores each configuration in a file named
-   after its PID, therefore it refuses the PIDs containing a path separator
+   after its PID (in the folder given by the ``configuration.folder`` framework
+   property: see :ref:`configadmin_persistence`), therefore it refuses the PIDs containing a path separator
    (``/`` or ``\``) or a null character.
 
    .. versionchanged:: 3.2.2
@@ -227,6 +228,77 @@ factory:
                config.delete()
 
            self.configs.clear()
+
+
+Named factory configurations
+============================
+
+``create_factory_configuration(factory_pid)`` gives a configuration a unique
+PID chosen by Configuration Admin.
+``get_factory_configuration(factory_pid, name)`` instead gets, or creates, the
+configuration with the PID ``factory_pid~name``, so that a program can find
+it again after a restart:
+
+.. code-block:: python
+
+   config = config_admin_svc.get_factory_configuration("sms.sender", "office")
+   config.update({"key": "value"})
+
+A managed service factory is notified of a configuration only once it has been
+updated. It gets ``updated(pid, properties)`` for a new or an existing PID, and
+``deleted(pid)`` when a configuration it knew is deleted. When it is
+registered, it gets all the existing configurations of its PID, including the
+ones loaded from the persistence. Several factories sharing a PID are notified
+by decreasing service ranking.
+
+
+Change count and events
+=======================
+
+``Configuration.get_change_count()`` grows each time the properties or the
+location of a configuration change. It is not persisted.
+
+``update()`` does nothing if the properties are the same as the current ones
+(unlike OSGi, where it always updates). ``update_if_different()`` does the
+same and returns ``True`` if the configuration has changed.
+
+A service providing ``pelix.configadmin.listener`` (``IConfigurationListener``)
+receives a ``ConfigurationEvent`` (type, PID, factory PID) from
+``configuration_event()``:
+
+* ``CM_UPDATED`` after the properties are stored and the managed services
+  notified;
+* ``CM_DELETED`` after the deletion;
+* ``CM_LOCATION_CHANGED`` after ``set_bundle_location()`` changed the location.
+
+Events are sent in the thread which changed the configuration, like the
+managed service notifications: a listener must not block. An exception raised
+by a listener is logged.
+
+.. note:: Not implemented from the OSGi specification: configuration plugins,
+   targeted PIDs, location based visibility, read-only configurations and
+   asynchronous listeners.
+
+
+.. _configadmin_persistence:
+
+Persistence
+===========
+
+The ``configuration.folder`` framework property gives the folder in which the
+JSON persistence stores one ``<pid>.config.js`` file per configuration. The
+folder is created with the mode ``0700`` and the files with the mode ``0600``,
+and a warning is logged when an existing folder or file is accessible to other
+users, as configurations can hold secrets.
+
+Without this property, configurations are kept in memory by ``MemoryPersistence``
+and are lost when the framework stops. Set
+``pelix.configadmin.persistence.default.disable`` to provide your own
+persistence service instead.
+
+.. versionchanged:: 3.3.0
+   The default persistence no longer writes to ``./conf`` under the working
+   directory.
 
 
 Notifications and threads

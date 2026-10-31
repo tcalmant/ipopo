@@ -23,10 +23,9 @@ ConfigurationAdmin implementation
     WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
     See the License for the specific language governing permissions and
     limitations under the License.
-
-TODO: Stabilize implementation of managed service factories
 """
 
+import copy
 import json
 import logging
 import os
@@ -72,6 +71,7 @@ __all__ = [
     "ConfigurationDirectory",
     "IConfigurationAdminDirectory",
     "JsonPersistence",
+    "MemoryPersistence",
 ]
 
 # ------------------------------------------------------------------------------
@@ -89,6 +89,9 @@ SERVICE_CONFIGURATION_ADMIN_PRIVATE = "pelix.services.configadmin.private"
 """
 Private version of ConfigAdmin, to handle loop-requirements ("that will do")
 """
+
+_SHARED_MODE_BITS = 0o077
+""" Permission bits giving access to a group or to the other users """
 
 PID_FORBIDDEN_CHARACTERS = ("/", "\\", "\0")
 """
@@ -190,7 +193,10 @@ class Configuration(services.Configuration):
         # Configuration state
         self.__updated: bool = False
         self.__deleted: bool = False
-        self.__location: str | None = None
+        self.__change_count = 0
+
+        # A configuration loaded from the persistence gets its location back
+        self.__location: str | None = (properties or {}).get(services.CONFIG_PROP_BUNDLE_LOCATION)
 
         # Update using given properties, if any
         self.__properties_update(properties)
@@ -225,10 +231,35 @@ class Configuration(services.Configuration):
         Managed Service/Managed Service Factory receives this Configuration
         object via the updated method and before any plugins are called.
         The bundle location will be set persistently.
+        The listeners are notified with a CM_LOCATION_CHANGED event.
 
         :param location: A bundle location
         """
-        self.__location = location
+        with self.__lock:
+            if self.__deleted or location == self.__location:
+                return
+
+            self.__location = location
+            self.__change_count += 1
+            if self.__properties is not None:
+                # Persist it with the other properties, which are already stored
+                if location:
+                    self.__properties[services.CONFIG_PROP_BUNDLE_LOCATION] = location
+                else:
+                    self.__properties.pop(services.CONFIG_PROP_BUNDLE_LOCATION, None)
+
+                self.__persistence.store(self.__pid, self.__properties)
+
+        cast(ConfigurationAdmin, self.__config_admin)._send_event(services.CM_LOCATION_CHANGED, self)
+
+    def get_change_count(self) -> int:
+        """
+        Returns the number of changes of this configuration since it has been
+        created or loaded
+
+        :return: The change count
+        """
+        return self.__change_count
 
     def get_factory_pid(self) -> str | None:
         """
@@ -319,6 +350,8 @@ class Configuration(services.Configuration):
             # Override properties
             properties[services.CONFIG_PROP_PID] = self.__pid
 
+            # Only set_bundle_location() can change the location
+            properties.pop(services.CONFIG_PROP_BUNDLE_LOCATION, None)
             if self.__location:
                 properties[services.CONFIG_PROP_BUNDLE_LOCATION] = self.__location
 
@@ -332,6 +365,7 @@ class Configuration(services.Configuration):
             # Store the copy (before storing data)
             self.__properties = properties
             self.__updated = True
+            self.__change_count += 1
 
             # Store the data
             # it will cause FileInstall to update this configuration again, but
@@ -353,8 +387,6 @@ class Configuration(services.Configuration):
 
     def update(self, properties: dict[str, Any] | None = None) -> None:
         """
-        If called without properties, only notifies listeners
-
         Update the properties of this Configuration object.
         Stores the properties in persistent storage after adding or overwriting
         the following properties:
@@ -376,19 +408,32 @@ class Configuration(services.Configuration):
         Else, this callback is delayed until aforementioned registration
         occurs.
 
-        Unlike the Configuration Admin Service spec (104.4), this
-        implementation does not support ConfigurationListener/
-        ConfigurationEvent notifications: there is no call to
-        ConfigurationListeners here.
+        Unlike the Configuration Admin Service spec (104.4), nothing happens if
+        the properties are the same as the current ones: no notification and
+        no event (File Install would loop on its own writes otherwise).
+        Calling it without properties does nothing either.
+
+        The IConfigurationListener services are notified with a CM_UPDATED
+        event once the managed services have been.
 
         :param properties: the new set of properties for this configuration
+        :raise IOError: Error storing the configuration
+        """
+        self.update_if_different(properties or {})
+
+    def update_if_different(self, properties: dict[str, Any]) -> bool:
+        """
+        Same as update(), returning whether the configuration has changed
+
+        :param properties: the new set of properties for this configuration
+        :return: True if the configuration has been updated
         :raise IOError: Error storing the configuration
         """
         with self.__lock:
             if self.__deleted:
                 # The configuration has been deleted while the caller was
                 # working on it: don't store its properties again
-                return
+                return False
 
             # Update properties
             changed = self.__properties_update(properties)
@@ -402,6 +447,8 @@ class Configuration(services.Configuration):
                 # Deleted concurrently while we were about to notify:
                 # nothing left to update
                 pass
+
+        return changed
 
     def delete(self, directory_updated: bool = False) -> None:
         """
@@ -589,9 +636,9 @@ class ConfigurationDirectory(IConfigurationAdminDirectory):
             elif not pid:
                 raise ValueError("Configuration with an empty PID")
             elif pid in self.__factories:
-                raise KeyError("PID already used as a factory PID: {pid}")
+                raise KeyError(f"PID already used as a factory PID: {pid}")
             elif persistence is None:
-                raise ValueError("No persistence service associated to {pid}")
+                raise ValueError(f"No persistence service associated to {pid}")
 
             # Make the configuration bean
             configuration = Configuration(pid, properties, self._admin, persistence, factory_pid)
@@ -715,6 +762,12 @@ class _Deliveries:
     aggregate=True,
     optional=True,
 )
+@Requires(
+    "_listeners",
+    services.IConfigurationListener,
+    aggregate=True,
+    optional=True,
+)
 @Instantiate("pelix-services-configuration-admin")
 class ConfigurationAdmin(services.IConfigurationAdmin):
     """
@@ -732,6 +785,9 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
 
     # Managed services factories
     _managed_factories: list[services.IManagedServiceFactory]
+
+    # Configuration events listeners
+    _listeners: list[services.IConfigurationListener]
 
     def __init__(self) -> None:
         # Service controller
@@ -955,9 +1011,10 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         :param factory_pid: A managed service factory PID
         :return: The list of matching factories
         """
+        # Best ranked first, as in the spec
         return [
             svc
-            for svc_ref, svc in self._factories_refs.items()
+            for svc_ref, svc in sorted(self._factories_refs.items(), key=lambda item: item[0])
             if svc_ref.get_property(pelix.constants.SERVICE_PID) == factory_pid
         ]
 
@@ -971,7 +1028,7 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         # Make the list of managed services
         return [
             svc
-            for svc_ref, svc in self._managed_refs.items()
+            for svc_ref, svc in sorted(self._managed_refs.items(), key=lambda item: item[0])
             if svc_ref.get_property(pelix.constants.SERVICE_PID) == pid
         ]
 
@@ -1311,6 +1368,8 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         for svc in managed:
             self.__deliver(svc, pid, configuration, wait=wait)
 
+        self._send_event(services.CM_UPDATED, configuration)
+
     def _delete(self, configuration: Configuration, notify_services: bool, directory_updated: bool) -> None:
         """
         A configuration is about to be deleted.
@@ -1348,6 +1407,33 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         for svc in managed:
             self.__deliver(svc, pid, configuration, deleting=True)
 
+        self._send_event(services.CM_DELETED, configuration)
+
+    def _send_event(self, event_type: int, configuration: services.Configuration) -> None:
+        """
+        Notifies the configuration listeners, in the calling thread
+
+        :param event_type: One of the CM_* event types
+        :param configuration: The configuration the event is about
+        """
+        with self.__lock:
+            if not (self.__validated and self._controller):
+                return
+
+            listeners = list(self._listeners or [])
+
+        if not listeners:
+            return
+
+        event = services.ConfigurationEvent(
+            event_type, configuration.get_pid(), configuration.get_factory_pid()
+        )
+        for listener in listeners:
+            try:
+                listener.configuration_event(event)
+            except Exception:
+                _logger.exception("Error notifying a configuration listener")
+
     def create_factory_configuration(self, factory_pid: str) -> services.Configuration:
         """
         Create a new factory Configuration object with a new PID.
@@ -1358,23 +1444,63 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         :raise ValueError: Invalid PID
         """
         with self.__lock:
-            if factory_pid is None:
-                raise ValueError("No factory PID given")
-
-            try:
-                # Remove leading-trailing spaces
-                factory_pid = factory_pid.strip()
-                if not factory_pid:
-                    raise ValueError("Empty factory PID")
-            except AttributeError:
-                # .strip() doesn't exist
-                raise ValueError(f"Invalid type of PID: {type(factory_pid).__name__}")
+            factory_pid = self.__clean_factory_pid(factory_pid)
 
             # Generate a configuration PID
             pid = f"{factory_pid}-{uuid.uuid4()}"
 
             # Create the new factory configuration
             return self._directory.add(pid, None, self._persistences[0], factory_pid)
+
+    @staticmethod
+    def __clean_factory_pid(factory_pid: str) -> str:
+        """
+        Checks and cleans up a factory PID
+
+        :param factory_pid: A factory PID
+        :return: The factory PID without leading and trailing spaces
+        :raise ValueError: Invalid PID
+        """
+        if factory_pid is None:
+            raise ValueError("No factory PID given")
+
+        try:
+            # Remove leading-trailing spaces
+            factory_pid = factory_pid.strip()
+        except AttributeError:
+            # .strip() doesn't exist
+            raise ValueError(f"Invalid type of PID: {type(factory_pid).__name__}")
+
+        if not factory_pid:
+            raise ValueError("Empty factory PID")
+
+        return factory_pid
+
+    def get_factory_configuration(self, factory_pid: str, name: str) -> services.Configuration:
+        """
+        Gets or creates, atomically, the factory configuration with the PID
+        ``<factory_pid>~<name>``
+
+        :param factory_pid: PID of the factory
+        :param name: Name of the configuration in the factory
+        :raise ValueError: Invalid factory PID or name, or the PID is used by
+                           a configuration of another factory
+        :raise IOError: File not found/readable
+        """
+        factory_pid = self.__clean_factory_pid(factory_pid)
+        if not isinstance(name, str) or not name.strip():
+            raise ValueError(f"Invalid factory configuration name: {name!r}")
+
+        pid = f"{factory_pid}~{name.strip()}"
+        with self.__lock:
+            configuration = self.__find_configuration(pid)
+            if configuration is None:
+                return self._directory.add(pid, None, self._persistences[0], factory_pid)
+
+            if configuration.get_factory_pid() != factory_pid:
+                raise ValueError(f"{pid} is not a configuration of the factory {factory_pid}")
+
+            return configuration
 
     def __find_configuration(self, pid: str) -> services.Configuration | None:
         """
@@ -1521,12 +1647,13 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         Component validated
         """
         if not self._conf_folder:
-            # ./conf is the default configuration folder
-            self._conf_folder = os.path.join(os.getcwd(), "conf")
+            # No default folder: it would depend on the working directory of
+            # whoever started the framework
+            raise ValueError("No configuration folder: set the configuration.folder property")
 
-        # Make the folders if necessary
-        if not os.path.exists(self._conf_folder):
-            os.makedirs(self._conf_folder)
+        # Make the folder if necessary: configurations can hold secrets
+        os.makedirs(self._conf_folder, mode=0o700, exist_ok=True)
+        self._warn_if_shared(self._conf_folder)
 
         # Set the folder watcher property
         self._watched_folder = self._conf_folder
@@ -1539,6 +1666,25 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         # Clear the cache
         self._watched_folder = ""
         self._conf_folder = ""
+
+    @staticmethod
+    def _warn_if_shared(path: str) -> None:
+        """
+        Warns when a folder or a file is accessible to other users, like the
+        htpasswd store does
+
+        :param path: Path of a folder or file
+        """
+        if os.name != "posix":
+            return
+
+        try:
+            mode = stat.S_IMODE(os.stat(path).st_mode)
+        except OSError:
+            return
+
+        if mode & _SHARED_MODE_BITS:
+            _logger.warning("%s is accessible to other users (mode %o): run chmod on it", path, mode)
 
     def __load_file(self, filename: str) -> tuple[str, dict[str, Any]] | None:
         """
@@ -1589,8 +1735,11 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         :raise IOError: File not found/readable
         :raise ValueError: Invalid PID or invalid file content
         """
-        with open(self._get_file(pid)) as filep:
+        path = self._get_file(pid)
+        with open(path) as filep:
             data = filep.read()
+
+        self._warn_if_shared(path)
 
         # Store the configuration
         return cast(dict[str, Any], json.loads(data))
@@ -1615,7 +1764,6 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
             # Keep the permissions of an existing file
             mode: int | None = stat.S_IMODE(os.stat(path).st_mode)
         except FileNotFoundError:
-            # New files get the umask-based permissions, as open() gives
             mode = None
 
         # Write a temporary file then replace the configuration file with it,
@@ -1623,7 +1771,8 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         # doesn't end with ".config.js": it isn't taken as a configuration
         tmp_path = os.path.join(os.path.dirname(path), f".{pid}.config.js.{uuid.uuid4().hex[:8]}.tmp")
         try:
-            with open(tmp_path, "x") as filep:
+            # Created readable by the owner only, whatever the umask
+            with open(os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as filep:
                 filep.write(data)
                 filep.flush()
                 os.fsync(filep.fileno())
@@ -1720,6 +1869,64 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
                     _logger.error("Error updating %s: %s", pid, ex)
 
 
+@ComponentFactory(services.FACTORY_CONFIGADMIN_MEMORY)
+@Provides(services.IConfigurationAdminPersistence)
+class MemoryPersistence(services.IConfigurationAdminPersistence):
+    """
+    Configuration persistence keeping everything in memory: nothing survives
+    the framework, nothing is written on the disk
+    """
+
+    def __init__(self) -> None:
+        """
+        Sets up members
+        """
+        self.__configurations: dict[str, dict[str, Any]] = {}
+        self.__lock = threading.Lock()
+
+    def get_pids(self) -> Iterable[str]:
+        """
+        Returns the list of known PIDs
+        """
+        with self.__lock:
+            return set(self.__configurations)
+
+    def exists(self, pid: str) -> bool:
+        """
+        Returns True if a configuration with the given PID exists
+        """
+        with self.__lock:
+            return pid in self.__configurations
+
+    def load(self, pid: str) -> dict[str, Any]:
+        """
+        Loads the configuration with the given PID
+
+        :raise FileNotFoundError: Unknown PID
+        """
+        with self.__lock:
+            try:
+                return copy.deepcopy(self.__configurations[pid])
+            except KeyError:
+                raise FileNotFoundError(pid) from None
+
+    def store(self, pid: str, properties: dict[str, Any]) -> None:
+        """
+        Stores the configuration with the given PID
+        """
+        with self.__lock:
+            self.__configurations[pid] = copy.deepcopy(properties)
+
+    def delete(self, pid: str) -> bool:
+        """
+        Removes the configuration with the given PID
+
+        :return: True if the configuration existed
+        """
+        with self.__lock:
+            return self.__configurations.pop(pid, None) is not None
+
+
 @pelix.constants.BundleActivator
 class Activator(pelix.constants.ActivatorProto):
     """
@@ -1735,9 +1942,13 @@ class Activator(pelix.constants.ActivatorProto):
             return
 
         # Small trick to add a late Instantiate decoration
-        # to the component factory
+        # to the component factory. Without a configuration folder, nothing is
+        # written on the disk
         try:
-            Instantiate("pelix-services-configuration-json-default")(JsonPersistence)
+            if context.get_property("configuration.folder"):
+                Instantiate("pelix-services-configuration-json-default")(JsonPersistence)
+            else:
+                Instantiate("pelix-services-configuration-memory-default")(MemoryPersistence)
         except NameError:
             # Restarting the bundle doesn't reload its module: the instance
             # declared by the previous start is still there

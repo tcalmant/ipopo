@@ -135,8 +135,11 @@ The same can be done programmatically:
 Components go through the :ref:`iPOPO waiting list <refcard_component>`: a
 configuration naming a factory which isn't registered yet is honoured as soon
 as it appears, and again if its bundle is stopped then started. With the
-default JSON storage, configurations are persistent: the components they
-describe come back the next time the framework starts. Stopping the
+default JSON storage (which needs the ``configuration.folder`` framework
+property), configurations are persistent: the components they
+describe come back the next time the framework starts. A configuration
+created with ``get_factory_configuration(PID, name)`` has a stable PID
+(``PID~name``), which is also the default name of its component. Stopping the
 ``pelix.ipopo.configadmin`` bundle kills the components it created.
 
 .. note:: A property removed from a configuration goes back to the value

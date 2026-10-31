@@ -145,6 +145,13 @@ Unreleased
   the multicast discovery from its reading thread
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
+* **Breaking:** the default ConfigAdmin persistence no longer creates and uses
+  `./conf` under the working directory. Without the `configuration.folder`
+  framework property, configurations are kept in memory (new
+  `MemoryPersistence`) and are lost when the framework stops. The JSON
+  persistence refuses to start without a folder, creates it with mode `0700`
+  and its files with mode `0600`, and warns when the folder or a configuration
+  file is accessible to other users
 * The MQTT discovery, MQTT-RPC and EventAdmin MQTT bridge components can connect to their broker with
   TLS and credentials, with the new `mqtt.tls`, `mqtt.tls.ca_file`,
   `mqtt.tls.cert_file`, `mqtt.tls.key_file`, `mqtt.username` and
@@ -238,6 +245,17 @@ Unreleased
   specification: events are dataclass instances, delivered to handlers by topic
   and type, with untyped and unhandled event handlers, synchronous or ordered
   asynchronous delivery, and an optional event history
+* ConfigAdmin: added `get_factory_configuration(factory_pid, name)` (PID
+  `factory_pid~name`), `Configuration.get_change_count()` and
+  `Configuration.update_if_different()`, aligned on OSGi Configuration Admin 1.6
+* ConfigAdmin: added the `IConfigurationListener` service, notified with a
+  `ConfigurationEvent` (`CM_UPDATED`, `CM_DELETED`, `CM_LOCATION_CHANGED`) once
+  a configuration is stored, updated, deleted or bound to another location
+* ConfigAdmin: the bundle location of a configuration is now persisted and
+  reloaded, and can no longer be set through the `service.bundleLocation`
+  entry of the properties
+* ConfigAdmin: managed service factories (and managed services) sharing a PID
+  are notified by decreasing service ranking
 * Added `pelix.services.eventdelivery`, the delivery code and topic rules
   shared by both event services
 
