@@ -415,6 +415,7 @@ class CookieTest(unittest.TestCase):
             with self.subTest(cls=cls):
                 self.assertNotIn("get_peer_address", cls.__abstractmethods__)
                 self.assertNotIn("get_client_address", cls.__abstractmethods__)
+                self.assertNotIn("get_query", cls.__abstractmethods__)
 
 
 class SessionTest(unittest.TestCase):
@@ -450,6 +451,8 @@ class SessionTest(unittest.TestCase):
                 self.subTest(delay=delay),
                 mock.patch.object(_base.time, "monotonic", return_value=now + delay),
             ):
+                # Checking the session doesn't keep it alive
+                self.assertEqual(session.is_valid(), alive)
                 self.assertEqual(self.manager.find(session.get_id()) is session, alive)
 
         # Expired sessions nobody asks for are dropped when another one starts
@@ -470,6 +473,8 @@ class SessionTest(unittest.TestCase):
             # find() keeps a session alive: only look for the evicted one
             self.assertEqual(len(self.manager._sessions), 2)
             self.assertIsNone(self.manager.find(anonymous.get_id()))
+            self.assertFalse(anonymous.is_valid())
+            self.assertTrue(user.is_valid())
 
             # All logged in: the oldest overall gives way
             other.set_attribute(SESSION_USER, "bob")
@@ -497,6 +502,7 @@ class SessionTest(unittest.TestCase):
         # Dropped by another request: can't be renamed
         session.invalidate()
         session.invalidate()
+        self.assertFalse(session.is_valid())
         with self.assertRaises(RuntimeError):
             context.change_id()
 

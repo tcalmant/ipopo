@@ -33,6 +33,7 @@ import socket
 import ssl
 import threading
 import traceback
+import urllib.parse
 from http.server import BaseHTTPRequestHandler, HTTPServer
 from socketserver import TCPServer, ThreadingMixIn
 from typing import IO, TYPE_CHECKING, Any, cast
@@ -123,6 +124,12 @@ class _HTTPServletRequest(http.AbstractHTTPServletRequest):
         Returns the HTTP verb (GET, POST, ...) used for the request
         """
         return self._handler.command
+
+    def get_query(self) -> dict[str, list[str]]:
+        """
+        Returns the parameters of the query string, blank values included
+        """
+        return urllib.parse.parse_qs(urllib.parse.urlsplit(self._handler.path).query, keep_blank_values=True)
 
     def get_peer_address(self) -> tuple[str, int]:
         """

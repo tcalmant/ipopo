@@ -37,6 +37,7 @@ import hashlib
 import html
 import ipaddress
 import logging
+import math
 import re
 import secrets
 import socket
@@ -113,6 +114,7 @@ _RESTART_FIELDS = {
     http.HTTP_SESSION_ENABLED: "_session_enabled",
     http.HTTP_SESSION_MAX_INACTIVE_INTERVAL: "_session_interval",
     http.HTTP_SESSION_COOKIE_NAME: "_session_cookie",
+    http.HTTP_SESSION_COOKIE_SAME_SITE: "_session_same_site",
 }
 
 DEFAULT_REQUEST_QUEUE_SIZE = 5
@@ -322,7 +324,7 @@ class SessionManager:
     def __init__(self, max_inactive_interval: int) -> None:
         self._interval = max_inactive_interval
         self._lock = threading.Lock()
-        self._sessions: dict[str, list[Any]] = {}
+        self._sessions: dict[str, http.HttpSession] = {}
         self._next_sweep = time.monotonic() + max_inactive_interval
 
     @staticmethod
@@ -335,15 +337,14 @@ class SessionManager:
         """
         now = time.monotonic()
         with self._lock:
-            entry = self._sessions.get(key := self._key(session_id))
-            if entry is None:
+            session = self._sessions.get(key := self._key(session_id))
+            if session is None:
                 return None
-            if now - entry[1] > self._interval:
+            if now - session._seen > self._interval:
                 del self._sessions[key]
                 return None
-            entry[1] = now
+            session._seen = now
 
-        session: http.HttpSession = entry[0]
         session._new = False
         return session
 
@@ -357,14 +358,19 @@ class SessionManager:
             if now > self._next_sweep:
                 # Expired sessions nobody asks for are only found here
                 self._next_sweep = now + self._interval
-                for key in [k for k, (_, seen) in self._sessions.items() if now - seen > self._interval]:
+                for key in [k for k, s in self._sessions.items() if now - s._seen > self._interval]:
                     del self._sessions[key]
             if len(self._sessions) >= MAX_SESSIONS:
                 # Anyone can start a session on a public servlet: the oldest anonymous
                 # ones give way first, so that this can't log users out
-                keys = [k for k, (s, _) in self._sessions.items() if SESSION_USER not in s._attributes]
-                del self._sessions[min(keys or self._sessions, key=lambda k: self._sessions[k][1])]
-            self._sessions[self._key(session._id)] = [session, now]
+                keys = [k for k, s in self._sessions.items() if SESSION_USER not in s._attributes]
+                evicted = self._sessions.pop(
+                    min(keys or self._sessions, key=lambda k: self._sessions[k]._seen)
+                )
+                # Reads as expired, without breaking a request still using it
+                evicted._seen = -math.inf
+            session._seen = now
+            self._sessions[self._key(session._id)] = session
         return session
 
     def drop(self, session: http.HttpSession) -> None:
@@ -381,9 +387,9 @@ class SessionManager:
         :return: The new identifier
         """
         with self._lock:
-            entry = self._sessions.pop(self._key(session._id))
+            self._sessions.pop(self._key(session._id))
             session._id = secrets.token_urlsafe(32)
-            self._sessions[self._key(session._id)] = entry
+            self._sessions[self._key(session._id)] = session
         return session._id
 
 
@@ -393,13 +399,21 @@ class SessionContext:
     cookie to send back
     """
 
-    def __init__(self, manager: SessionManager, cookie_name: str, cookie_value: str | None, secure: bool):
+    def __init__(
+        self,
+        manager: SessionManager,
+        cookie_name: str,
+        cookie_value: str | None,
+        secure: bool,
+        same_site: str = "Lax",
+    ):
         self.cookie_value = cookie_value
         self.cookie: str | None = None
         """ The ``Set-Cookie`` header to send, if the cookie changed """
         self._manager = manager
         self._name = cookie_name
         self._secure = secure
+        self._same_site = same_site
         self.sent = False
         """ True once the headers went out: the cookie can't change any more """
         self._session: http.HttpSession | None = None
@@ -411,7 +425,9 @@ class SessionContext:
 
     def _send(self, value: str, max_age: int | None = None) -> None:
         self._check_sent()
-        self.cookie = http.format_cookie(self._name, value, max_age=max_age, secure=self._secure)
+        self.cookie = http.format_cookie(
+            self._name, value, max_age=max_age, secure=self._secure, same_site=self._same_site
+        )
 
     def get(self, create: bool) -> http.HttpSession | None:
         """
@@ -558,6 +574,7 @@ class RequestChecks:
 @Property("_session_enabled", http.HTTP_SESSION_ENABLED, False)
 @Property("_session_interval", http.HTTP_SESSION_MAX_INACTIVE_INTERVAL, 1800)
 @Property("_session_cookie", http.HTTP_SESSION_COOKIE_NAME, "PELIXSESSIONID")
+@Property("_session_same_site", http.HTTP_SESSION_COOKIE_SAME_SITE, "Lax")
 @Property("_auth_required", http.HTTP_AUTH_REQUIRED, False)
 @Property("_auth_realm", http.HTTP_AUTH_REALM, auth.DEFAULT_REALM)
 @Property("_uses_ssl", http.HTTP_USES_SSL, False)
@@ -588,6 +605,7 @@ class AbstractHttpService(http.HTTPService):
         self._session_enabled: Any = False
         self._session_interval: Any = 1800
         self._session_cookie: Any = "PELIXSESSIONID"
+        self._session_same_site: Any = "Lax"
         self._session_manager: SessionManager | None = None
         self._auth_required: bool = False
         self._auth_realm: str = auth.DEFAULT_REALM
@@ -707,6 +725,13 @@ class AbstractHttpService(http.HTTPService):
                 logging.WARNING, "Invalid session cookie name %r: using the default one", self._session_cookie
             )
             self._session_cookie = "PELIXSESSIONID"
+        # "None" is refused: it needs Secure, which depends on each client
+        self._session_same_site = str(self._session_same_site).capitalize()
+        if self._session_same_site not in ("Lax", "Strict"):
+            self.log(
+                logging.WARNING, "Invalid session cookie SameSite %r: using Lax", self._session_same_site
+            )
+            self._session_same_site = "Lax"
 
         self._normalize_live_configuration()
         if self._allowed_hosts is None and not self._loopback_bind:
@@ -927,7 +952,9 @@ class AbstractHttpService(http.HTTPService):
             return None
 
         cookie = http.parse_cookies(headers.get("Cookie")).get(self._session_cookie)
-        return SessionContext(self._session_manager, self._session_cookie, cookie, secure)
+        return SessionContext(
+            self._session_manager, self._session_cookie, cookie, secure, self._session_same_site
+        )
 
     def is_origin_refused(
         self,

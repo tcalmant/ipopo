@@ -33,6 +33,7 @@ import email.message
 import email.parser
 import re
 import threading
+import time
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -85,6 +86,7 @@ __all__ = [
     "HTTP_SERVLET_ASYNC_PATH",
     "HTTP_SERVLET_PATH",
     "HTTP_SESSION_COOKIE_NAME",
+    "HTTP_SESSION_COOKIE_SAME_SITE",
     "HTTP_SESSION_ENABLED",
     "HTTP_SESSION_MAX_INACTIVE_INTERVAL",
     "HTTP_SOCKET_TIMEOUT",
@@ -315,10 +317,11 @@ and ``logout()`` of their request, and the user logged in a session is the
 subject of the later requests (boolean, False by default). There is one set of
 sessions per HTTP service, kept in memory: a restart logs everyone out.
 
-The session cookie is ``HttpOnly`` and ``SameSite=Lax``, and ``Secure`` when the
-client used HTTPS (see ``pelix.http.proxy.trusted``). Its content is a random
-identifier, replaced on each login. The ``Lax`` attribute and
-``pelix.http.cors.enforce`` are the protection against cross-site requests.
+The session cookie is ``HttpOnly`` and ``SameSite=Lax`` (see
+``pelix.http.session.cookie.same_site``), and ``Secure`` when the client used
+HTTPS (see ``pelix.http.proxy.trusted``). Its content is a random identifier,
+replaced on each login. The ``SameSite`` attribute and ``pelix.http.cors.enforce``
+are the protection against cross-site requests.
 """
 
 HTTP_SESSION_MAX_INACTIVE_INTERVAL = "pelix.http.session.max_inactive_interval"
@@ -328,6 +331,14 @@ HTTP_SESSION_COOKIE_NAME = "pelix.http.session.cookie.name"
 """
 Name of the session cookie (``PELIXSESSIONID`` by default). Cookies don't
 isolate ports: services of one host must use different names
+"""
+
+HTTP_SESSION_COOKIE_SAME_SITE = "pelix.http.session.cookie.same_site"
+"""
+``SameSite`` attribute of the session cookie: ``Lax`` (default) or ``Strict``.
+``Strict`` suits administration pages: the browser never sends the cookie from
+another site, other ports and sibling sub-domains included, at the price of a
+logged out first page when following a link from elsewhere.
 """
 
 HTTP_CORS_ENFORCE = "pelix.http.cors.enforce"
@@ -583,6 +594,8 @@ class HttpSession:
         self._lock = threading.Lock()
         self._new = True
         self._valid = True
+        # Last use, kept up to date by the HTTP service
+        self._seen = time.monotonic()
 
     def _check(self) -> None:
         if not self._valid:
@@ -601,6 +614,14 @@ class HttpSession:
         """
         self._check()
         return self._new
+
+    def is_valid(self) -> bool:
+        """
+        Checks if the session is still usable: neither invalidated, expired nor
+        dropped by the server. Unlike a request carrying its cookie, this doesn't
+        keep the session alive, e.g. to close a long-lived WebSocket once it expired.
+        """
+        return self._valid and time.monotonic() - self._seen <= self._max_inactive_interval
 
     def get_max_inactive_interval(self) -> int:
         """
@@ -811,6 +832,15 @@ class _RequestMixin(ABC):
         :return: A (host, port) tuple
         :raise NotImplementedError: A request class written before this method
                                     must override ``get_client_address()``
+        """
+        raise NotImplementedError
+
+    def get_query(self) -> dict[str, list[str]]:
+        """
+        Returns the parameters of the query string of the request, blank values included
+
+        :return: A dictionary: parameter name -> its values, in order
+        :raise NotImplementedError: A request class written before this method
         """
         raise NotImplementedError
 
