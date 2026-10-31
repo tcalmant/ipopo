@@ -19,6 +19,7 @@ from unittest import mock
 
 import pelix.framework
 import pelix.shell.completion.core as completion_core
+from pelix.constants import PROP_PATH_CWD
 from pelix.framework import Bundle
 from pelix.shell import console
 from pelix.shell.console import (
@@ -60,6 +61,10 @@ class CommonArgumentsTest(unittest.TestCase):
     """
     Tests the common shell argument parsing
     """
+
+    def setUp(self) -> None:
+        # The arguments handler updates sys.path
+        self.addCleanup(setattr, sys, "path", list(sys.path))
 
     def _handle(self, arguments: list[str]) -> Any:
         parser = make_common_parser()
@@ -122,7 +127,6 @@ class CommonArgumentsTest(unittest.TestCase):
         """
         old_cwd = os.getcwd()
         self.addCleanup(os.chdir, old_cwd)
-        self.addCleanup(setattr, sys, "path", list(sys.path))
 
         with tempfile.TemporaryDirectory() as cwd, tempfile.TemporaryDirectory() as other:
             for folder in (cwd, other):
@@ -138,13 +142,20 @@ class CommonArgumentsTest(unittest.TestCase):
                 (["--trusted-folder", other, "--trusted-folder", "."], [other, "."]),
             ):
                 with self.subTest(arguments=arguments):
-                    sys.path = [path for path in sys.path if path not in (".", cwd, other)]
+                    # As "python -m" does
+                    sys.path = [cwd, *(path for path in sys.path if path not in (".", cwd, other))]
                     init = self._handle(arguments)
 
-                    # Trusted folders come first in the Python path, the others are not added
+                    # Trusted folders come first in the Python path, the others are removed
                     self.assertEqual(sys.path[: len(trusted)], trusted)
-                    for folder in {".", cwd, other}.difference(trusted):
+                    untrusted = {".", cwd, other}.difference(trusted)
+                    if "." in trusted:
+                        untrusted.discard(cwd)
+                    for folder in untrusted:
                         self.assertNotIn(folder, sys.path)
+
+                    # The framework must not add the working folder back unless it is trusted
+                    self.assertEqual(init.properties.get(PROP_PATH_CWD, True), "." in trusted)
 
                     # Only the configuration files of the trusted folders are loaded
                     loaded = {os.path.realpath(path) for path in trusted if "-e" not in arguments}

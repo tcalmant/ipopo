@@ -50,6 +50,7 @@ __all__ = [
     "OBJECTCLASS",
     "OSGI_FRAMEWORK_UUID",
     "PELIX_SPECIFICATION_FIELD",
+    "PROP_PATH_CWD",
     "SCOPE_BUNDLE",
     "SCOPE_PROTOTYPE",
     "SCOPE_SINGLETON",
@@ -140,6 +141,14 @@ OSGI_FRAMEWORK_UUID = "org.osgi.framework.uuid"
 """
 OSGi standard framework uuid property name.   Set in framework init to the value
 of FRAMEWORK_UID
+"""
+
+PROP_PATH_CWD = "pelix.path.cwd"
+"""
+Framework initialization property: if false (``False``, ``"false"`` or ``"0"``),
+the creation of the framework doesn't put the current working directory first
+in ``sys.path``, where a module of that folder hides an installed one.
+True by default.
 """
 
 # ------------------------------------------------------------------------------

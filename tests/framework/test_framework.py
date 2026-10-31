@@ -14,6 +14,7 @@ import time
 import unittest
 from typing import Any
 
+from pelix.constants import PROP_PATH_CWD
 from pelix.framework import Bundle, BundleContext, BundleException, FrameworkFactory
 
 # Tests
@@ -335,6 +336,26 @@ class FrameworkTest(unittest.TestCase):
         del os.environ[pelix_test_name]
 
         FrameworkFactory.delete_framework()
+
+    def testPathCwd(self):
+        """
+        Tests the pelix.path.cwd property, which keeps the working folder out of sys.path
+        """
+        self.addCleanup(setattr, sys, "path", list(sys.path))
+        cwd = os.getcwd()
+        for properties, added in (
+            (None, True),
+            ({PROP_PATH_CWD: True}, True),
+            ({PROP_PATH_CWD: False}, False),
+            ({PROP_PATH_CWD: "false"}, False),
+            ({PROP_PATH_CWD: "0"}, False),
+        ):
+            with self.subTest(properties=properties):
+                sys.path = [path for path in sys.path if path not in ("", cwd)]
+                FrameworkFactory.get_framework(properties)
+                FrameworkFactory.delete_framework()
+                self.assertEqual("" in sys.path, added)
+                self.assertEqual(cwd in sys.path, added)
 
     def testAddedProperty(self):
         """

@@ -38,7 +38,7 @@ from collections.abc import Callable
 from typing import TYPE_CHECKING, cast
 
 import pelix.framework
-from pelix.constants import ActivatorProto, BundleActivator
+from pelix.constants import PROP_PATH_CWD, ActivatorProto, BundleActivator
 from pelix.internals.events import ServiceEvent
 from pelix.misc.init_handler import InitFileHandler
 from pelix.shell import SERVICE_SHELL, ShellService
@@ -662,6 +662,12 @@ def handle_common_arguments(parsed_args: argparse.Namespace) -> InitFileHandler:
         props.update(init.properties)
 
     sys.path = remove_duplicates([*trusted_folders, *sys.path])
+
+    cwd = os.path.realpath(os.getcwd())
+    if cwd not in (os.path.realpath(path) for path in trusted_folders):
+        # Neither the framework nor "python -m" may make the working folder importable
+        props[PROP_PATH_CWD] = False
+        sys.path = [path for path in sys.path if os.path.realpath(path or ".") != cwd]
 
     # Compute framework properties
     for prop_def in parsed_args.properties or []:

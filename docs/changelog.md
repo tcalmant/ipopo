@@ -119,9 +119,14 @@ Unreleased
   and the `pelix/security/*` events never go through the bridge, either way
 * **Breaking:** the shell scripts (`pelix.shell`, `pelix.shell.remote`,
   `pelix.shell.xmpp`) no longer load the `.pelix.conf` file of the working
-  folder, nor put `.` first in `sys.path` when normalizing the initial
-  configuration. The new repeatable `--trusted-folder PATH` argument adds a
-  folder to both: `--trusted-folder .` restores the previous behaviour
+  folder, nor let its modules be imported: they remove it from `sys.path`,
+  where `python -m` puts it, and set the new `pelix.path.cwd` framework
+  property to false. The new repeatable `--trusted-folder PATH` argument adds a
+  folder to both the configuration lookup and `sys.path`:
+  `--trusted-folder .` restores the previous behaviour
+* New `pelix.path.cwd` framework property: when false, the creation of the
+  framework no longer puts the working folder first in `sys.path`. True by
+  default
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
 
