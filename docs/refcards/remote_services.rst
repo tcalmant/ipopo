@@ -300,6 +300,16 @@ service (a ``Protocol`` decorated with ``@Specification``), only its methods
 can be called, not the other public methods of the implementation. A service
 exported with string specifications keeps exposing all of its public methods.
 
+The ``pelix.remote.allowed_clients`` property of an exporter component (and of the
+dispatcher servlet) lists addresses and networks, IPv4 or IPv6 in CIDR form, separated
+by commas or spaces: ``172.14.0.0/16, 10.0.0.5, fd00::/8``. A client whose address is in
+one of them is allowed by itself, without any permission; the other ones follow the
+rules above. The address is the ``client_address`` of the subject, so behind a reverse
+proxy it is the one the trusted proxies tell (``pelix.http.proxy.trusted``), and the
+peer address without them. An invalid entry, such as ``10.0.0.5/24`` (host bits set),
+keeps the component from validating, with the reason in the log. MQTT-RPC callers have
+no address: this property doesn't apply to them.
+
 A refused call gets a fixed error (``Authentication required`` or
 ``Access denied``), and a ``pelix/security/ACCESS_DENIED`` audit event is
 posted with the permission.
@@ -321,9 +331,9 @@ property asks for credentials.
 
    The requests of the dispatcher servlet to the discovered frameworks don't
    carry credentials, as they are sent in clear text. A multicast discovery
-   group spanning several hosts therefore needs ``pelix.remote.permission`` set
-   to ``"*"`` on the dispatcher servlets, on a network where the signed
-   announcements (see below) are enough.
+   group spanning several hosts therefore needs its network in the
+   ``pelix.remote.allowed_clients`` property of the dispatcher servlets, for
+   example ``10.0.0.0/24``, along with the signed announcements (see below).
 
 Credentials of the importers
 ----------------------------
@@ -490,9 +500,9 @@ and instantiate the associated components:
    install pelix.remote.dispatcher
    start $?
 
-   # Instantiate the dispatcher servlet: it must accept the anonymous requests
-   # of the discovered frameworks, as the HTTP service is reachable from other hosts
-   instantiate pelix-remote-dispatcher-servlet-factory dispatcher-servlet pelix.remote.permission=*
+   # Instantiate the dispatcher servlet: it must accept the anonymous requests of the
+   # discovered frameworks, as the HTTP service is reachable from other hosts
+   instantiate pelix-remote-dispatcher-servlet-factory dispatcher-servlet pelix.remote.allowed_clients=192.168.1.0/24
 
    # Install and start the multicast discovery with the default parameters
    install pelix.remote.discovery.multicast
@@ -559,9 +569,9 @@ and instantiate the associated components:
    install pelix.remote.dispatcher
    start $?
 
-   # Instantiate the dispatcher servlet: it must accept the anonymous requests
-   # of the discovered frameworks, as the HTTP service is reachable from other hosts
-   instantiate pelix-remote-dispatcher-servlet-factory dispatcher-servlet pelix.remote.permission=*
+   # Instantiate the dispatcher servlet: it must accept the anonymous requests of the
+   # discovered frameworks, as the HTTP service is reachable from other hosts
+   instantiate pelix-remote-dispatcher-servlet-factory dispatcher-servlet pelix.remote.allowed_clients=192.168.1.0/24
 
    # Install and start the mDNS discovery with the default parameters
    install pelix.remote.discovery.mdns

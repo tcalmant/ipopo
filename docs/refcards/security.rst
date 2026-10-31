@@ -75,6 +75,21 @@ its identity with it and needs no service call at the far end. The price is stat
 next to the benefit: a membership change reaches a caller at their next
 authentication, not immediately.
 
+Where the transport knows it, the subject also tells where the request came from:
+
+* ``peer_address`` is the other end of the connection, a reverse proxy if there is one;
+* ``client_address`` is the client, as told by the ``X-Forwarded-For`` header of the
+  trusted proxies only (``pelix.http.proxy.trusted``, see :doc:`http`), the peer address
+  otherwise. It is only as reliable as those proxies.
+
+The HTTP services set both on every request, the anonymous ones included, and the
+remote shell sets both to the address of its TCP client (``whoami`` shows them). They
+are ignored when comparing subjects: where a request comes from doesn't change who the
+caller is.
+
+.. versionadded:: 3.3.0
+   The ``peer_address`` and ``client_address`` fields.
+
 Identifiers are compared exactly
 --------------------------------
 

@@ -16,6 +16,10 @@ Unreleased
 
 ### Security
 
+* `Subject` has two new fields, `peer_address` (the other end of the
+  connection) and `client_address` (the client, as told by the trusted proxies),
+  set by the HTTP services and the remote shell and shown by `whoami`.
+  `restore_subject()` takes them too
 * **Breaking:** the HTTP services now bind to `127.0.0.1` by default, instead
   of `0.0.0.0`. Set `pelix.http.address` to `0.0.0.0` to accept connections
   from other machines, for example to export remote services
@@ -252,8 +256,10 @@ Unreleased
   reference card
 * **Breaking:** the dispatcher servlet follows the same rule: reading and
   sending endpoints from other hosts needs `pelix.remote.endpoints.read` and
-  `pelix.remote.endpoints.publish`. Set its `pelix.remote.permission` property
-  to `*` to accept the anonymous requests of the multicast discovery as before
+  `pelix.remote.endpoints.publish`. Set its `pelix.remote.allowed_clients`
+  property to the network of a multicast discovery group to accept its
+  anonymous requests, or its `pelix.remote.permission` property to `*` to
+  accept every one as before
 * **Breaking:** when an exported specification is a `Protocol` decorated with
   `@Specification`, only its methods can be called remotely, not the other
   public methods of the implementation
@@ -272,6 +278,11 @@ Unreleased
   and ignores the others, when `pelix.remote.discovery.key.file` is set
 * A refused remote call gets an `Access denied` or `Authentication required`
   error, without the permission it lacked
+* New `pelix.remote.allowed_clients` property of the exporters and of the
+  dispatcher servlet: addresses and networks (IPv4, IPv6, CIDR) whose clients
+  are allowed without permission, for example the network of a multicast
+  discovery group. The client address is the one resolved behind the trusted
+  proxies
 * Removed the etcd2 discovery provider
   (`pelix.rsa.providers.discovery.discovery_etcd`) and the `etcd2` extra,
   deprecated since iPOPO 3.1.0: use the etcd3 one
