@@ -647,7 +647,12 @@ class Shell:
                 # Looked up at each call: when its bundle is reinstalled, the module is reloaded
                 core = importlib.import_module("pelix.security.core")
                 subject = core.restore_subject(
-                    subject.name, dict(subject.attributes), method=subject.method, transport=subject.transport
+                    subject.name,
+                    dict(subject.attributes),
+                    method=subject.method,
+                    transport=subject.transport,
+                    peer_address=subject.peer_address,
+                    client_address=subject.client_address,
                 )
             except Exception:
                 self._logger.exception("Error refreshing the subject %s: denying %s", subject.name, name)

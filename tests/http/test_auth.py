@@ -115,6 +115,12 @@ class SyncServlet:
         subject = get_current_subject()
         response.send_content(200, f"{subject.name}|{subject.method}|{subject.transport}", "text/plain")
 
+    def do_PUT(self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse):
+        subject = get_current_subject()
+        response.send_content(
+            200, f"{subject.name}|{subject.peer_address}|{subject.client_address}", "text/plain"
+        )
+
     @AllowGroup("ops")
     def do_POST(self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse):
         response.send_content(200, "posted", "text/plain")
@@ -130,6 +136,14 @@ class AsyncServlet:
     ):
         subject = get_current_subject()
         await response.send_content(200, f"{subject.name}|{subject.method}|{subject.transport}", "text/plain")
+
+    async def do_async_PUT(
+        self, request: http.AbstractAsyncHTTPServletRequest, response: http.AbstractAsyncHTTPServletResponse
+    ):
+        subject = get_current_subject()
+        await response.send_content(
+            200, f"{subject.name}|{subject.peer_address}|{subject.client_address}", "text/plain"
+        )
 
     @AllowGroup("ops")
     async def do_async_POST(
@@ -594,6 +608,37 @@ class _AuthServerTests:
         self.assertEqual(self.send("GET", "PELIXSESSIONID=garbage", path="/p")[0], 401)
         cookie = self.cookie_of(self.login()[1])
         self.assertEqual(self.send("GET", cookie, path="/p")[2], "alice|form|http|True")
+
+    def test_subject_addresses(self) -> None:
+        """
+        The subject holds the peer address and the client one, resolved behind the trusted proxies only
+        """
+        # Trusted proxies, X-Forwarded-For, client address (None: the peer)
+        for trusted, forwarded, expected in (
+            (None, None, None),
+            (None, "203.0.113.7", None),
+            ("127.0.0.0/8, ::1", None, None),
+            ("127.0.0.0/8, ::1", "203.0.113.7", "203.0.113.7"),
+            ("127.0.0.0/8, ::1", "2001:db8::5", "2001:db8::5"),
+            ("127.0.0.0/8, ::1", "198.51.100.1, 203.0.113.7", "203.0.113.7"),
+        ):
+            for user in (None, "alice"):
+                with self.subTest(trusted=trusted, forwarded=forwarded, user=user):
+                    self.start_server(properties={http.HTTP_PROXY_TRUSTED: trusted})
+                    try:
+                        headers = basic(user, "abc") if user else {}
+                        if forwarded:
+                            headers["X-Forwarded-For"] = forwarded
+                        status, _, body = self.request("PUT", headers=headers)
+                    finally:
+                        self.ipopo.kill(SERVER_NAME)
+                        self.ipopo.kill("basic-auth")
+
+                    self.assertEqual(status, 200)
+                    name, peer, client = body.split("|")
+                    self.assertEqual(name, user or "anonymous")
+                    self.assertIn(peer, ("127.0.0.1", "::1"))
+                    self.assertEqual(client, expected or peer)
 
     def test_session_behind_proxy(self) -> None:
         """

@@ -642,6 +642,8 @@ def restore_subject(
     *,
     method: str | None = None,
     transport: str | None = None,
+    peer_address: str | None = None,
+    client_address: str | None = None,
 ) -> Subject:
     """
     Rebuilds the subject of a user authenticated earlier, e.g. kept in an HTTP
@@ -654,10 +656,14 @@ def restore_subject(
     :param attributes: The attributes of the subject
     :param method: Name of the mechanism which authenticated the user
     :param transport: Name of the transport
+    :param peer_address: Address of the other end of the connection
+    :param client_address: Address of the client, as told by the trusted proxies
     :return: The authenticated subject
     """
     subject = _enrich(Subject(name, attributes=attributes or {}))
-    return dataclasses.replace(subject, method=method, transport=transport)
+    return dataclasses.replace(
+        subject, method=method, transport=transport, peer_address=peer_address, client_address=client_address
+    )
 
 
 # ------------------------------------------------------------------------------

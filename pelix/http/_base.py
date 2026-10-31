@@ -1005,6 +1005,7 @@ class AbstractHttpService(http.HTTPService):
         headers: http.HeadersView,
         source: str | None = None,
         sessions: SessionContext | None = None,
+        peer: str | None = None,
     ) -> auth.AuthDecision:
         """
         Authenticates a request. This can take time, as checking a password is
@@ -1015,7 +1016,27 @@ class AbstractHttpService(http.HTTPService):
         :param source: The address of the client, for the brute-force throttle
         :param sessions: The sessions of the request: a user logged in one takes
                          precedence over the credentials of the headers
-        :return: The decision: the subject to handle the request as, or a refusal
+        :param peer: The address of the other end of the connection
+        :return: The decision: the subject to handle the request as, or a refusal,
+                 the subject holding the given addresses
+        """
+        decision = self.__resolve_authentication(routing, headers, source, sessions)
+        if source is None and peer is None:
+            return decision
+
+        # A copy of a frozen bean: cheap enough to keep the anonymous subject shared otherwise
+        subject = dataclasses.replace(decision.subject, peer_address=peer, client_address=source)
+        return dataclasses.replace(decision, subject=subject)
+
+    def __resolve_authentication(
+        self,
+        routing: "RequestRouting",
+        headers: http.HeadersView,
+        source: str | None,
+        sessions: SessionContext | None,
+    ) -> auth.AuthDecision:
+        """
+        Authenticates a request (see :meth:`resolve_authentication`)
         """
         if sessions is not None and (subject := sessions.restore()) is not None:
             return auth.AuthDecision(subject)

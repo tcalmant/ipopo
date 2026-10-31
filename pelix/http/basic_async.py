@@ -990,6 +990,7 @@ class AsyncHttpServiceImpl(AbstractHttpService):
 
         # Use the raw path: aiohttp already decoded request.path, normalizing it again would double-decode
         peer = request.transport.get_extra_info("peername") if request.transport else None
+        peer_address = peer[0] if isinstance(peer, tuple) else None
         checks = self.check_request(
             request.method, request.raw_path, request.headers, peer if isinstance(peer, tuple) else ("", 0)
         )
@@ -1033,10 +1034,18 @@ class AsyncHttpServiceImpl(AbstractHttpService):
         if self.needs_authentication(routing) or (sessions is not None and sessions.cookie_value):
             # Checking a password is slow by design: keep it out of the event loop
             auth_decision = await self._loop.run_in_executor(
-                self._executor, self.resolve_authentication, routing, request.headers, remote[0][0], sessions
+                self._executor,
+                self.resolve_authentication,
+                routing,
+                request.headers,
+                remote[0][0],
+                sessions,
+                peer_address,
             )
         else:
-            auth_decision = self.resolve_authentication(routing, request.headers, remote[0][0], sessions)
+            auth_decision = self.resolve_authentication(
+                routing, request.headers, remote[0][0], sessions, peer_address
+            )
 
         if auth_decision.refused:
             return self.__auth_error_response(401, routing)
