@@ -23,6 +23,7 @@ import pelix.remote
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides
+from pelix.ipopo.instance import StoredInstance
 from pelix.remote import RemoteServiceDispatcher, RemoteServiceError, json_rpc, security, xml_rpc
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.transport import commons, jabsorb_rpc, xmlrpc_client
@@ -457,7 +458,13 @@ class AbstractCommonExporterTest(unittest.TestCase):
             (False, "*", ANONYMOUS, "call_me", None),
             (False, "granted", alice, "call_me", None),
             (True, "other", alice, "call_me", AccessDenied),
+            # Clients of the allowed networks need no permission
+            (False, None, Subject("anonymous", client_address="10.0.0.7"), "call_me", None),
+            (False, "other", Subject("anonymous", client_address="fd00::7"), "call_me", None),
+            (False, None, Subject("anonymous", client_address="10.0.1.7"), "call_me", AuthenticationRequired),
+            (False, None, Subject("anonymous", client_address="10.0.0.7"), "extra", RemoteServiceError),
         ]
+        exporter._allowed_networks = security.parse_networks("10.0.0.0/24, fd00::/8")
         for local_only, permission, subject, method, expected in cases:
             with self.subTest(
                 local_only=local_only, permission=permission, subject=subject.name, method=method
@@ -478,6 +485,13 @@ class AbstractCommonExporterTest(unittest.TestCase):
                             self.assertListEqual(service.events, [])
                 finally:
                     svc_reg.unregister()
+
+        # An invalid entry is refused at validation, not ignored
+        with use_ipopo(context) as ipopo:
+            ipopo.instantiate(
+                TEST_EXPORTER_FACTORY, "invalid", {security.PROP_ALLOWED_CLIENTS: "10.0.0.0/33"}
+            )
+            self.assertEqual(ipopo.get_instance_details("invalid")["state"], StoredInstance.ERRONEOUS)
 
     def testExportRename(self) -> None:
         """

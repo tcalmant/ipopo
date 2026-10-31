@@ -148,6 +148,7 @@ def read_response(response: http.client.HTTPResponse, max_size: int | None) -> b
 
 @Provides(pelix.remote.RemoteServiceExportProvider)
 @Property("_kinds", pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED)
+@Property("_allowed_clients", security.PROP_ALLOWED_CLIENTS, None)
 class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
     """
     Abstract Remote Services exporter
@@ -165,6 +166,10 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
 
         # Handled configurations
         self._kinds: list[str] = []
+
+        # Clients allowed without permission: the property, then its parsed networks
+        self._allowed_clients: Any = None
+        self._allowed_networks: tuple[Any, ...] = ()
 
         # Exported services: Name -> ExportEndpoint
         self.__endpoints: dict[str, pelix.remote.beans.ExportEndpoint] = {}
@@ -200,7 +205,9 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
 
         assert self._context is not None
         reference = endpoint.reference
-        security.check_call(self._context, reference.get_properties(), matching, self.is_local_only())
+        security.check_call(
+            self._context, reference.get_properties(), matching, self.is_local_only(), self._allowed_networks
+        )
 
         # Get the method: only the public API of the exported specifications can be called remotely
         method_ref = security.get_remote_method(
@@ -359,6 +366,9 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
         """
         Component validated
         """
+        # Refuse an invalid entry rather than ignore it: it was meant to restrict something
+        self._allowed_networks = security.parse_networks(self._allowed_clients)
+
         # Store the context
         self._context = context
 

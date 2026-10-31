@@ -500,6 +500,7 @@ class Dispatcher(pelix.remote.RemoteServiceDispatcher):
 @Requires("_registry", pelix.remote.RemoteServiceRegistry)
 @Property("_path", pelix.http.HTTP_SERVLET_PATH, "/pelix-dispatcher")
 @Property("_permission", security.PROP_PERMISSION, None)
+@Property("_allowed_clients", security.PROP_ALLOWED_CLIENTS, None)
 class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
     """
     Servlet to access the content of the registry
@@ -528,15 +529,18 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         # Ports of exposing servers
         self._ports: list[int] = []
 
-        # Limits of the requests to the discovered frameworks
-        self._limits = ClientLimits(DEFAULT_CLIENT_TIMEOUT, DEFAULT_CLIENT_MAX_RESPONSE_SIZE)
-
         # Ports of the servers reachable from other hosts
         self._remote_ports: set[int] = set()
 
         # Permission required to use the servlet, "*" for none
         self._permission: str | None = None
         self._context: pelix.framework.BundleContext | None = None
+
+        # Clients allowed without permission: the property, then its parsed networks
+        self._allowed_clients: Any = None
+        self._allowed_networks: tuple[Any, ...] = ()
+        # Limits of the requests to the discovered frameworks
+        self._limits = ClientLimits(DEFAULT_CLIENT_TIMEOUT, DEFAULT_CLIENT_MAX_RESPONSE_SIZE)
 
     @Validate
     def _validate(self, context: pelix.framework.BundleContext) -> None:
@@ -545,8 +549,9 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         """
         # Get the framework UID
         self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
-        self._limits = get_client_limits(context)
         self._context = context
+        self._limits = get_client_limits(context)
+        self._allowed_networks = security.parse_networks(self._allowed_clients)
 
         # Normalize the path
         self._path = f"/{'/'.join(part for part in (self._path or '').split('/') if part)}/"
@@ -677,7 +682,11 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         :param permission: The permission needed when none is declared
         :return: True if the request can be handled
         """
-        if self._permission == "*" or (self._permission is None and not self._remote_ports):
+        if (
+            self._permission == "*"
+            or (self._permission is None and not self._remote_ports)
+            or security.is_allowed_client(self._allowed_networks)
+        ):
             return True
 
         assert self._context is not None

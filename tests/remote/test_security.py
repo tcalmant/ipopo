@@ -141,6 +141,29 @@ class RemoteSecurityTest(unittest.TestCase):
                             expected, security.check_call, self.context, properties, name, local_only
                         )
 
+    def test_check_call_allowed_clients(self) -> None:
+        """
+        A client of an allowed network needs no permission, the others follow the usual rules
+        """
+        networks = security.parse_networks("10.0.0.0/24, fd00::/8")
+        for client, declared, expected in (
+            ("10.0.0.7", None, None),
+            ("10.0.0.7", "other", None),
+            ("fd00::7", None, None),
+            ("10.0.1.7", None, AuthenticationRequired),
+            ("10.0.1.7", "*", None),
+            (None, None, AuthenticationRequired),
+        ):
+            with self.subTest(client=client, declared=declared):
+                properties = {} if declared is None else {security.PROP_PERMISSION: declared}
+                with run_as(Subject("anonymous", client_address=client)):
+                    if expected is None:
+                        security.check_call(self.context, properties, "any", False, networks)
+                    else:
+                        self.assertRaises(
+                            expected, security.check_call, self.context, properties, "any", False, networks
+                        )
+
     def test_check_call_without_authorization(self) -> None:
         """
         No authorization service: what needs a permission is refused
@@ -249,6 +272,57 @@ class RemoteSecurityHelpersTest(unittest.TestCase):
         ):
             with self.subTest(host=host):
                 self.assertEqual(security.is_loopback_host(host), expected)
+
+    def test_parse_networks(self) -> None:
+        """
+        Addresses and CIDR networks, IPv4 and IPv6, as a string or a list
+        """
+        for value, expected in (
+            (None, ()),
+            ("", ()),
+            ("10.0.0.5", ("10.0.0.5/32",)),
+            ("172.14.0.0/16, 10.0.0.5 fd00::/8", ("172.14.0.0/16", "10.0.0.5/32", "fd00::/8")),
+            (["192.168.1.0/24", "::1"], ("192.168.1.0/24", "::1/128")),
+        ):
+            with self.subTest(value=value):
+                self.assertEqual(tuple(str(network) for network in security.parse_networks(value)), expected)
+
+        for value in (
+            "10.0.0.5/24",
+            "10.0.0.0/33",
+            "300.0.0.1",
+            "example.com",
+            "fd00::/8, nope",
+            ["10.0.0.0/8", ""],
+        ):
+            with self.subTest(value=value):
+                with self.assertRaises(ValueError) as ctx:
+                    security.parse_networks(value)
+                self.assertIn(security.PROP_ALLOWED_CLIENTS, str(ctx.exception))
+
+    def test_is_allowed_client(self) -> None:
+        """
+        The client address of the subject is looked for in the networks
+        """
+        networks = security.parse_networks("172.14.0.0/16, 10.0.0.5, fd00::/8")
+        for client, expected in (
+            ("172.14.3.4", True),
+            ("172.15.0.1", False),
+            ("10.0.0.5", True),
+            ("10.0.0.6", False),
+            ("::ffff:172.14.0.1", True),
+            ("fd12::1", True),
+            ("fd12::1%eth0", True),
+            ("[fd12::1]", True),
+            ("fe80::1", False),
+            ("unix:uid=1000", False),
+            (None, False),
+        ):
+            with self.subTest(client=client), run_as(Subject("x", client_address=client)):
+                self.assertEqual(security.is_allowed_client(networks), expected)
+
+        with run_as(Subject("x", client_address="10.0.0.5")):
+            self.assertFalse(security.is_allowed_client(()))
 
     def test_get_remote_method(self) -> None:
         """

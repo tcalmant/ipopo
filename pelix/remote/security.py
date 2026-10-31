@@ -84,6 +84,7 @@ __all__ = [
     "PERMISSION_CALL",
     "PERMISSION_ENDPOINTS_PUBLISH",
     "PERMISSION_ENDPOINTS_READ",
+    "PROP_ALLOWED_CLIENTS",
     "PROP_AUTH_REQUIRED",
     "PROP_CREDENTIALS_FILE",
     "PROP_DISCOVERY_KEY_FILE",
@@ -100,7 +101,9 @@ __all__ = [
     "check_permission",
     "get_auth_headers",
     "get_remote_method",
+    "is_allowed_client",
     "is_loopback_host",
+    "parse_networks",
     "refusal_message",
 ]
 
@@ -134,6 +137,12 @@ PROP_AUTH_REQUIRED = "pelix.remote.auth.required"
 """
 Exporter property: if True, the requests to the transport must carry valid credentials,
 else they are answered with a 401 error. Not set: the setting of the HTTP service applies
+"""
+
+PROP_ALLOWED_CLIENTS = "pelix.remote.allowed_clients"
+"""
+Exporter and dispatcher servlet property: addresses and networks (CIDR) whose clients
+are allowed without any permission, as a list or a string separated by commas or spaces
 """
 
 PROP_IMPORT_FILTER = "pelix.remote.import.filter"
@@ -200,6 +209,23 @@ class RemoteCredentialsProvider(Protocol):
 # ------------------------------------------------------------------------------
 
 
+def _parse_address(host: str | None) -> ipaddress.IPv4Address | ipaddress.IPv6Address | None:
+    """
+    Parses an IP address, as an IPv4 one when it is mapped in IPv6
+
+    :param host: An IPv4/IPv6 address, with optional brackets and scope
+    :return: The address, or None if it isn't one
+    """
+    try:
+        address = ipaddress.ip_address((host or "").strip("[]").split("%", 1)[0])
+    except ValueError:
+        return None
+
+    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
+        return address.ipv4_mapped
+    return address
+
+
 def is_loopback_host(host: str | None) -> bool:
     """
     Tells whether a host name or address can only be reached from the local host
@@ -207,22 +233,47 @@ def is_loopback_host(host: str | None) -> bool:
     :param host: A host name or an IPv4/IPv6 address, with optional brackets and scope
     :return: True for "localhost" and the loopback addresses
     """
-    if not host:
-        return False
-
-    host = host.strip("[]").split("%", 1)[0].lower()
-    if host == "localhost":
+    if (host or "").strip("[]").lower() == "localhost":
         return True
 
-    try:
-        address = ipaddress.ip_address(host)
-    except ValueError:
-        # Any other name can resolve to anything
-        return False
+    # Any other name can resolve to anything
+    address = _parse_address(host)
+    return address is not None and address.is_loopback
 
-    if isinstance(address, ipaddress.IPv6Address) and address.ipv4_mapped is not None:
-        address = address.ipv4_mapped
-    return address.is_loopback
+
+def parse_networks(value: Any) -> tuple[ipaddress.IPv4Network | ipaddress.IPv6Network, ...]:
+    """
+    Parses the value of :data:`PROP_ALLOWED_CLIENTS`
+
+    :param value: None, a string of addresses and networks separated by commas or spaces, or a list
+    :return: The networks (an address is a network of one address)
+    :raise ValueError: Invalid entry, including a network with host bits set
+    """
+    if value is None:
+        return ()
+
+    entries = value.replace(",", " ").split() if isinstance(value, str) else list(value)
+    networks = []
+    for entry in entries:
+        try:
+            networks.append(ipaddress.ip_network(str(entry).strip()))
+        except ValueError as ex:
+            raise ValueError(f"Invalid {PROP_ALLOWED_CLIENTS} entry {entry!r}: {ex}") from None
+    return tuple(networks)
+
+
+def is_allowed_client(networks: Iterable[ipaddress.IPv4Network | ipaddress.IPv6Network]) -> bool:
+    """
+    Tells if the client of the current subject is in one of the given networks.
+
+    The client address is the one resolved behind the trusted proxies: it is only as
+    reliable as the ``pelix.http.proxy.trusted`` setting.
+
+    :param networks: Networks parsed by :func:`parse_networks`
+    :return: True if the client address is in one of them
+    """
+    address = _parse_address(get_current_subject().client_address)
+    return address is not None and any(address in network for network in networks)
 
 
 def check_permission(context: "BundleContext", permission: Permission) -> None:
@@ -267,7 +318,11 @@ def refusal_message(error: SecurityError) -> str:
 
 
 def check_call(
-    context: "BundleContext", properties: Mapping[str, Any], resource: str, local_only: bool
+    context: "BundleContext",
+    properties: Mapping[str, Any],
+    resource: str,
+    local_only: bool,
+    allowed_clients: Iterable[ipaddress.IPv4Network | ipaddress.IPv6Network] = (),
 ) -> None:
     """
     Checks that the current subject can call an exported service.
@@ -276,11 +331,12 @@ def check_call(
     :param properties: The properties of the exported service
     :param resource: Resource of the default permission: the endpoint name
     :param local_only: True if the transport can only be reached from the local host
+    :param allowed_clients: Networks whose clients need no permission
     :raise AuthenticationRequired: Refused, and the subject is not authenticated
     :raise AccessDenied: Refused, and the subject is authenticated
     """
     declared = properties.get(PROP_PERMISSION)
-    if declared == "*":
+    if declared == "*" or is_allowed_client(allowed_clients):
         return
 
     if declared is None:
