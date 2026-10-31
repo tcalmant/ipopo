@@ -36,6 +36,8 @@ extensions = ["sphinx.ext.autodoc", "sphinx.ext.coverage", "myst_parser"]
 
 # Autodoc configuration
 autodoc_member_order = "groupwise"
+# Third-party dependency of pelix.remote, not in the docs requirements
+autodoc_mock_imports = ["jsonrpclib"]
 autoclass_content = "both"
 
 # Add any paths that contain templates here, relative to this directory.
