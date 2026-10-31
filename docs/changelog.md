@@ -16,6 +16,11 @@ Unreleased
 
 ### Framework
 
+* The LDAP filters match a `pelix.security.Secret` as they would match its
+  value (equality, substrings, approximate and ordering operators), without
+  raising its audit event. A filter given by a remote caller must be parsed
+  with `get_ldap_filter(text, untrusted=True)`: it then only tests the
+  presence of a secret, wherever the parsed filter is used
 * Added the bundle metadata: a TOML block after a `.. pelix-bundle` line in a
   module-level docstring, or a `<module>.manifest.toml` file, read when the
   bundle is installed, before its module is imported. See

@@ -31,6 +31,7 @@ import re
 from collections.abc import Callable, Iterable
 from typing import Any
 
+from pelix.security import Secret, _compared_value
 from pelix.utilities import is_string
 
 # ------------------------------------------------------------------------------
@@ -222,14 +223,22 @@ class LDAPCriteria:
     unescaped ``*`` is a wildcard, while ``\\*`` and ``\\\\`` stand for a
     literal star and a literal backslash. With all other comparators, the
     value is the literal, unescaped value.
+
+    An ``untrusted`` criterion, made by ``get_ldap_filter(..., untrusted=True)`` for a
+    filter given by a remote caller, only tests the presence of a
+    :class:`~pelix.security.Secret` value: comparing it would let the caller guess the
+    value, character by character.
     """
 
-    __slots__ = ("comparator", "name", "value")
+    __slots__ = ("comparator", "name", "untrusted", "value")
 
-    def __init__(self, name: str, value: Any, comparator: Callable[[Any, Any], bool]) -> None:
+    def __init__(
+        self, name: str, value: Any, comparator: Callable[[Any, Any], bool], untrusted: bool = False
+    ) -> None:
         """
         Sets up the criterion
 
+        :param untrusted: If True, a secret value only matches the presence test
         :raise ValueError: If one of the parameters is empty
         """
         if not name or value is None or value == "" or comparator is None:
@@ -243,6 +252,7 @@ class LDAPCriteria:
         self.name = str(name)
         self.value = value
         self.comparator: Callable[[Any, Any], bool] = comparator
+        self.untrusted = untrusted
 
     def __eq__(self, other: object) -> bool:
         """
@@ -300,11 +310,18 @@ class LDAPCriteria:
         :return: True if the properties matches this criterion, else False
         """
         try:
-            # Use the comparator
-            return self.comparator(self.value, properties[self.name])
+            tested = properties[self.name]
         except KeyError:
             # Criterion key is not in the properties
             return False
+
+        if isinstance(tested, Secret):
+            if self.untrusted:
+                # Whatever the value, never tell more than "it is set"
+                return self.comparator is _comparator_presence
+            # A secret matches as its value would (see pelix.security._compared_value)
+            tested = _compared_value(tested)
+        return self.comparator(self.value, tested)
 
     def normalize(self) -> "LDAPCriteria":
         """
@@ -946,20 +963,46 @@ def _parse_ldap(ldap_filter: str) -> LDAPCriteria | LDAPFilter | None:
     return root.normalize()
 
 
+def _set_untrusted(ldap_filter: LDAPCriteria | LDAPFilter | None) -> LDAPCriteria | LDAPFilter | None:
+    """
+    Marks all the criteria of a freshly parsed filter as untrusted
+
+    :param ldap_filter: A filter nobody else holds
+    :return: The given filter
+    """
+    if isinstance(ldap_filter, LDAPCriteria):
+        ldap_filter.untrusted = True
+    elif ldap_filter is not None:
+        for sub_filter in ldap_filter.subfilters:
+            _set_untrusted(sub_filter)
+    return ldap_filter
+
+
 def get_ldap_filter(
-    ldap_filter: None | str | LDAPCriteria | LDAPFilter,
+    ldap_filter: None | str | LDAPCriteria | LDAPFilter, *, untrusted: bool = False
 ) -> None | LDAPCriteria | LDAPFilter:
     """
     Retrieves the LDAP filter object corresponding to the given filter.
     Parses it the argument if it is an LDAPFilter instance
 
+    A filter given by a remote caller (an HTTP API, a remote shell, a remote service)
+    **must** be parsed with ``untrusted=True``: its criteria then only test the presence
+    of a :class:`~pelix.security.Secret` value, whatever the operator. The parsed object
+    keeps that mode wherever it is given: to the service registry, to
+    ``Configuration.matches()``, or combined with other filters.
+
     :param ldap_filter: An LDAP filter (LDAPFilter or string)
+    :param untrusted: If True, the filter comes from a remote caller
     :return: The corresponding filter, can be None
     :raise ValueError: Invalid filter string found
     :raise TypeError: Unknown filter type
     """
     if ldap_filter is None:
         return None
+
+    if untrusted:
+        # Parse a filter object again: the one of the caller must not change mode
+        return _set_untrusted(_parse_ldap(ldap_filter if isinstance(ldap_filter, str) else str(ldap_filter)))
 
     if isinstance(ldap_filter, (LDAPFilter, LDAPCriteria)):
         # No conversion needed

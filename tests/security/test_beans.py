@@ -572,6 +572,34 @@ class SecretToolsTest(unittest.TestCase):
         entries = self._service(LOG_READER_SERVICE).get_log()
         self.assertIn("Password: ***", [entry.message for entry in entries])
 
+    def test_untrusted_filters(self) -> None:
+        """
+        An untrusted filter given to the service registry or to Configuration Admin only
+        tests the presence of a secret
+        """
+        from pelix import services
+        from pelix.ldapfilter import get_ldap_filter
+
+        self.context.register_service("secret.svc", object(), {"api.token": Secret(self.VALUE)})
+        config_admin = self._service(services.IConfigurationAdmin)
+        config_admin.get_configuration("secret.pid").update({"password": self.VALUE})
+
+        for key, found_trusted in (
+            ("api.token=hun*", True),
+            ("api.token=*", True),
+            ("password>=a", True),
+            ("password=*", True),
+        ):
+            for untrusted in (False, True):
+                ldap_filter = get_ldap_filter(f"({key})", untrusted=untrusted)
+                expected = found_trusted if not untrusted else key.endswith("=*")
+                with self.subTest(filter=key, untrusted=untrusted):
+                    if key.startswith("api.token"):
+                        found = self.context.get_all_service_references("secret.svc", ldap_filter)
+                    else:
+                        found = config_admin.list_configurations(ldap_filter)
+                    self.assertEqual(bool(found), expected)
+
     def test_exports(self) -> None:
         """
         The remote services and RSA endpoints drop the secrets, the JSON-RPC and

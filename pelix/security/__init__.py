@@ -830,6 +830,19 @@ class Secret(Generic[_T]):
         return self
 
 
+def _compared_value(secret: Secret[_T]) -> _T:
+    """
+    Returns the value of a secret without raising the audit event, for
+    :mod:`pelix.ldapfilter` only: a filter tells whether a property matches, like ``==``
+    on a secret does, and auditing each filter test of the service registry would flood
+    the audit log. Any other code calls :meth:`Secret.reveal`.
+
+    :param secret: A secret
+    :return: Its value
+    """
+    return secret._Secret__value  # ty: ignore[unresolved-attribute]
+
+
 def to_secret(value: _T | Secret[_T] | None, owner: str | None = None) -> Secret[_T] | None:
     """
     Wraps a value in a :class:`Secret`, keeping an existing secret and its owner as is.

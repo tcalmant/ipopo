@@ -7,12 +7,14 @@ LDAP filter parser tests
 """
 
 import inspect
+import sys
 import unittest
 from collections.abc import Iterable
 from typing import Any, cast
 
 import pelix.ldapfilter
 from pelix.ldapfilter import LDAPCriteria, get_ldap_filter
+from pelix.security import AUDIT_SECRET_REVEAL, Secret
 
 # ------------------------------------------------------------------------------
 
@@ -727,6 +729,53 @@ class LDAPCriteriaTest(unittest.TestCase):
         self.assertTrue(
             pelix.ldapfilter._comparator_approximate("test", ["Test", 12]), "Invalid list test result"
         )
+
+    def testSecretCriteria(self) -> None:
+        """
+        A secret matches as its value would, without raising the reveal audit event,
+        except in an untrusted filter, which only tests its presence
+        """
+        reveals: list[Any] = []
+        # Audit hooks can't be removed: this one records in a list only this test reads
+        sys.addaudithook(lambda event, args: reveals.append(args) if event == AUDIT_SECRET_REVEAL else None)
+
+        props = {"t": Secret("hunter2"), "n": Secret(42), "l": Secret(["a", "b"]), "p": "public"}
+        for ldap_filter, expected, untrusted_expected in (
+            ("(t=hunter2)", True, False),
+            ("(t=hunter3)", False, False),
+            ("(t=hun*)", True, False),
+            ("(t=*ter*)", True, False),
+            ("(t=x*)", False, False),
+            ("(t~=HUNTER2)", True, False),
+            ("(t>=hunter1)", True, False),
+            ("(t<=hunter1)", False, False),
+            ("(n=42)", True, False),
+            ("(n>=40)", True, False),
+            ("(n<40)", False, False),
+            ("(l=b)", True, False),
+            ("(t=*)", True, True),
+            ("(t=\\2a\\2a\\2a)", False, False),
+            ("(!(t=hunter2))", False, True),
+            ("(&(p=pub*)(t=*))", True, True),
+            ("(p=public)", True, True),
+        ):
+            with self.subTest(ldap_filter=ldap_filter):
+                self.assertEqual(get_ldap_filter(ldap_filter).matches(props), expected)
+                untrusted = get_ldap_filter(ldap_filter, untrusted=True)
+                assert untrusted is not None
+                self.assertEqual(untrusted.matches(props), untrusted_expected)
+
+                # Combined with a trusted filter, or parsed again from an object
+                combined = pelix.ldapfilter.combine_filters(["(p=*)", untrusted])
+                assert combined is not None
+                self.assertEqual(combined.matches(props), untrusted_expected)
+                trusted = get_ldap_filter(ldap_filter)
+                again = get_ldap_filter(trusted, untrusted=True)
+                assert again is not None and trusted is not None
+                self.assertEqual(again.matches(props), untrusted_expected)
+                self.assertEqual(trusted.matches(props), expected)
+
+        self.assertEqual(reveals, [])
 
 
 # ------------------------------------------------------------------------------
