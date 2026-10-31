@@ -294,6 +294,19 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
             for ref in infos["bindings"]:
                 lines.append(f"\t\t\t{ref}")
 
+        # Requirements preventing the validation
+        if details["unsatisfied"]:
+            lines.append("Unsatisfied requirements:")
+            for item in details["unsatisfied"]:
+                lines.append(
+                    f"\t{item['field']}: {requirement_specifications_to_str(item)} (filter: {item['filter']})"
+                )
+                # Components which should provide it: tells a failed provider from no provider
+                lines.extend(
+                    f"\t\tProvider: {provider['name']} ({ipopo_state_to_str(provider['state'])})"
+                    for provider in self._ipopo.get_instances_providing(item["specification"])
+                )
+
         # Properties
         lines.append("Properties:")
         lines.append(self._utils.make_table(("Key", "Value"), sorted(details["properties"].items()), "\t"))
@@ -301,6 +314,7 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         # Error trace, for erroneous components
         error_trace = details["error_trace"]
         if error_trace:
+            lines.append(f"Error: {details['error']['type']}: {details['error']['message']}")
             lines.append("Error trace:")
             lines.append(error_trace)
 

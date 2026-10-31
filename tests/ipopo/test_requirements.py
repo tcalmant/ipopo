@@ -11,6 +11,7 @@ import unittest
 from pelix.framework import Bundle, FrameworkFactory
 from pelix.ipopo import constants
 from pelix.ipopo.constants import IPopoEvent
+from pelix.ipopo.decorators import ComponentFactory, Requires
 from tests import log_off, log_on
 from tests.interfaces import IEchoService
 from tests.ipopo import install_bundle, install_ipopo
@@ -667,6 +668,48 @@ class RequirementTest(unittest.TestCase):
         )
         self.assertIsNone(consumer.service, "Service still injected")
         consumer.reset()
+
+    def testInheritedRequires(self):
+        """
+        Tests that @Requires declared on parent classes (factory or not)
+        are injected in the child factories (issue #99)
+        """
+        context = self.framework.get_bundle_context()
+
+        class GrandParent:
+            """Not a factory: only declares a requirement"""
+
+            def __init__(self):
+                self.tutu = None
+                self.toto = None
+                self.titi = None
+
+        Requires("tutu", "spec.baz")(GrandParent)
+
+        @ComponentFactory("inherit.parent")
+        @Requires("toto", "spec.foo")
+        class Parent(GrandParent):
+            pass
+
+        @ComponentFactory("inherit.child")
+        @Requires("titi", "spec.bar")
+        class Child(Parent):
+            pass
+
+        for spec in ("baz", "foo", "bar"):
+            context.register_service(f"spec.{spec}", spec, {})
+
+        self.ipopo.register_factory(context, Parent)
+        self.ipopo.register_factory(context, Child)
+
+        for factory, expected in (
+            ("inherit.parent", {"tutu": "baz", "toto": "foo", "titi": None}),
+            ("inherit.child", {"tutu": "baz", "toto": "foo", "titi": "bar"}),
+        ):
+            with self.subTest(factory=factory):
+                instance = self.ipopo.instantiate(factory, f"{factory}.instance")
+                for field, value in expected.items():
+                    self.assertEqual(value, getattr(instance, field), field)
 
 
 # ------------------------------------------------------------------------------

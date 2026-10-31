@@ -187,6 +187,25 @@ Exceptions raised by the decorated method are logged and ignored.
 
 .. autofunction:: Modified
 
+A component can be told that one of its validation or invalidation callbacks
+raised an exception, and silence the trace logged by iPOPO, with the following
+decorator.
+The exception is also available through
+:meth:`~pelix.ipopo.constants.IPopoService.get_instance_error`.
+
+.. autofunction:: ErrorHandler
+
+.. note::
+
+   The handler runs on a component which may not be validated and may be half
+   initialized: use it to log or report the failure, not to recover. This is
+   specific to iPOPO: OSGi Declarative Services has no equivalent callback.
+   Since DS 1.4, it records the failure in the runtime DTO of the component
+   configuration (``ComponentConfigurationDTO``, state ``FAILED_ACTIVATION``
+   with its ``failure`` information). The counterpart in iPOPO
+   is the ``ERRONEOUS`` state, with ``error`` in ``get_instance_details()`` and
+   ``get_instance_error()``.
+
 Injections
 ^^^^^^^^^^
 

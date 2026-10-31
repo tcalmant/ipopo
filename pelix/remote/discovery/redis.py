@@ -266,9 +266,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
                 register = fw_cache[fw_uid]
             except KeyError:
                 # Check a new framework
-                register = fw_cache[fw_uid] = cast(
-                    int, self._redis.exists(PATTERN_FRAMEWORK_KEY.format(fw_uid=fw_uid))
-                )
+                register = fw_cache[fw_uid] = self._redis.exists(PATTERN_FRAMEWORK_KEY.format(fw_uid=fw_uid))
 
             if register:
                 # Framework exists: store the endpoint

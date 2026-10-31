@@ -59,6 +59,9 @@ __all__ = ["BUILTIN_HANDLERS"]
 # Prepare the module logger
 _logger = logging.getLogger("ipopo.core")
 
+# Keys of a dependency description copied in the "unsatisfied" details
+_UNSATISFIED_KEYS = ("specification", "specifications", "filter", "optional", "aggregate")
+
 # Built-in handlers, automatically installed
 BUILTIN_HANDLERS = (
     "pelix.ipopo.handlers.properties",
@@ -358,7 +361,7 @@ class _IPopoService(IPopoService):
             all_handlers: set[handlers_const.Handler] = set()
             for handler_factory in handler_factories:
                 handlers = handler_factory.get_handlers(component_context, instance)
-                if handlers:
+                if handlers:  # ty: ignore[truthiness-test-of-iterable]
                     all_handlers.update(handlers)
 
             # Prepare the stored instance
@@ -446,13 +449,16 @@ class _IPopoService(IPopoService):
             except KeyError:
                 pass
 
-    def _fire_ipopo_event(self, kind: int, factory_name: str, instance_name: str | None = None) -> None:
+    def _fire_ipopo_event(
+        self, kind: int, factory_name: str, instance_name: str | None = None, field: str | None = None
+    ) -> None:
         """
         Triggers an iPOPO event
 
         :param kind: Kind of event
         :param factory_name: Name of the factory associated to the event
         :param instance_name: Name of the component instance associated to the event
+        :param field: Name of the injected field (BOUND and UNBOUND events)
         """
         with self.__listeners_lock:
             # Use a copy of the list of listeners
@@ -460,7 +466,7 @@ class _IPopoService(IPopoService):
 
         for listener in listeners:
             try:
-                listener.handle_ipopo_event(constants.IPopoEvent(kind, factory_name, instance_name))
+                listener.handle_ipopo_event(constants.IPopoEvent(kind, factory_name, instance_name, field))
             except:  # noqa: E722
                 _logger.exception("Error calling an iPOPO event handler")
 
@@ -524,7 +530,16 @@ class _IPopoService(IPopoService):
             else:
                 # Instantiate components
                 for name, properties in context.get_instances().items():
-                    self.instantiate(context.name, name, properties)
+                    try:
+                        self.instantiate(context.name, name, properties)
+                    except Exception:
+                        # One bad component must not drop the next factories
+                        _logger.exception(
+                            "Error instantiating component '%s' of factory '%s' (bundle %d)",
+                            name,
+                            context.name,
+                            bundle.get_bundle_id(),
+                        )
 
     def _register_factory(self, factory_name: str, factory: type[Any], override: bool) -> None:
         """
@@ -626,9 +641,8 @@ class _IPopoService(IPopoService):
             self._unregister_bundle_factories(bundle)
 
         elif kind == BundleEvent.STARTED:
-            # A bundle is staring, register its factories before its activator
-            # is called. That way, the activator can use the registered
-            # factories.
+            # The bundle is ACTIVE: its activator has already returned, so it
+            # cannot use its own factories in start(). Register them now.
             self._register_bundle_factories(bundle)
 
         elif kind == BundleEvent.UPDATE_BEGIN:
@@ -950,6 +964,41 @@ class _IPopoService(IPopoService):
                 for name, stored_instance in self.__instances.items()
             )
 
+    def get_instances_providing(self, specification: str) -> list[dict[str, Any]]:
+        """
+        Retrieves the component instances whose factory provides the given
+        specification, whatever their state: it tells a provider which is not
+        valid (e.g. ``ERRONEOUS``) from the absence of any provider.
+
+        :param specification: A service specification name
+        :return: A list, sorted by name, of dictionaries with the keys ``name``,
+                 ``factory`` and ``state``
+        """
+        with self.__factories_lock, self.__instances_lock:
+            result: list[dict[str, Any]] = []
+            for name, stored_instance in sorted(self.__instances.items()):
+                factory = self.__factories.get(stored_instance.factory_name)
+                provides = (
+                    cast(
+                        list[tuple[list[str], str | None, bool, bool]] | None,
+                        getattr(factory, constants.IPOPO_FACTORY_CONTEXT).get_handler(
+                            constants.HANDLER_PROVIDES
+                        ),
+                    )
+                    if factory is not None
+                    else None
+                )
+                if any(specification in specs_controller[0] for specs_controller in provides or ()):
+                    result.append(
+                        {
+                            "name": name,
+                            "factory": stored_instance.factory_name,
+                            "state": stored_instance.state,
+                        }
+                    )
+
+            return result
+
     def get_instance(self, name: str) -> Any:
         """
         Returns the instance of the component with the given name
@@ -1034,12 +1083,25 @@ class _IPopoService(IPopoService):
             or not
           * ``aggregate``: A flag indicating whether the requirement is a set
             of services or not
+          * ``valid``: A flag indicating whether the handler is valid (its
+            requirement is satisfied or optional)
           * ``binding``: A list of the ServiceReference the component is bound
             to
 
         * ``properties``: A dictionary key → value, with all properties of the
           component. The value is converted to its string representation, to
           avoid unexpected behaviours.
+
+        * ``unsatisfied``: List of the dependencies which are not valid, i.e.
+          the reason why the component is not validated. Each entry is a
+          dictionary with the keys ``field``, ``specification``,
+          ``specifications``, ``filter``, ``optional`` and ``aggregate``, as in
+          ``dependencies``
+        * ``error``: ``None``, or for a component whose last validation failed
+          with an exception, a dictionary with the strings ``type`` (module
+          qualified exception class) and ``message``. The exception itself is
+          returned by ``get_instance_error()``
+        * ``error_trace``: Formatted traceback of the last validation error, or ``None``
 
         :param name: The name of a component instance
         :return: A dictionary of details
@@ -1068,6 +1130,14 @@ class _IPopoService(IPopoService):
 
                 # Error details
                 result["error_trace"] = stored_instance.error_trace
+                result["error"] = (
+                    {
+                        "type": f"{type(error).__module__}.{type(error).__qualname__}",
+                        "message": str(error),
+                    }
+                    if (error := stored_instance.error) is not None
+                    else None
+                )
 
                 # Provided service
                 result["services"] = {}
@@ -1089,6 +1159,7 @@ class _IPopoService(IPopoService):
                     # Dependency
                     info = result["dependencies"][dependency.get_field()] = cast(dict[str, Any], {})
                     info["handler"] = type(dependency).__name__
+                    info["valid"] = dependency.is_valid()
 
                     # Requirement
                     req = dependency.requirement
@@ -1103,6 +1174,13 @@ class _IPopoService(IPopoService):
                     # Bindings
                     info["bindings"] = dependency.get_bindings()
 
+                # Requirements preventing the validation
+                result["unsatisfied"] = [
+                    {"field": field, **{key: info.get(key) for key in _UNSATISFIED_KEYS}}
+                    for field, info in result["dependencies"].items()
+                    if not info["valid"]
+                ]
+
                 # Properties
                 if stored_instance.context is not None:
                     properties = stored_instance.context.properties.items()
@@ -1112,6 +1190,22 @@ class _IPopoService(IPopoService):
 
                 # All done
                 return result
+
+    def get_instance_error(self, name: str) -> BaseException | None:
+        """
+        Returns the exception which made the last validation of the given
+        component fail, or None. The exception keeps its traceback alive until
+        the next validation attempt or the death of the component.
+
+        :param name: The name of a component instance
+        :return: The last validation exception, or None
+        :raise ValueError: Invalid component name
+        """
+        with self.__instances_lock:
+            try:
+                return self.__instances[name].error
+            except KeyError:
+                raise ValueError(f"Unknown component: {name}") from None
 
     def get_factories(self) -> list[str]:
         """

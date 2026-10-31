@@ -15,7 +15,7 @@ import unittest
 from typing import Any
 
 from pelix.constants import PROP_PATH_CWD
-from pelix.framework import Bundle, BundleContext, BundleException, FrameworkFactory
+from pelix.framework import Bundle, BundleContext, BundleEvent, BundleException, FrameworkFactory
 
 # Tests
 from tests import log_off, log_on
@@ -441,6 +441,34 @@ class FrameworkTest(unittest.TestCase):
         framework.start()
         self.assertRaises(BundleException, framework.uninstall)
         framework.stop()
+
+        FrameworkFactory.delete_framework()
+
+    def testStopWhileStarting(self):
+        """
+        A stop() requested during start() is done when the start loop ends
+        """
+        framework = FrameworkFactory.get_framework()
+        context = framework.get_bundle_context()
+        context.install_bundle(SIMPLE_BUNDLE)
+
+        class Listener:
+            def bundle_changed(self, event):
+                if event.get_kind() == BundleEvent.STARTED:
+                    # What a component does when it raises a fatal error
+                    self.stop_result = framework.stop()
+
+        listener = Listener()
+        context.add_bundle_listener(listener)
+
+        self.assertFalse(framework.start(), "start() must report the stop")
+        self.assertFalse(listener.stop_result, "stop() during start() must report False")
+        self.assertEqual(Bundle.RESOLVED, framework.get_state())
+
+        # The flag does not leak to the next start
+        context.remove_bundle_listener(listener)
+        self.assertTrue(framework.start())
+        self.assertEqual(Bundle.ACTIVE, framework.get_state())
 
         FrameworkFactory.delete_framework()
 

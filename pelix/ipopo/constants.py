@@ -58,6 +58,7 @@ __all__ = [
     "IPOPO_AUTO_RESTART",
     "IPOPO_CALLBACK_BIND",
     "IPOPO_CALLBACK_BIND_FIELD",
+    "IPOPO_CALLBACK_ERROR_HANDLER",
     "IPOPO_CALLBACK_INVALIDATE",
     "IPOPO_CALLBACK_MODIFIED",
     "IPOPO_CALLBACK_POST_REGISTRATION",
@@ -209,6 +210,12 @@ InvalidateComponent: Called when one the mandatory dependencies is unbound,
 with component-specific parameters
 """
 
+IPOPO_CALLBACK_ERROR_HANDLER = "ERROR_HANDLER"
+"""
+Error handler: called when a validation or invalidation callback of the
+component raised an exception
+"""
+
 IPOPO_CALLBACK_MODIFIED = "MODIFIED"
 """
 Modified: called when the properties of a valid component have been updated
@@ -291,10 +298,13 @@ class IPopoEvent:
     """ A component has been invalidated """
 
     BOUND = 5
-    """ A reference has been injected in the component """
+    """ A service has been injected in a field of the component (see :meth:`get_field`) """
 
     UNBOUND = 6
-    """ A reference has been removed from the component """
+    """ A service has been removed from a field of the component (see :meth:`get_field`) """
+
+    ERRONEOUS = 7
+    """ A component went to the ERRONEOUS state: see ``IPopoService.get_instance_error()`` """
 
     KILLED = 9
     """ A component has been killed (removed from the list of instances) """
@@ -302,14 +312,18 @@ class IPopoEvent:
     UNREGISTERED = 10
     """ A component factory has been unregistered """
 
-    def __init__(self, kind: int, factory_name: str, component_name: str | None) -> None:
+    def __init__(
+        self, kind: int, factory_name: str, component_name: str | None, field: str | None = None
+    ) -> None:
         """
         Sets up the iPOPO event
 
         :param kind: Kind of event
         :param factory_name: Name of the factory associated to the event
         :param component_name: Name of the component instance associated to the event
+        :param field: Name of the injected field, for ``BOUND`` and ``UNBOUND`` events
         """
+        self.__field = field
         self.__kind = kind
         self.__factory_name = factory_name
         self.__component_name = component_name
@@ -321,6 +335,15 @@ class IPopoEvent:
         :return: the name of the component
         """
         return self.__component_name
+
+    def get_field(self) -> str | None:
+        """
+        Retrieves the name of the field concerned by a ``BOUND`` or ``UNBOUND``
+        event
+
+        :return: The field name, None for other kinds of event
+        """
+        return self.__field
 
     def get_factory_name(self) -> str:
         """
@@ -492,6 +515,18 @@ class IPopoService(Protocol):
         """
         ...
 
+    def get_instances_providing(self, specification: str) -> list[dict[str, Any]]:
+        """
+        Retrieves the component instances whose factory provides the given
+        specification, whatever their state: it tells a provider which is not
+        valid (e.g. ``ERRONEOUS``) from the absence of any provider.
+
+        :param specification: A service specification name
+        :return: A list, sorted by name, of dictionaries with the keys ``name``,
+                 ``factory`` and ``state``
+        """
+        ...
+
     def get_instance(self, name: str) -> Any:
         """
         Returns the instance of the component with the given name
@@ -548,6 +583,8 @@ class IPopoService(Protocol):
             or not
           * ``aggregate``: A flag indicating whether the requirement is a set
             of services or not
+          * ``valid``: A flag indicating whether the handler is valid (its
+            requirement is satisfied or optional)
           * ``binding``: A list of the ServiceReference the component is bound
             to
 
@@ -555,8 +592,30 @@ class IPopoService(Protocol):
           component. The value is converted to its string representation, to
           avoid unexpected behaviours.
 
+        * ``unsatisfied``: List of the dependencies which are not valid, i.e.
+          the reason why the component is not validated. Each entry is a
+          dictionary with the keys ``field``, ``specification``,
+          ``specifications``, ``filter``, ``optional`` and ``aggregate``, as in
+          ``dependencies``
+        * ``error``: ``None``, or for a component whose last validation failed
+          with an exception, a dictionary with the strings ``type`` (module
+          qualified exception class) and ``message``. The exception itself is
+          returned by ``get_instance_error()``
+        * ``error_trace``: Formatted traceback of the last validation error, or ``None``
+
         :param name: The name of a component instance
         :return: A dictionary of details
+        :raise ValueError: Invalid component name
+        """
+        ...
+
+    def get_instance_error(self, name: str) -> BaseException | None:
+        """
+        Returns the exception which made the last validation of the given
+        component fail, or None.
+
+        :param name: The name of a component instance
+        :return: The last validation exception, or None
         :raise ValueError: Invalid component name
         """
         ...

@@ -82,6 +82,7 @@ class StoredInstance:
         "_logger",
         "bundle_context",
         "context",
+        "error",
         "error_trace",
         "factory_name",
         "instance",
@@ -145,6 +146,9 @@ class StoredInstance:
 
         # Stack track of validation error
         self.error_trace: str | None = None
+
+        # Last validation exception (keeps its traceback alive until cleared)
+        self.error: BaseException | None = None
 
         # Hidden properties an update has already been refused for: the
         # configuration of a component is resent as a whole on every update
@@ -476,6 +480,7 @@ class StoredInstance:
             # Reset state
             self.state = StoredInstance.INVALID
             self.error_trace = None
+            self.error = None
 
             # Retry
             self.check_lifecycle()
@@ -598,6 +603,7 @@ class StoredInstance:
 
             # Clear the error trace
             self.error_trace = None
+            self.error = None
 
             # Call the handlers
             self.__safe_handlers_callback(handlers_const.Handler.pre_validate)
@@ -618,6 +624,9 @@ class StoredInstance:
 
                     # Consider the component has erroneous
                     self.state = StoredInstance.ERRONEOUS
+                    self._ipopo_service._fire_ipopo_event(
+                        constants.IPopoEvent.ERRONEOUS, self.factory_name, self.name
+                    )
                     return False
 
             # All good
@@ -768,6 +777,28 @@ class StoredInstance:
             )
             return False
 
+    def __error_handled(self, error: BaseException, event: str) -> bool:
+        """
+        Calls the ``@ErrorHandler`` callback of the component, if any
+
+        :param error: The exception raised by the validation callback
+        :param event: The kind of life-cycle callback which failed
+        :return: True if the handler said that the error is handled
+        """
+        if self.context is None:
+            return False
+
+        handler = self.context.get_callback(constants.IPOPO_CALLBACK_ERROR_HANDLER)
+        if not handler:
+            return False
+
+        try:
+            # safe_callback() can't be used: it turns None into True
+            return handler(self.instance, error, event) is True
+        except Exception:
+            self._logger.exception("Component '%s': error in the @ErrorHandler callback", self.name)
+            return False
+
     def __safe_validation_callback(self, event: str) -> Any:
         """
         Calls the ``@ValidateComponent`` or ``@InvalidateComponent`` callback,
@@ -794,20 +825,28 @@ class StoredInstance:
 
             # Store the exception as it is a validation error
             self.error_trace = traceback.format_exc()
+            self.error = ex
 
             if ex.needs_stop:
                 # Framework must be stopped...
                 self._logger.error("%s said that the Framework must be stopped.", self.name)
                 self.bundle_context.get_framework().stop()
             return False
-        except:  # noqa: E722
-            self._logger.exception(
-                "Component '%s': error calling @ValidateComponent callback",
-                self.name,
-            )
+        except BaseException as ex:
+            # Keep the trace now: the handler might raise and replace it
+            trace = traceback.format_exc()
+            if self.__error_handled(ex, event):
+                self._logger.debug(
+                    "Component '%s': @ErrorHandler handled the error of %s: %r", self.name, event, ex
+                )
+            else:
+                self._logger.error(
+                    "Component '%s': error calling @ValidateComponent callback", self.name, exc_info=ex
+                )
 
             # Store the exception as it is a validation error
-            self.error_trace = traceback.format_exc()
+            self.error_trace = trace
+            self.error = ex
 
             return False
 
@@ -889,6 +928,16 @@ class StoredInstance:
 
         return result
 
+    def __fire_binding_event(self, kind: int, field: str) -> None:
+        """
+        Triggers a BOUND or UNBOUND iPOPO event
+
+        :param kind: Kind of event
+        :param field: The injected field
+        """
+        if self._ipopo_service is not None:
+            self._ipopo_service._fire_ipopo_event(kind, self.factory_name, self.name, field)
+
     def __set_binding(
         self, dependency: handlers_const.DependencyHandler, service: T, reference: ServiceReference[T]
     ) -> None:
@@ -915,6 +964,8 @@ class StoredInstance:
             service,
             reference,
         )
+
+        self.__fire_binding_event(constants.IPopoEvent.BOUND, field)
 
     def __update_binding(
         self,
@@ -979,6 +1030,8 @@ class StoredInstance:
 
         # Update the injected field
         setattr(self.instance, field, dependency.get_value())
+
+        self.__fire_binding_event(constants.IPopoEvent.UNBOUND, field)
 
         # Unget the service
         self.bundle_context.unget_service(reference)

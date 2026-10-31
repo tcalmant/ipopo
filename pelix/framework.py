@@ -681,6 +681,9 @@ class Framework(Bundle):
 
         # The wait_for_stop event (initially stopped)
         self._fw_stop_event = threading.Event()
+
+        # A stop() requested while the framework is starting
+        self._stop_requested = False
         self._fw_stop_event.set()
 
     def add_property(self, name: str, value: Any) -> bool:
@@ -1130,6 +1133,7 @@ class Framework(Bundle):
 
             # Reset the stop event
             self._fw_stop_event.clear()
+            self._stop_requested = False
 
             # Starting...
             self._state = Bundle.STARTING
@@ -1153,15 +1157,27 @@ class Framework(Bundle):
 
             # Bundle is now active
             self._state = Bundle.ACTIVE
+            if self._stop_requested:
+                # A component asked for a fatal stop while the bundles started
+                self._stop_requested = False
+                self.stop()
+                return False
+
             return True
 
     def stop(self) -> bool:
         """
-        Stops the framework
+        Stops the framework. If the framework is starting, it is stopped as
+        soon as its start loop ends and ``start()`` returns False.
 
         :return: True if the framework stopped, False it wasn't running
         """
         with self._lock:
+            if self._state == Bundle.STARTING:
+                # Keep the request: the start loop honours it when it ends
+                self._stop_requested = True
+                return False
+
             if self._state != Bundle.ACTIVE:
                 # Invalid state
                 return False

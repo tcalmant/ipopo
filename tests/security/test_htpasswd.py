@@ -257,7 +257,7 @@ class AuthenticateTest(StoreTestCase):
         class OtherCredentials:
             KIND = "token"
 
-        self.assertIsNone(self.store.authenticate(OtherCredentials()))  # ty: ignore[invalid-argument-type]
+        self.assertIsNone(self.store.authenticate(OtherCredentials()))
 
     def test_user_names_are_compared_exactly(self) -> None:
         self.assertIsNone(self.store.authenticate(UsernamePassword("Thomas", "good")))

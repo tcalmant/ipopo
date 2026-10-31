@@ -243,6 +243,37 @@ Unreleased
 
 ### iPOPO
 
+* Inherited `@Requires` (parent class declaring requirements, with or without
+  `@ComponentFactory`) are covered by a test (#99)
+* A failing `@Instantiate` constructor no longer prevents the instantiation of
+  the components of the next factories of the bundle: the error is logged with
+  the component and factory names
+* `get_instance_details()` gives the `error` of an `ERRONEOUS` component (type
+  and message as strings), the list of its `unsatisfied` requirements and the
+  `valid` flag of each dependency. The new `get_instance_error()` method
+  returns the exception object. The shell command `ipopo.instance` prints them
+* The `IPopoEvent.BOUND` and `IPopoEvent.UNBOUND` events, declared but never
+  sent, are now fired when a service is injected in or removed from a field of a
+  component. `IPopoEvent.get_field()` gives the field name
+* `Framework.stop()` called while `Framework.start()` runs (e.g. a component
+  raising a `FrameworkException` with `needs_stop` in an `@Instantiate`d
+  component) is no longer ignored: the framework stops when the start loop ends
+  and `start()` returns `False`
+* Fixed the typing of `@Specification`: ty keeps the decorated Protocol usable
+  as a type annotation (it reported `invalid-type-form`). A test checks it with
+  ty outside of the project configuration. The `invalid-type-form` override of
+  `pyproject.toml` is kept: removing it exposes diagnostics in `tests/` which
+  are now ignored there by rule
+* Added the `IPopoEvent.ERRONEOUS` event, sent when a component goes to the
+  `ERRONEOUS` state. The exception is available with `get_instance_error()`
+* Added `get_instances_providing(specification)`, the components whose factory
+  provides a specification with their state, as plain data. The shell command
+  `ipopo.instance` lists them under each unsatisfied requirement
+* Added the `@ErrorHandler` callback decorator (discussion #167): it receives the
+  exception raised by the `@Validate` or `@Invalidate` callback of the component
+  and can return `True` to prevent iPOPO from logging the error trace.
+  The handler runs on a component that may be half initialized: it is meant for
+  logging, not for recovering. OSGi Declarative Services has no equivalent.
 * Added the `@Modified` callback decorator, the counterpart of the `modified`
   method of OSGi Declarative Services: `reconfigure()`, and thus an update of
   the Configuration Admin configuration of a component, gives it the new and

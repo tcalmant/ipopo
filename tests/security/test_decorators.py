@@ -152,7 +152,7 @@ class AllowGroupTest(unittest.TestCase):
         """
         with self.assertRaises(TypeError):
 
-            @AllowGroup  # ty: ignore[invalid-argument-type]
+            @AllowGroup
             def target() -> None:
                 pass
 
@@ -184,7 +184,7 @@ class AllowRoleTest(unittest.TestCase):
     def test_applied_bare_it_refuses_at_import_time(self) -> None:
         with self.assertRaises(TypeError):
 
-            @AllowRole  # ty: ignore[invalid-argument-type]
+            @AllowRole
             def target() -> None:
                 pass
 

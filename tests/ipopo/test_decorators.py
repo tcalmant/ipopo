@@ -589,7 +589,7 @@ class SimpleDecoratorsTests(unittest.TestCase):
         self.assertRaises(AttributeError, getattr, DummyClass, constants.IPOPO_FACTORY_CONTEXT)
 
         # Convert the parent into a component
-        DummyClass = decorators.ComponentFactory("dummy-factory")(  # ty: ignore[invalid-assignment]
+        DummyClass = decorators.ComponentFactory("dummy-factory")(
             decorators.Requires("field", "req")(DummyClass)
         )
 

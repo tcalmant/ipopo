@@ -1287,7 +1287,7 @@ class AsyncHttpServiceImpl(AbstractHttpService):
         spec = cast(list[str], service_reference.get_property(fw_constants.OBJECTCLASS))
         if http.HTTP_SERVLET in spec:
             # Servlet bound
-            sync_servlet = cast(http.Servlet, service)
+            sync_servlet = service
             paths = service_reference.get_property(http.HTTP_SERVLET_PATH)
             if utilities.is_string(paths):
                 # Register the servlet to a single path
@@ -1310,7 +1310,7 @@ class AsyncHttpServiceImpl(AbstractHttpService):
         # No else here: a service could implement both specifications
         if http.HTTP_SERVLET_ASYNC in spec:
             # Asynchronous servlet bound
-            async_servlet = cast(http.AsyncServlet, service)
+            async_servlet = service
             paths = service_reference.get_property(http.HTTP_SERVLET_ASYNC_PATH)
             if utilities.is_string(paths):
                 # Register the servlet to a single path

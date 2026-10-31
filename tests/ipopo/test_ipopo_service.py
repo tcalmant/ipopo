@@ -11,7 +11,9 @@ import unittest
 from pelix.framework import FrameworkFactory
 from pelix.ipopo import decorators
 from pelix.ipopo.constants import IPopoEvent
+from pelix.ipopo.instance import StoredInstance
 from tests import log_off, log_on
+from tests.interfaces import IEchoService
 from tests.ipopo import install_bundle, install_ipopo
 from tests.ipopo.ipopo_bundle import BASIC_INSTANCE
 
@@ -105,6 +107,22 @@ class IPopoServiceTest(unittest.TestCase):
         # We can do it only once
         self.assertFalse(self.ipopo.unregister_factory(FACTORY))
 
+    def test_failing_instantiate(self):
+        """
+        A failing @Instantiate must not prevent the next factories to be
+        registered and instantiated
+        """
+        assert self.ipopo is not None
+        log_off()
+        try:
+            install_bundle(self.framework, "tests.ipopo.instantiate_failure_bundle")
+        finally:
+            log_on()
+
+        self.assertTrue(self.ipopo.is_registered_factory("b-good-factory"))
+        self.assertTrue(self.ipopo.is_registered_instance("good-instance"))
+        self.assertFalse(self.ipopo.is_registered_instance("failing-instance"))
+
     def test_get_factory_bundle(self):
         """
         Tests the get_factory_bundle() method
@@ -156,6 +174,71 @@ class IPopoServiceTest(unittest.TestCase):
         self.assertIs(type(details["state"]), int, "Component state must be an integer")
         self.assertIs(type(details["services"]), dict, "Services details must be in a dictionary")
         self.assertIs(type(details["dependencies"]), dict, "Dependencies details must be in a dictionary")
+
+    def test_instance_details_error_and_unsatisfied(self):
+        """
+        Tests the structured error and the unsatisfied requirements of the
+        instance details
+        """
+        assert self.ipopo is not None
+        module = install_bundle(self.framework)
+
+        # Requirement of B not satisfied: it is the reason of the invalid state
+        self.ipopo.instantiate(module.FACTORY_B, "b")
+        details = self.ipopo.get_instance_details("b")
+        self.assertIsNone(details["error"])
+        self.assertIsNone(self.ipopo.get_instance_error("b"))
+        self.assertEqual(1, len(details["unsatisfied"]))
+        self.assertDictEqual(
+            {
+                "field": "service",
+                "specification": IEchoService.__name__,
+                "specifications": [IEchoService.__name__],
+                "filter": None,
+                "optional": False,
+                "aggregate": False,
+            },
+            details["unsatisfied"][0],
+        )
+
+        # Satisfied once A is there
+        self.ipopo.instantiate(module.FACTORY_A, "a")
+        self.assertListEqual(
+            [{"name": "a", "factory": module.FACTORY_A, "state": StoredInstance.VALID}],
+            self.ipopo.get_instances_providing(IEchoService.__name__),
+        )
+        self.assertListEqual([], self.ipopo.get_instances_providing("unknown.spec"))
+        self.assertListEqual([], self.ipopo.get_instance_details("b")["unsatisfied"])
+
+        # Erroneous component: plain data in the details, object in the method
+        events: list[tuple[int, str | None]] = []
+
+        class Listener:
+            def handle_ipopo_event(self, event):
+                events.append((event.get_kind(), event.get_component_name()))
+
+        self.ipopo.add_listener(Listener())
+        log_off()
+        try:
+            self.ipopo.instantiate(module.FACTORY_ERRONEOUS, "e")
+        finally:
+            log_on()
+        self.assertIn(
+            ("e", IPopoEvent.ERRONEOUS),
+            [(n, k) for k, n in events],
+        )
+        details = self.ipopo.get_instance_details("e")
+        self.assertDictEqual({"type": "builtins.OSError", "message": "Error raised"}, details["error"])
+        error = self.ipopo.get_instance_error("e")
+        self.assertIsInstance(error, OSError)
+        self.assertIn("OSError", details["error_trace"])
+
+        # Cleared by the next validation
+        self.ipopo.retry_erroneous("e", {"erroneous": False})
+        self.assertIsNone(self.ipopo.get_instance_error("e"))
+        self.assertIsNone(self.ipopo.get_instance_details("e")["error"])
+
+        self.assertRaises(ValueError, self.ipopo.get_instance_error, "unknown")
 
     def test_ipopo_start_installed(self):
         """
@@ -221,6 +304,87 @@ class IPopoServiceTest(unittest.TestCase):
         log_off()
         self.assertRaises(TypeError, self.ipopo.instantiate, FACTORY_2, INSTANCE)
         log_on()
+
+    def test_bound_unbound_events(self):
+        """
+        Tests the BOUND and UNBOUND events, with the injected field
+        """
+        assert self.ipopo is not None, "iPOPO service not found"
+        context = self.framework.get_bundle_context()
+        events: list[tuple[int, str | None, str | None]] = []
+
+        class Listener:
+            def handle_ipopo_event(self, event):
+                events.append((event.get_kind(), event.get_component_name(), event.get_field()))
+
+        @decorators.ComponentFactory("bound-factory")
+        @decorators.Requires("dep", "bound.spec")
+        class Consumer:
+            pass
+
+        self.ipopo.register_factory(context, Consumer)
+        self.ipopo.add_listener(Listener())
+
+        self.ipopo.instantiate("bound-factory", "consumer")
+        reg = context.register_service("bound.spec", object(), {})
+        reg.unregister()
+
+        self.assertListEqual(
+            [
+                (IPopoEvent.BOUND, "consumer", "dep"),
+                (IPopoEvent.UNBOUND, "consumer", "dep"),
+            ],
+            [e for e in events if e[0] in (IPopoEvent.BOUND, IPopoEvent.UNBOUND)],
+        )
+
+    def test_error_handler(self):
+        """
+        Tests @ErrorHandler: it receives the exception, and True silences the
+        error log
+        """
+        assert self.ipopo is not None, "iPOPO service not found"
+        context = self.framework.get_bundle_context()
+
+        for result, logged in ((True, False), (None, True), ("raise", True)):
+            with self.subTest(result=result):
+                calls: list[tuple[BaseException, str]] = []
+
+                @decorators.ComponentFactory(f"handler-factory-{result}")
+                class Failing:
+                    # Class attributes: the loop variables are not bound in methods
+                    handler_calls = calls
+                    handler_result = result
+
+                    @decorators.Validate
+                    def validate(self, context):
+                        raise OSError("Failed on purpose")
+
+                    @decorators.ErrorHandler
+                    def on_error(self, exception, callback):
+                        self.handler_calls.append((exception, callback))
+                        if self.handler_result == "raise":
+                            raise ValueError("Handler failure")
+                        return self.handler_result
+
+                self.ipopo.register_factory(context, Failing)
+                name = f"handler-{result}"
+                logger = f"InstanceManager-{name}"
+                if logged:
+                    with self.assertLogs(logger, "ERROR"):
+                        self.ipopo.instantiate(f"handler-factory-{result}", name)
+                else:
+                    with self.assertNoLogs(logger, "ERROR"):
+                        self.ipopo.instantiate(f"handler-factory-{result}", name)
+
+                self.assertEqual(1, len(calls))
+                self.assertIsInstance(calls[0][0], OSError)
+                self.assertEqual("VALIDATE", calls[0][1])
+                self.assertIs(calls[0][0], self.ipopo.get_instance_error(name))
+                self.assertEqual(StoredInstance.ERRONEOUS, self.ipopo.get_instance_details(name)["state"])
+
+        # Invalid handler signature
+        with self.assertRaises(TypeError):
+            decorators.ErrorHandler(lambda self: None)  # type: ignore
 
     def test_ipopo_events(self):
         """

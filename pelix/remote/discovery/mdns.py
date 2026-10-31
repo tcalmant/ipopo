@@ -172,11 +172,13 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         self.__register_servlet()
 
         # Listen to our types
+        # Our Protocol is structurally a zeroconf listener, not a subclass of it
+        listener = cast(zeroconf.ServiceListener, self)
         self._browsers.append(
-            zeroconf.ServiceBrowser(self._zeroconf, ZeroconfDiscovery.DNS_DISPATCHER_TYPE, self)
+            zeroconf.ServiceBrowser(self._zeroconf, ZeroconfDiscovery.DNS_DISPATCHER_TYPE, listener)
         )
         self._rs_type = self._rs_type or DEFAULT_ZEROCONF_TYPE
-        self._browsers.append(zeroconf.ServiceBrowser(self._zeroconf, self._rs_type, self))
+        self._browsers.append(zeroconf.ServiceBrowser(self._zeroconf, self._rs_type, listener))
 
         _logger.debug("Zeroconf discovery validated")
 

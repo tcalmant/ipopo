@@ -6,7 +6,12 @@ Tests the framework events.
 :author: Thomas Calmant
 """
 
+import shutil
+import subprocess
+import sys
+import tempfile
 import unittest
+from pathlib import Path
 from typing import Any, Protocol
 
 from pelix.constants import (
@@ -145,6 +150,38 @@ class TestSpecificationDecorator(unittest.TestCase):
         for name in ("pelix.http.servlet", "my-spec", "my_spec", "ns:spec", "a/b", "a b", "Spec2"):
             with self.subTest(name=name):
                 self.assertEqual(check_specification_name(name), name)
+
+    def test_type_checker_keeps_the_class(self) -> None:
+        """
+        A decorated Protocol must stay usable in annotations for ty. The sample
+        is checked outside of the project, as its configuration ignores the
+        invalid-type-form rule.
+        """
+        ty = shutil.which("ty", path=str(Path(sys.executable).parent))
+        if ty is None:
+            self.skipTest("ty is not installed")
+
+        source = (
+            "from typing import Protocol\n"
+            "from pelix.constants import Specification\n\n"
+            '@Specification("x.y")\n'
+            "class Step(Protocol):\n"
+            "    def name(self) -> str: ...\n\n"
+            "def use(step: Step) -> str:\n"
+            "    return step.name()\n"
+        )
+        root = Path(__file__).resolve().parents[2]
+        with tempfile.TemporaryDirectory() as tmp:
+            case = Path(tmp) / "case.py"
+            case.write_text(source)
+            done = subprocess.run(
+                [ty, "check", "--python", sys.prefix, "--extra-search-path", str(root), str(case)],
+                capture_output=True,
+                text=True,
+                cwd=tmp,
+                check=False,
+            )
+        self.assertEqual(0, done.returncode, done.stdout)
 
 
 if __name__ == "__main__":

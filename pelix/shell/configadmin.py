@@ -168,7 +168,7 @@ class ConfigAdminCommands(ShellCommandsProvider):
         Lists known configurations
         """
         configs = self._config_admin.list_configurations()
-        if not configs:
+        if not configs:  # ty: ignore[truthiness-test-of-iterable]
             session.write_line("No configuration.")
             return
 
