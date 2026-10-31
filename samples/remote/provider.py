@@ -84,7 +84,11 @@ class Activator(ActivatorProto):
         @param context The bundle context
         """
         # Prepare export properties
-        props = {pelix.remote.PROP_EXPORTED_INTERFACES: [SERVICE_SPECIFICATION]}
+        # The sample listens on all interfaces: let every caller in, as on a trusted network
+        props = {
+            pelix.remote.PROP_EXPORTED_INTERFACES: [SERVICE_SPECIFICATION],
+            "pelix.remote.permission": "*",
+        }
 
         # Register the service with the Java specification
         self.__registration = context.register_service(SERVICE_SPECIFICATION, HelloWorldImpl(), props)

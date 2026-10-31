@@ -283,7 +283,10 @@ def main(is_server, discoveries, transports, http_port, other_arguments) -> None
         )
 
         # ... servlet giving access to the registry
-        ipopo.add(rs.FACTORY_REGISTRY_SERVLET, "pelix-remote-dispatcher-servlet")
+        # The discovered frameworks call it anonymously (trusted network only)
+        ipopo.add(
+            rs.FACTORY_REGISTRY_SERVLET, "pelix-remote-dispatcher-servlet", {"pelix.remote.permission": "*"}
+        )
 
     # Prepare the utility object
     util = InstallUtils(context, other_arguments)
