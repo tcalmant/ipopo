@@ -114,6 +114,7 @@ _RESTART_FIELDS = {
     http.HTTP_SESSION_ENABLED: "_session_enabled",
     http.HTTP_SESSION_MAX_INACTIVE_INTERVAL: "_session_interval",
     http.HTTP_SESSION_COOKIE_NAME: "_session_cookie",
+    http.HTTP_SESSION_COOKIE_SAME_SITE: "_session_same_site",
 }
 
 DEFAULT_REQUEST_QUEUE_SIZE = 5
@@ -398,13 +399,21 @@ class SessionContext:
     cookie to send back
     """
 
-    def __init__(self, manager: SessionManager, cookie_name: str, cookie_value: str | None, secure: bool):
+    def __init__(
+        self,
+        manager: SessionManager,
+        cookie_name: str,
+        cookie_value: str | None,
+        secure: bool,
+        same_site: str = "Lax",
+    ):
         self.cookie_value = cookie_value
         self.cookie: str | None = None
         """ The ``Set-Cookie`` header to send, if the cookie changed """
         self._manager = manager
         self._name = cookie_name
         self._secure = secure
+        self._same_site = same_site
         self.sent = False
         """ True once the headers went out: the cookie can't change any more """
         self._session: http.HttpSession | None = None
@@ -416,7 +425,9 @@ class SessionContext:
 
     def _send(self, value: str, max_age: int | None = None) -> None:
         self._check_sent()
-        self.cookie = http.format_cookie(self._name, value, max_age=max_age, secure=self._secure)
+        self.cookie = http.format_cookie(
+            self._name, value, max_age=max_age, secure=self._secure, same_site=self._same_site
+        )
 
     def get(self, create: bool) -> http.HttpSession | None:
         """
@@ -563,6 +574,7 @@ class RequestChecks:
 @Property("_session_enabled", http.HTTP_SESSION_ENABLED, False)
 @Property("_session_interval", http.HTTP_SESSION_MAX_INACTIVE_INTERVAL, 1800)
 @Property("_session_cookie", http.HTTP_SESSION_COOKIE_NAME, "PELIXSESSIONID")
+@Property("_session_same_site", http.HTTP_SESSION_COOKIE_SAME_SITE, "Lax")
 @Property("_auth_required", http.HTTP_AUTH_REQUIRED, False)
 @Property("_auth_realm", http.HTTP_AUTH_REALM, auth.DEFAULT_REALM)
 @Property("_uses_ssl", http.HTTP_USES_SSL, False)
@@ -593,6 +605,7 @@ class AbstractHttpService(http.HTTPService):
         self._session_enabled: Any = False
         self._session_interval: Any = 1800
         self._session_cookie: Any = "PELIXSESSIONID"
+        self._session_same_site: Any = "Lax"
         self._session_manager: SessionManager | None = None
         self._auth_required: bool = False
         self._auth_realm: str = auth.DEFAULT_REALM
@@ -712,6 +725,13 @@ class AbstractHttpService(http.HTTPService):
                 logging.WARNING, "Invalid session cookie name %r: using the default one", self._session_cookie
             )
             self._session_cookie = "PELIXSESSIONID"
+        # "None" is refused: it needs Secure, which depends on each client
+        self._session_same_site = str(self._session_same_site).capitalize()
+        if self._session_same_site not in ("Lax", "Strict"):
+            self.log(
+                logging.WARNING, "Invalid session cookie SameSite %r: using Lax", self._session_same_site
+            )
+            self._session_same_site = "Lax"
 
         self._normalize_live_configuration()
         if self._allowed_hosts is None and not self._loopback_bind:
@@ -932,7 +952,9 @@ class AbstractHttpService(http.HTTPService):
             return None
 
         cookie = http.parse_cookies(headers.get("Cookie")).get(self._session_cookie)
-        return SessionContext(self._session_manager, self._session_cookie, cookie, secure)
+        return SessionContext(
+            self._session_manager, self._session_cookie, cookie, secure, self._session_same_site
+        )
 
     def is_origin_refused(
         self,

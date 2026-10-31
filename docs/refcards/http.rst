@@ -678,6 +678,8 @@ Properties of the HTTP service:
 * ``pelix.http.session.max_inactive_interval`` (``1800``): seconds without request before a session is dropped
 * ``pelix.http.session.cookie.name`` (``PELIXSESSIONID``): name of the cookie. Services of one host need
   different names
+* ``pelix.http.session.cookie.same_site`` (``Lax``): ``Strict`` for administration pages, so that no
+  other site, port or sub-domain makes the browser send the cookie
 
 With ``pelix.http.session.enabled``, a servlet can call ``request.get_session(create)``,
 ``request.login(user, password)`` and ``request.logout()`` (``await`` ``login()`` in an
@@ -689,8 +691,8 @@ The login servlet must be reachable without a session: set ``pelix.http.auth.req
 
 * Sessions are in memory and per HTTP service: a restart logs everyone out.
 * An account removed from the identity store keeps its sessions until they expire.
-* The cookie is ``HttpOnly`` and ``SameSite=Lax``, and ``Secure`` when the client used HTTPS. Behind a TLS
-  reverse proxy, set ``pelix.http.proxy.trusted``.
+* The cookie is ``HttpOnly`` and ``SameSite=Lax`` (or ``Strict``), and ``Secure`` when the client used
+  HTTPS. Behind a TLS reverse proxy, set ``pelix.http.proxy.trusted``.
 * There is no CSRF token. ``SameSite=Lax`` with ``pelix.http.cors.enforce`` refuse cross-site requests
   which change data; changing data with ``GET`` defeats them.
 * An open WebSocket keeps the user it had when it was accepted: keep its session and check

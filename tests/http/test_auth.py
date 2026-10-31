@@ -614,6 +614,11 @@ class _AuthServerTests:
         self.assertIn("Max-Age=0", cookies[0])
         self.assertEqual(self.send("GET", after)[2], anonymous)
 
+    def test_session_same_site(self) -> None:
+        # Case-insensitive, as in the browsers
+        self.start_sessions(**{http.HTTP_SESSION_COOKIE_SAME_SITE: "strict"})
+        self.assertIn("SameSite=Strict", self.login()[1][0])
+
     def test_session_required(self) -> None:
         self.start_server(
             with_authenticator=False, required=True, properties={http.HTTP_SESSION_ENABLED: True}
