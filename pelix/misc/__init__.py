@@ -25,8 +25,10 @@ Pelix miscellaneous modules
     limitations under the License.
 """
 
+import logging
+from collections.abc import Iterator
 from types import TracebackType
-from typing import Any, Protocol, TypeAlias
+from typing import Any, Protocol, Self, TypeAlias
 
 from pelix.constants import Specification
 from pelix.framework import Bundle
@@ -49,6 +51,7 @@ __all__ = [
     "LogListener",
     "LogReader",
     "LogService",
+    "LogStream",
     "OptExcInfo",
 ]
 
@@ -118,6 +121,13 @@ class LogEntry(Protocol):
         ...
 
     @property
+    def logger_name(self) -> str | None:
+        """
+        The name of the Python logger which emitted this entry, None if it was given to the log service
+        """
+        ...
+
+    @property
     def exception(self) -> OptExcInfo:
         """
         The exception associated to this entry
@@ -149,6 +159,41 @@ class LogEntry(Protocol):
     def time(self) -> float:
         """
         The timestamp of this entry
+        """
+        ...
+
+    def to_record(self) -> logging.LogRecord:
+        """
+        Returns this entry as a ``logging.LogRecord``, to be used with a ``logging.Formatter``
+        """
+        ...
+
+
+class LogStream(Protocol):
+    """
+    A bounded live feed of log entries, to be used in a ``with`` block or closed explicitly.
+
+    Iterating blocks until an entry is available and ends once the stream is closed.
+    When the consumer is slower than the log, the oldest pending entries are discarded.
+    """
+
+    def __iter__(self) -> Iterator[LogEntry]: ...
+
+    def __next__(self) -> LogEntry: ...
+
+    def __enter__(self) -> Self: ...
+
+    def __exit__(self, *args: object) -> None: ...
+
+    def get(self, timeout: float | None = None) -> LogEntry | None:
+        """
+        Returns the next entry, or None on timeout or when the stream is closed and drained
+        """
+        ...
+
+    def close(self) -> None:
+        """
+        Stops the stream: it doesn't receive new entries
         """
         ...
 
@@ -205,6 +250,16 @@ class LogReader(Protocol):
         Returns the logs events kept by the service
 
         :return: A tuple of log entries
+        """
+        ...
+
+    def stream(self, history: bool = False, max_size: int = 1000) -> LogStream:
+        """
+        Opens a bounded stream following the log live
+
+        :param history: If True, the stream starts with the entries kept by the service
+        :param max_size: Maximum number of pending entries (the oldest ones are discarded)
+        :return: A log stream, to be closed by the caller
         """
         ...
 

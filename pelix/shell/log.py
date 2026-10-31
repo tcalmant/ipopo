@@ -94,9 +94,16 @@ class ShellLogCommand(ShellCommandsProvider):
             ("error", self._error),
         ]
 
-    def _log(self, session: ShellSession, level: int | str = "WARNING", count: int | None = None) -> None:
+    def _log(
+        self,
+        session: ShellSession,
+        level: int | str = "WARNING",
+        count: int | None = None,
+        fmt: str | None = None,
+    ) -> None:
         """
-        Prints the content of the log
+        Prints the content of the log, with an optional ``logging.Formatter`` format
+        (e.g. "%(asctime)s %(levelname)s %(name)s: %(message)s")
         """
         if self._reader is None:
             session.write_line("No LogService available.")
@@ -118,10 +125,12 @@ class ShellLogCommand(ShellCommandsProvider):
         else:
             safe_count = 0
 
+        formatter = logging.Formatter(fmt) if fmt else None
+
         # Filter the entries and keep the last ones only
         try:
             for entry in [entry for entry in self._reader.get_log() if entry.level >= level][-safe_count:]:
-                session.write_line(str(entry))
+                session.write_line(formatter.format(entry.to_record()) if formatter else str(entry))
         except StopIteration:
             pass
 

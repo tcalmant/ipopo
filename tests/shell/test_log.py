@@ -158,3 +158,11 @@ class LogShellTest(unittest.TestCase):
                 for entry in logs[-i:]:
                     if entry.level >= level:
                         self.assertIn(entry.message, output)
+
+    def test_log_format(self) -> None:
+        """
+        Tests the format argument of the log command
+        """
+        self._run_command("error formatted-message")
+        output = self._run_command("log error 1 '%(levelname)s|%(message)s'")
+        self.assertEqual(output.strip(), "ERROR|formatted-message")

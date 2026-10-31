@@ -29,9 +29,12 @@ import collections
 import datetime
 import logging
 import sys
+import threading
 import time
+import traceback
+from collections.abc import Iterable, Iterator
 from types import ModuleType
-from typing import Any
+from typing import Any, Self, cast
 
 from pelix.constants import ActivatorProto, BundleActivator
 from pelix.framework import Bundle, BundleContext
@@ -44,6 +47,7 @@ from pelix.misc import (
     LogListener,
     LogReader,
     LogService,
+    LogStream,
     OptExcInfo,
 )
 from pelix.utilities import get_log_level
@@ -68,6 +72,7 @@ __all__ = [
     "LogReaderImpl",
     "LogServiceFactory",
     "LogServiceInstance",
+    "LogStreamImpl",
 ]
 
 # Local logger
@@ -108,6 +113,7 @@ class LogEntryImpl(LogEntry):
         "__bundle",
         "__exception",
         "__level",
+        "__logger_name",
         "__message",
         "__record",
         "__reference",
@@ -121,6 +127,7 @@ class LogEntryImpl(LogEntry):
         exception: OptExcInfo,
         bundle: Bundle | None,
         reference: ServiceReference[Any] | None,
+        logger_name: str | None = None,
     ) -> None:
         """
         :param level: The Python log level of the entry
@@ -128,8 +135,10 @@ class LogEntryImpl(LogEntry):
         :param exception: The exception associated to the entry
         :param bundle: The bundle that created the entry
         :param reference: The service reference associated to the entry
+        :param logger_name: The name of the Python logger which emitted the entry
         """
         self.__bundle = bundle
+        self.__logger_name = logger_name
         self.__exception = exception
         self.__level = level
         self.__message = message
@@ -162,7 +171,7 @@ class LogEntryImpl(LogEntry):
             return " ".join(values)
 
         # Print the exception too
-        return f"{' '.join(values)}\n{self.__exception}"
+        return f"{' '.join(values)}\n{''.join(traceback.format_exception(*self.__exception)).rstrip()}"
 
     @property
     def bundle(self) -> Bundle | None:
@@ -177,6 +186,13 @@ class LogEntryImpl(LogEntry):
         The message associated to this entry
         """
         return self.__message
+
+    @property
+    def logger_name(self) -> str | None:
+        """
+        The name of the Python logger which emitted this entry, None if it was given to the log service
+        """
+        return self.__logger_name
 
     @property
     def exception(self) -> OptExcInfo:
@@ -229,7 +245,7 @@ class LogEntryImpl(LogEntry):
         """
         # Extract local details
         bundle = self.bundle
-        name = bundle.get_symbolic_name() if bundle is not None else "n/a"
+        name = self.__logger_name or (bundle.get_symbolic_name() if bundle is not None else "n/a")
         pathname = bundle.get_location() if bundle is not None else "n/a"
         lineno = 0
 
@@ -250,6 +266,63 @@ class LogEntryImpl(LogEntry):
         return record
 
 
+class LogStreamImpl(LogStream):
+    """
+    Thread-safe bounded buffer of log entries, filled by the log reader
+    """
+
+    def __init__(self, reader: "LogReaderImpl", max_size: int, history: Iterable[LogEntry] = ()) -> None:
+        """
+        :param reader: The log reader feeding this stream
+        :param max_size: Maximum number of pending entries
+        :param history: Entries to start with
+        """
+        self.__reader = reader
+        self.__cond = threading.Condition()
+        self.__queue = collections.deque[LogEntry](history, maxlen=max(1, max_size))
+        self.__closed = False
+
+    def __iter__(self) -> Iterator[LogEntry]:
+        return self
+
+    def __next__(self) -> LogEntry:
+        entry = self.get()
+        if entry is None:
+            raise StopIteration
+        return entry
+
+    def __enter__(self) -> Self:
+        return self
+
+    def __exit__(self, *args: object) -> None:
+        self.close()
+
+    def _push(self, entry: LogEntry) -> None:
+        """
+        Called by the reader: the deque drops its oldest entry when full
+        """
+        with self.__cond:
+            self.__queue.append(entry)
+            self.__cond.notify()
+
+    def get(self, timeout: float | None = None) -> LogEntry | None:
+        """
+        Returns the next entry, or None on timeout or when the stream is closed and drained
+        """
+        with self.__cond:
+            self.__cond.wait_for(lambda: self.__queue or self.__closed, timeout)
+            return self.__queue.popleft() if self.__queue else None
+
+    def close(self) -> None:
+        """
+        Stops the stream: pending entries can still be read
+        """
+        self.__reader._remove_stream(self)
+        with self.__cond:
+            self.__closed = True
+            self.__cond.notify_all()
+
+
 class LogReaderImpl(LogReader):
     """
     The LogReader service
@@ -263,6 +336,8 @@ class LogReaderImpl(LogReader):
         self._context = context
         self.__logs = collections.deque[LogEntry](maxlen=max_entries)
         self.__listeners: set[LogListener] = set()
+        self.__streams: set[LogStreamImpl] = set()
+        self.__streams_lock = threading.Lock()
 
     def add_log_listener(self, listener: LogListener) -> None:
         """
@@ -300,14 +375,39 @@ class LogReaderImpl(LogReader):
         """
         return tuple(self.__logs)
 
+    def stream(self, history: bool = False, max_size: int = 1000) -> LogStream:
+        """
+        Opens a bounded stream following the log live
+
+        :param history: If True, the stream starts with the entries kept by the service
+        :param max_size: Maximum number of pending entries (the oldest ones are discarded)
+        :return: A log stream, to be closed by the caller
+        """
+        # The lock makes the history and the registration atomic: no gap nor duplicate
+        with self.__streams_lock:
+            stream = LogStreamImpl(self, max_size, self.get_log() if history else ())
+            self.__streams.add(stream)
+        return stream
+
+    def _remove_stream(self, stream: LogStreamImpl) -> None:
+        """
+        Unregisters a closed stream
+        """
+        with self.__streams_lock:
+            self.__streams.discard(stream)
+
     def _store_entry(self, entry: LogEntry) -> None:
         """
         Stores a new log entry and notifies listeners
 
         :param entry: A LogEntry object
         """
-        # Get the logger and log the message
-        self.__logs.append(entry)
+        with self.__streams_lock:
+            self.__logs.append(entry)
+            streams = tuple(self.__streams)
+
+        for stream in streams:
+            stream._push(entry)
 
         # Notify listeners
         for listener in self.__listeners.copy():
@@ -405,7 +505,9 @@ class LogServiceFactory(logging.Handler):
         bundle = self._bundle_from_module(record.module)
 
         # Convert to a LogEntry
-        entry = LogEntryImpl(record.levelno, record.getMessage(), None, bundle, None)
+        entry = LogEntryImpl(
+            record.levelno, record.getMessage(), cast(OptExcInfo, record.exc_info), bundle, None, record.name
+        )
         self._reader._store_entry(entry)
 
     def get_service(self, bundle: Bundle, registration: ServiceRegistration[LogService]) -> LogService:

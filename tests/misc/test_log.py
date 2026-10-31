@@ -8,6 +8,7 @@ Tests the log service
 
 import logging
 import sys
+import threading
 import time
 import unittest
 
@@ -376,3 +377,59 @@ class LogServiceTest(unittest.TestCase):
         self.assertEqual(len(latest.exception), 3, "Invalid exception format")
         for i in range(3):
             self.assertIsNotNone(latest.exception[i])
+
+    def test_logging_exception(self):
+        """
+        Tests that the exception of a standard logging record is kept
+        """
+        try:
+            raise ValueError("Some error")
+        except ValueError:
+            logging.getLogger("test.log").exception("Failed")
+
+        latest = self.reader.get_log()[-1]
+        assert latest.exception is not None
+        self.assertIs(latest.exception[0], ValueError)
+        self.assertIn("ValueError: Some error", str(latest))
+
+        # The logger name is kept, also as the name of the record
+        self.assertEqual(latest.logger_name, "test.log")
+        self.assertEqual(latest.to_record().name, "test.log")
+
+    def test_to_record_formatter(self):
+        """
+        Tests that an entry can be rendered by a standard formatter
+        """
+        self.logger.log(logging.WARNING, "formatted")
+        record = self.reader.get_log()[-1].to_record()
+        self.assertEqual(logging.Formatter("%(levelname)s|%(message)s").format(record), "WARNING|formatted")
+        # Given to the log service: no logger
+        self.assertIsNone(self.reader.get_log()[-1].logger_name)
+
+    def test_stream(self):
+        """
+        Tests the log stream: history, bound, live feed and close
+        """
+        self.logger.log(logging.INFO, "old")
+
+        for history in (False, True):
+            with self.subTest(history=history), self.reader.stream(history=history) as stream:
+                expected = [e.message for e in self.reader.get_log()] if history else []
+                self.logger.log(logging.INFO, "a")
+                self.logger.log(logging.INFO, "b")
+                expected += ["a", "b"]
+                self.assertEqual([stream.get(1).message for _ in expected], expected)
+                self.assertIsNone(stream.get(0.01))
+
+        # Bounded: the oldest entries are discarded
+        with self.reader.stream(max_size=2) as stream:
+            for i in range(5):
+                self.logger.log(logging.INFO, f"m{i}")
+            self.assertEqual([stream.get(0).message, stream.get(0).message], ["m3", "m4"])
+
+        # Closed: iteration ends and no new entry arrives
+        stream = self.reader.stream()
+        threading.Timer(0.1, stream.close).start()
+        self.assertEqual(list(stream), [])
+        self.logger.log(logging.INFO, "after")
+        self.assertIsNone(stream.get(0.01))
