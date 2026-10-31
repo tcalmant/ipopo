@@ -41,6 +41,8 @@ from pelix.framework import BundleContext
 from pelix.internals.registry import PrototypeServiceFactory, ServiceFactory, ServiceReference
 from pelix.ipopo import constants
 from pelix.ipopo.contexts import FactoryContext, Requirement
+from pelix.ldapfilter import escape_LDAP
+from pelix.services.condition import CONDITION_ID, Condition
 from pelix.utilities import get_method_arguments, is_string, to_iterable
 
 T = TypeVar("T")
@@ -83,6 +85,7 @@ __all__ = [
     "Requires",
     "RequiresBest",
     "RequiresBroadcast",
+    "RequiresCondition",
     "RequiresConfiguration",
     "RequiresMap",
     "RequiresVarFilter",
@@ -1257,6 +1260,45 @@ class Requires:
         # Inject the field
         setattr(clazz, self._field, None)
         return clazz
+
+
+# ------------------------------------------------------------------------------
+
+
+class RequiresCondition(Requires):
+    """
+    The ``@RequiresCondition`` decorator makes the component valid only while a
+    :class:`~pelix.services.condition.Condition` service with the given
+    ``osgi.condition.id`` is registered. It is a :class:`Requires` on the
+    Condition specification, with a filter on the condition ID: the injected
+    service is only a marker.
+
+    :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_REQUIRES`
+
+    :Example:
+
+      .. code-block:: python
+
+          @ComponentFactory()
+          @RequiresCondition('_ready', 'my.subsystem.ready')
+          class Foo:
+              pass
+    """
+
+    def __init__(self, field: str, condition_id: str):
+        """
+        :param field: The field where to inject the Condition service
+        :param condition_id: The ID of the condition to wait for
+        :raise TypeError: Invalid field or condition ID type
+        :raise ValueError: Invalid field or empty condition ID
+        """
+        if not condition_id:
+            raise ValueError("Empty condition ID.")
+
+        if not is_string(condition_id):
+            raise TypeError(f"The condition ID must be a string, not {type(condition_id).__name__}")
+
+        super().__init__(field, Condition, spec_filter=f"({CONDITION_ID}={escape_LDAP(condition_id)})")
 
 
 # ------------------------------------------------------------------------------

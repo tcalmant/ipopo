@@ -129,6 +129,94 @@ service.ranking int  The rank/priority of the service. The lower the rank, the m
 
 .. _service_factory:
 
+Condition service
+-----------------
+
+A *condition* is a marker service, after the OSGi Condition Service
+specification: its mere presence in the registry tells that a state of the
+system is reached (a database is connected, a subsystem is ready, ...).
+It provides the :class:`~pelix.services.condition.Condition` specification
+(``org.osgi.service.condition.Condition``) and the ``osgi.condition.id``
+property, which can hold several IDs.
+
+The framework registers the "true" condition (``osgi.condition.id=true``)
+every time it starts, before any bundle.
+A bundle registers its own conditions as any other service, once the state is
+reached, and unregisters them when it is lost.
+Components wait for a condition with the
+:class:`~pelix.ipopo.decorators.RequiresCondition` decorator: they are valid
+only while it is registered.
+
+In this example, the report generator is validated once the database is
+connected, and invalidated before the connection is closed, without knowing
+the connector:
+
+.. code-block:: python
+
+    from typing import Any
+
+    from pelix.framework import BundleContext
+    from pelix.internals.registry import ServiceRegistration
+    from pelix.ipopo.decorators import (
+        ComponentFactory,
+        Instantiate,
+        Invalidate,
+        RequiresCondition,
+        Validate,
+    )
+    from pelix.services.condition import CONDITION_ID, INSTANCE, SERVICE_CONDITION
+
+    DATABASE_READY = "my.database.ready"
+
+
+    @ComponentFactory("database-connector")
+    @Instantiate("database-connector")
+    class DatabaseConnector:
+        """
+        Tells the other components when the database is connected
+        """
+
+        def __init__(self) -> None:
+            self._registration: ServiceRegistration[Any] | None = None
+
+        @Validate
+        def _validate(self, context: BundleContext) -> None:
+            # ... connect to the database, then:
+            self._registration = context.register_service(
+                SERVICE_CONDITION, INSTANCE, {CONDITION_ID: DATABASE_READY}
+            )
+
+        @Invalidate
+        def _invalidate(self, context: BundleContext) -> None:
+            # Invalidates the components waiting for the condition first
+            if self._registration is not None:
+                self._registration.unregister()
+                self._registration = None
+            # ... then disconnect from the database
+
+
+    @ComponentFactory("report-generator")
+    @RequiresCondition("_database_ready", DATABASE_READY)
+    @Instantiate("report-generator")
+    class ReportGenerator:
+        """
+        Valid only while the database is connected
+        """
+
+        @Validate
+        def _validate(self, context: BundleContext) -> None:
+            # The database can be used from here
+            ...
+
+A connector which detects the loss of its connection while it runs
+unregisters the condition the same way, and registers it again once it is
+reconnected.
+
+.. autodata:: pelix.services.condition.SERVICE_CONDITION
+.. autodata:: pelix.services.condition.CONDITION_ID
+.. autodata:: pelix.services.condition.CONDITION_ID_TRUE
+.. autodata:: pelix.services.condition.INSTANCE
+
 Service Factory
 ---------------
 

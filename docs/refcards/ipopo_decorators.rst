@@ -65,6 +65,7 @@ Requirements
 .. autoclass:: Requires
 .. autoclass:: Temporal
 .. autoclass:: RequiresBest
+.. autoclass:: RequiresCondition
 .. autoclass:: RequiresBroadcast
 .. autoclass:: RequiresMap
 .. autoclass:: RequiresVarFilter

@@ -68,6 +68,8 @@ from pelix.internals.registry import (
     ServiceRegistry,
 )
 from pelix.ldapfilter import LDAPCriteria, LDAPFilter, escape_LDAP
+from pelix.services.condition import CONDITION_ID, CONDITION_ID_TRUE, SERVICE_CONDITION
+from pelix.services.condition import INSTANCE as CONDITION_INSTANCE
 
 # Generic type var
 T = TypeVar("T")
@@ -1138,6 +1140,15 @@ class Framework(Bundle):
             # Starting...
             self._state = Bundle.STARTING
             self._dispatcher.fire_bundle_event(BundleEvent(BundleEvent.STARTING, self))
+
+            # The true condition must exist before any bundle starts (OSGi Condition Service)
+            self.register_service(
+                self,
+                SERVICE_CONDITION,
+                CONDITION_INSTANCE,
+                {CONDITION_ID: CONDITION_ID_TRUE},
+                True,
+            )
 
             # Start all registered bundles (use a copy, just in case...)
             for bundle in self.__bundles.copy().values():
