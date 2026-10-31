@@ -125,6 +125,9 @@ class SyncServlet:
     def do_POST(self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse):
         response.send_content(200, "posted", "text/plain")
 
+    def do_PATCH(self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse):
+        response.send_content(200, repr(request.get_query()), "text/plain")
+
 
 class AsyncServlet:
     """
@@ -150,6 +153,11 @@ class AsyncServlet:
         self, request: http.AbstractAsyncHTTPServletRequest, response: http.AbstractAsyncHTTPServletResponse
     ):
         await response.send_content(200, "posted", "text/plain")
+
+    async def do_async_PATCH(
+        self, request: http.AbstractAsyncHTTPServletRequest, response: http.AbstractAsyncHTTPServletResponse
+    ):
+        await response.send_content(200, repr(request.get_query()), "text/plain")
 
 
 class SyncSessionServlet:
@@ -557,6 +565,15 @@ class _AuthServerTests:
         status, headers, _ = self.request(headers={"Origin": "https://app.example.com"})
         self.assertEqual(status, 401)
         self.assertEqual(headers["Access-Control-Allow-Origin"], "*")
+
+    def test_query(self) -> None:
+        self.start_server()
+        for uri, expected in (
+            ("/test", {}),
+            ("/test?a=1&a=2&b=&c=%20x%26", {"a": ["1", "2"], "b": [""], "c": [" x&"]}),
+        ):
+            with self.subTest(uri=uri):
+                self.assertEqual(self.request("PATCH", uri, basic("alice", "abc"))[2], repr(expected))
 
     def test_sessions_disabled_by_default(self) -> None:
         self.start_server(with_authenticator=False)

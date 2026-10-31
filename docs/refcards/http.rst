@@ -592,7 +592,7 @@ Each request method has a request helper argument, which implements the
 :class:`~pelix.http.AbstractHTTPServletRequest` abstract class.
 
 .. autoclass:: pelix.http.AbstractHTTPServletRequest
-   :members: get_command, get_client_address, get_header, get_headers, get_path,
+   :members: get_command, get_client_address, get_header, get_headers, get_path, get_query,
                  get_prefix_path, get_sub_path, get_rfile, read_data
 
 HTTP response
@@ -693,7 +693,8 @@ The login servlet must be reachable without a session: set ``pelix.http.auth.req
   reverse proxy, set ``pelix.http.proxy.trusted``.
 * There is no CSRF token. ``SameSite=Lax`` with ``pelix.http.cors.enforce`` refuse cross-site requests
   which change data; changing data with ``GET`` defeats them.
-* An open WebSocket keeps the user it had when it was accepted.
+* An open WebSocket keeps the user it had when it was accepted: keep its session and check
+  ``session.is_valid()`` before acting for the user (it doesn't keep the session alive, unlike a request).
 
 
 Uploads

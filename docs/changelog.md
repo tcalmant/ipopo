@@ -213,7 +213,9 @@ Unreleased
   of the moment (`pelix.security.core.restore_subject()`, new). An unknown or
   expired cookie is an anonymous request, not a 401. The cookie is `HttpOnly`,
   `SameSite=Lax`, and `Secure` for HTTPS clients. Sessions are kept in memory,
-  per service
+  per service. `HttpSession.is_valid()` checks a session without keeping it
+  alive, e.g. from a long-lived WebSocket
+* `get_query()` on servlet requests returns the parameters of the query string
 * New `pelix.http.proxy.trusted` property: the addresses or networks of the
   reverse proxies which are believed when they tell who the client is
   (`X-Forwarded-For`) and whether it used HTTPS (`X-Forwarded-Proto`).

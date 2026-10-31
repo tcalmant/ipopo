@@ -37,6 +37,7 @@ import ssl
 import sys
 import threading
 import traceback
+import urllib.parse
 from collections.abc import Coroutine
 from typing import IO, TYPE_CHECKING, Any, cast
 
@@ -152,6 +153,12 @@ class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
         Returns the HTTP verb (GET, POST, ...) used for the request
         """
         return self._request.method.upper()
+
+    def get_query(self) -> dict[str, list[str]]:
+        """
+        Returns the parameters of the query string, blank values included
+        """
+        return urllib.parse.parse_qs(self._request.query_string, keep_blank_values=True)
 
     def get_peer_address(self) -> tuple[str, int]:
         """
@@ -387,6 +394,12 @@ class _AsyncHTTPServletRequest(http.AbstractAsyncHTTPServletRequest):
         Returns the HTTP verb (GET, POST, ...) used for the request
         """
         return self._request.method.upper()
+
+    def get_query(self) -> dict[str, list[str]]:
+        """
+        Returns the parameters of the query string, blank values included
+        """
+        return urllib.parse.parse_qs(self._request.query_string, keep_blank_values=True)
 
     def get_peer_address(self) -> tuple[str, int]:
         """

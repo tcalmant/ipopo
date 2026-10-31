@@ -37,6 +37,7 @@ import hashlib
 import html
 import ipaddress
 import logging
+import math
 import re
 import secrets
 import socket
@@ -322,7 +323,7 @@ class SessionManager:
     def __init__(self, max_inactive_interval: int) -> None:
         self._interval = max_inactive_interval
         self._lock = threading.Lock()
-        self._sessions: dict[str, list[Any]] = {}
+        self._sessions: dict[str, http.HttpSession] = {}
         self._next_sweep = time.monotonic() + max_inactive_interval
 
     @staticmethod
@@ -335,15 +336,14 @@ class SessionManager:
         """
         now = time.monotonic()
         with self._lock:
-            entry = self._sessions.get(key := self._key(session_id))
-            if entry is None:
+            session = self._sessions.get(key := self._key(session_id))
+            if session is None:
                 return None
-            if now - entry[1] > self._interval:
+            if now - session._seen > self._interval:
                 del self._sessions[key]
                 return None
-            entry[1] = now
+            session._seen = now
 
-        session: http.HttpSession = entry[0]
         session._new = False
         return session
 
@@ -357,14 +357,19 @@ class SessionManager:
             if now > self._next_sweep:
                 # Expired sessions nobody asks for are only found here
                 self._next_sweep = now + self._interval
-                for key in [k for k, (_, seen) in self._sessions.items() if now - seen > self._interval]:
+                for key in [k for k, s in self._sessions.items() if now - s._seen > self._interval]:
                     del self._sessions[key]
             if len(self._sessions) >= MAX_SESSIONS:
                 # Anyone can start a session on a public servlet: the oldest anonymous
                 # ones give way first, so that this can't log users out
-                keys = [k for k, (s, _) in self._sessions.items() if SESSION_USER not in s._attributes]
-                del self._sessions[min(keys or self._sessions, key=lambda k: self._sessions[k][1])]
-            self._sessions[self._key(session._id)] = [session, now]
+                keys = [k for k, s in self._sessions.items() if SESSION_USER not in s._attributes]
+                evicted = self._sessions.pop(
+                    min(keys or self._sessions, key=lambda k: self._sessions[k]._seen)
+                )
+                # Reads as expired, without breaking a request still using it
+                evicted._seen = -math.inf
+            session._seen = now
+            self._sessions[self._key(session._id)] = session
         return session
 
     def drop(self, session: http.HttpSession) -> None:
@@ -381,9 +386,9 @@ class SessionManager:
         :return: The new identifier
         """
         with self._lock:
-            entry = self._sessions.pop(self._key(session._id))
+            self._sessions.pop(self._key(session._id))
             session._id = secrets.token_urlsafe(32)
-            self._sessions[self._key(session._id)] = entry
+            self._sessions[self._key(session._id)] = session
         return session._id
 
 

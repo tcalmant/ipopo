@@ -33,6 +33,7 @@ import email.message
 import email.parser
 import re
 import threading
+import time
 from abc import ABC, abstractmethod
 from collections.abc import Callable, Iterable
 from dataclasses import dataclass
@@ -583,6 +584,8 @@ class HttpSession:
         self._lock = threading.Lock()
         self._new = True
         self._valid = True
+        # Last use, kept up to date by the HTTP service
+        self._seen = time.monotonic()
 
     def _check(self) -> None:
         if not self._valid:
@@ -601,6 +604,14 @@ class HttpSession:
         """
         self._check()
         return self._new
+
+    def is_valid(self) -> bool:
+        """
+        Checks if the session is still usable: neither invalidated, expired nor
+        dropped by the server. Unlike a request carrying its cookie, this doesn't
+        keep the session alive, e.g. to close a long-lived WebSocket once it expired.
+        """
+        return self._valid and time.monotonic() - self._seen <= self._max_inactive_interval
 
     def get_max_inactive_interval(self) -> int:
         """
@@ -811,6 +822,15 @@ class _RequestMixin(ABC):
         :return: A (host, port) tuple
         :raise NotImplementedError: A request class written before this method
                                     must override ``get_client_address()``
+        """
+        raise NotImplementedError
+
+    def get_query(self) -> dict[str, list[str]]:
+        """
+        Returns the parameters of the query string of the request, blank values included
+
+        :return: A dictionary: parameter name -> its values, in order
+        :raise NotImplementedError: A request class written before this method
         """
         raise NotImplementedError
 

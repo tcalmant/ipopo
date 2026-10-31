@@ -225,7 +225,7 @@ Each request method has a request helper argument, which implements the
 :class:`~pelix.http.AbstractAsyncHTTPServletRequest` abstract class.
 
 .. autoclass:: pelix.http.AbstractAsyncHTTPServletRequest
-   :members: get_command, get_client_address, get_header, get_headers, get_path,
+   :members: get_command, get_client_address, get_header, get_headers, get_path, get_query,
                get_prefix_path, get_sub_path, get_rfile, read_data
 
 Asynchronous HTTP response
