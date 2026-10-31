@@ -37,6 +37,7 @@ import pelix.http
 import pelix.remote
 from pelix.framework import Framework, create_framework
 from pelix.ipopo.constants import use_ipopo
+from pelix.remote import security
 from tests.http.gen_cert import make_certs
 from tests.http.test_basic import install_ipopo
 from tests.http.test_basic_ssl import instantiate_server
@@ -99,7 +100,10 @@ def load_framework(
                 {pelix.http.HTTP_SERVICE_ADDRESS: "0.0.0.0", pelix.http.HTTP_SERVICE_PORT: 0},
             )
 
-        ipopo.instantiate(pelix.remote.FACTORY_REGISTRY_SERVLET, "dispatcher-servlet")
+        # Peers discover each other anonymously
+        ipopo.instantiate(
+            pelix.remote.FACTORY_REGISTRY_SERVLET, "dispatcher-servlet", {security.PROP_PERMISSION: "*"}
+        )
 
         # Start the multicast discovery
         ipopo.instantiate(pelix.remote.FACTORY_DISCOVERY_MULTICAST, "multicast-discovery")
@@ -145,7 +149,10 @@ def export_framework(state_queue: Queue, transport: str, components: Iterable[tu
         # Register the exported service
         event = threading.Event()
         context.register_service(
-            SVC_SPEC, RemoteService(state_queue, event), {pelix.remote.PROP_EXPORTED_INTERFACES: "*"}
+            SVC_SPEC,
+            RemoteService(state_queue, event),
+            # Bound to all interfaces, for the multicast discovery: callers need a permission
+            {pelix.remote.PROP_EXPORTED_INTERFACES: "*", security.PROP_PERMISSION: "*"},
         )
 
         # Send the ready state

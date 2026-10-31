@@ -41,9 +41,11 @@ import pelix.remote
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
+from pelix.remote import security
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.transport import commons
 from pelix.remote.transport.xmlrpc_client import LimitedTransportMixIn
+from pelix.security import SecurityError
 from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
@@ -112,7 +114,11 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
 
         # Call the other method outside the except block, to avoid messy logs
         # in case of error
-        return self._dispatch_method(name, params)
+        try:
+            return self._dispatch_method(name, params)
+        except SecurityError as ex:
+            # An expected answer, not an internal error
+            return jsonrpclib.jsonrpc.Fault(-32001, security.refusal_message(ex))
 
     def do_POST(
         self, request: pelix.http.AbstractHTTPServletRequest, response: pelix.http.AbstractHTTPServletResponse
@@ -149,6 +155,7 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
 @Provides(pelix.remote.RemoteServiceExportProvider)
 @Requires("_http", pelix.http.HTTPService)
 @Property("_path", pelix.http.HTTP_SERVLET_PATH, "/JSON-RPC")
+@Property("_auth_required", security.PROP_AUTH_REQUIRED, None)
 @Property(
     "_kinds",
     pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
@@ -174,6 +181,13 @@ class JsonRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
         # JSON-RPC servlet
         self._servlet: pelix.http.Servlet | None = None
+        self._auth_required: bool | None = None
+
+    def is_local_only(self) -> bool:
+        """
+        Tells if the HTTP service can only be reached from the local host
+        """
+        return security.is_loopback_host(self._http.get_access()[0])
 
     def get_access(self) -> str:
         """
@@ -205,7 +219,11 @@ class JsonRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
         # Create/register the servlet
         self._servlet = _JsonRpcServlet(self.dispatch)
-        self._http.register_servlet(self._path, self._servlet)
+        # Without the property, the setting of the HTTP service applies
+        parameters = (
+            None if self._auth_required is None else {pelix.http.HTTP_AUTH_REQUIRED: self._auth_required}
+        )
+        self._http.register_servlet(self._path, self._servlet, parameters)
 
     @Invalidate
     def invalidate(self, context: BundleContext) -> None:

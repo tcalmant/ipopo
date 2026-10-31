@@ -36,6 +36,7 @@ import pelix.remote
 from pelix.framework import Framework, FrameworkFactory, create_framework
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
+from pelix.remote import security
 from tests.mqtt_utilities import find_mqtt_server
 from tests.utilities import WrappedProcess
 
@@ -191,7 +192,10 @@ def export_framework(
         # Register the exported service
         event = threading.Event()
         context.register_service(
-            SVC_SPEC, RemoteService(state_queue, event), {pelix.remote.PROP_EXPORTED_INTERFACES: "*"}
+            SVC_SPEC,
+            RemoteService(state_queue, event),
+            # Reached through a shared broker: callers need a permission
+            {pelix.remote.PROP_EXPORTED_INTERFACES: "*", security.PROP_PERMISSION: "*"},
         )
 
         # Send the ready state

@@ -38,9 +38,11 @@ from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
 from pelix.misc import jabsorb
+from pelix.remote import security
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.json_rpc import make_client_transport
 from pelix.remote.transport import commons
+from pelix.security import SecurityError
 from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
@@ -114,7 +116,11 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
 
         # Avoid calling this method in the "except" block, as it would be in
         # an exception state (logs will consider the KeyError as a failure)
-        return self._dispatch_method(name, params)
+        try:
+            return self._dispatch_method(name, params)
+        except SecurityError as ex:
+            # An expected answer, not an internal error
+            return jsonrpclib.Fault(-32001, security.refusal_message(ex))
 
     def do_POST(
         self, request: pelix.http.AbstractHTTPServletRequest, response: pelix.http.AbstractHTTPServletResponse
@@ -164,6 +170,7 @@ class _JabsorbRpcServlet(SimpleJSONRPCDispatcher):
 @Provides(pelix.remote.RemoteServiceExportProvider)
 @Requires("_http", pelix.http.HTTPService)
 @Property("_path", pelix.http.HTTP_SERVLET_PATH, HOST_SERVLET_PATH)
+@Property("_auth_required", security.PROP_AUTH_REQUIRED, None)
 @Property(
     "_kinds",
     pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED,
@@ -188,6 +195,13 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
 
         # JSON-RPC servlet
         self._servlet: pelix.http.Servlet | None = None
+        self._auth_required: bool | None = None
+
+    def is_local_only(self) -> bool:
+        """
+        Tells if the HTTP service can only be reached from the local host
+        """
+        return security.is_loopback_host(self._http.get_access()[0])
 
     def make_endpoint_properties(
         self, svc_ref: ServiceReference[Any], name: str, fw_uid: str | None
@@ -241,7 +255,11 @@ class JabsorbRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # Create/register the servlet
         self._servlet = _JabsorbRpcServlet(self.dispatch)
         self._path = self._path or ""
-        self._http.register_servlet(self._path, self._servlet)
+        # Without the property, the setting of the HTTP service applies
+        parameters = (
+            None if self._auth_required is None else {pelix.http.HTTP_AUTH_REQUIRED: self._auth_required}
+        )
+        self._http.register_servlet(self._path, self._servlet, parameters)
 
     @Invalidate
     def invalidate(self, context: BundleContext) -> None:

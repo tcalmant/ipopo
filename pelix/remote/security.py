@@ -57,6 +57,7 @@ from pelix.security import (
     AuthenticationRequired,
     Credentials,
     Permission,
+    SecurityError,
     UsernamePassword,
     get_current_subject,
     use_authorization,
@@ -100,6 +101,7 @@ __all__ = [
     "get_auth_headers",
     "get_remote_method",
     "is_loopback_host",
+    "refusal_message",
 ]
 
 _logger = logging.getLogger(__name__)
@@ -252,6 +254,16 @@ def check_permission(context: "BundleContext", permission: Permission) -> None:
     if not subject.authenticated:
         raise AuthenticationRequired(f"Not permitted: {permission}")
     raise AccessDenied(f"Not permitted: {permission}")
+
+
+def refusal_message(error: SecurityError) -> str:
+    """
+    Describes a refusal to a remote caller: never with the permission, which describes the policy
+
+    :param error: The refusal
+    :return: The message for the caller
+    """
+    return "Authentication required" if isinstance(error, AuthenticationRequired) else "Access denied"
 
 
 def check_call(

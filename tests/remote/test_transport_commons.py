@@ -12,7 +12,7 @@ import time
 import unittest
 import uuid
 import xmlrpc.client as xmlrpclib
-from typing import Any, Self, cast
+from typing import Any, Protocol, Self, cast
 from unittest import mock
 
 import jsonrpclib.jsonrpc
@@ -23,10 +23,12 @@ import pelix.remote
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides
-from pelix.remote import RemoteServiceDispatcher, RemoteServiceError, json_rpc, xml_rpc
+from pelix.remote import RemoteServiceDispatcher, RemoteServiceError, json_rpc, security, xml_rpc
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.transport import commons, jabsorb_rpc, xmlrpc_client
 from pelix.rsa.providers.distribution.xmlrpc import XmlRpcImportContainer
+from pelix.security import ANONYMOUS, AccessDenied, AuthenticationRequired, Authorization, Subject, run_as
+from tests.remote.test_security import FakeAuthorization
 
 # ------------------------------------------------------------------------------
 
@@ -88,6 +90,24 @@ class DummyService:
         return self._secret
 
 
+@pelix.constants.Specification("sample.typed")
+class TypedSpec(Protocol):
+    """
+    Specification of the typed service
+    """
+
+    def call_me(self) -> Any: ...
+
+
+class TypedService(DummyService, TypedSpec):
+    """
+    Exported service implementing a typed specification and an extra public method
+    """
+
+    def extra(self) -> str:
+        return "extra"
+
+
 @ComponentFactory(TEST_EXPORTER_FACTORY)
 @Provides(pelix.remote.RemoteServiceExportProvider)
 @Property("_kinds", pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED, (TEST_CONFIGURATION,))
@@ -105,12 +125,16 @@ class Exporter(commons.AbstractRpcServiceExporter):
 
         self.events: list[int] = []
         self.raise_exception = False
+        self.local_only = True
 
     def clear(self) -> None:
         """
         Clears the state
         """
         del self.events[:]
+
+    def is_local_only(self) -> bool:
+        return self.local_only
 
     def make_endpoint_properties(
         self, svc_ref: ServiceReference[Any], name: str, fw_uid: str | None
@@ -414,6 +438,46 @@ class AbstractCommonExporterTest(unittest.TestCase):
 
         # Unregister the service
         svc_reg.unregister()
+
+    def testExportDispatchSecurity(self) -> None:
+        """
+        Tests the authorization of the calls and the restriction to the exported specification
+        """
+        exporter = self._install_exporter()
+        context = self.framework.get_bundle_context()
+        context.register_service(Authorization, FakeAuthorization({"granted"}), {})
+        alice = Subject("alice", authenticated=True)
+
+        # local only, export permission, subject, method, expected exception
+        cases: list[tuple[bool, str | None, Subject, str, type[Exception] | None]] = [
+            (True, None, ANONYMOUS, "call_me", None),
+            (True, None, ANONYMOUS, "extra", RemoteServiceError),
+            (False, None, ANONYMOUS, "call_me", AuthenticationRequired),
+            (False, None, alice, "call_me", AccessDenied),
+            (False, "*", ANONYMOUS, "call_me", None),
+            (False, "granted", alice, "call_me", None),
+            (True, "other", alice, "call_me", AccessDenied),
+        ]
+        for local_only, permission, subject, method, expected in cases:
+            with self.subTest(
+                local_only=local_only, permission=permission, subject=subject.name, method=method
+            ):
+                exporter.local_only = local_only
+                properties: dict[str, Any] = {pelix.remote.PROP_EXPORTED_INTERFACES: "*"}
+                if permission is not None:
+                    properties[security.PROP_PERMISSION] = permission
+                service = TypedService()
+                svc_reg = context.register_service(TypedSpec, service, properties)
+                try:
+                    name = f"{self.dispatcher.get_endpoints()[0].name}.{method}"
+                    with run_as(subject):
+                        if expected is None:
+                            self.assertEqual(exporter.dispatch(name, []), service.value)
+                        else:
+                            self.assertRaises(expected, exporter.dispatch, name, [])
+                            self.assertListEqual(service.events, [])
+                finally:
+                    svc_reg.unregister()
 
     def testExportRename(self) -> None:
         """

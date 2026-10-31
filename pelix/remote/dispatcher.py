@@ -51,7 +51,7 @@ from pelix.ipopo.decorators import (
     UnbindField,
     Validate,
 )
-from pelix.remote import beans
+from pelix.remote import beans, security
 from pelix.remote.transport.commons import (
     DEFAULT_CLIENT_MAX_RESPONSE_SIZE,
     DEFAULT_CLIENT_TIMEOUT,
@@ -59,6 +59,7 @@ from pelix.remote.transport.commons import (
     get_client_limits,
     read_response,
 )
+from pelix.security import Permission, SecurityError
 from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
@@ -498,6 +499,7 @@ class Dispatcher(pelix.remote.RemoteServiceDispatcher):
 @Requires("_dispatcher", pelix.remote.RemoteServiceDispatcher)
 @Requires("_registry", pelix.remote.RemoteServiceRegistry)
 @Property("_path", pelix.http.HTTP_SERVLET_PATH, "/pelix-dispatcher")
+@Property("_permission", security.PROP_PERMISSION, None)
 class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
     """
     Servlet to access the content of the registry
@@ -529,6 +531,13 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         # Limits of the requests to the discovered frameworks
         self._limits = ClientLimits(DEFAULT_CLIENT_TIMEOUT, DEFAULT_CLIENT_MAX_RESPONSE_SIZE)
 
+        # Ports of the servers reachable from other hosts
+        self._remote_ports: set[int] = set()
+
+        # Permission required to use the servlet, "*" for none
+        self._permission: str | None = None
+        self._context: pelix.framework.BundleContext | None = None
+
     @Validate
     def _validate(self, context: pelix.framework.BundleContext) -> None:
         """
@@ -537,6 +546,7 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         # Get the framework UID
         self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
         self._limits = get_client_limits(context)
+        self._context = context
 
         # Normalize the path
         self._path = f"/{'/'.join(part for part in (self._path or '').split('/') if part)}/"
@@ -636,6 +646,8 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         if port not in self._ports:
             # Get its access port
             self._ports.append(port)
+            if not security.is_loopback_host(parameters.get(pelix.http.PARAM_ADDRESS)):
+                self._remote_ports.add(port)
 
             # Activate the service, we're bound to a server
             self._controller = True
@@ -651,10 +663,30 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         if port in self._ports:
             # Remove its access port
             self._ports.remove(port)
+            self._remote_ports.discard(port)
 
             # Deactivate the service if no more server available
             if not self._ports:
                 self._controller = False
+
+    def __check_permission(self, response: pelix.http.AbstractHTTPServletResponse, permission: str) -> bool:
+        """
+        Checks that the caller can use the servlet, with the same rules as an exported service
+
+        :param response: Response handler, to send the refusal
+        :param permission: The permission needed when none is declared
+        :return: True if the request can be handled
+        """
+        if self._permission == "*" or (self._permission is None and not self._remote_ports):
+            return True
+
+        assert self._context is not None
+        try:
+            security.check_permission(self._context, Permission.parse(self._permission or permission))
+        except SecurityError as ex:
+            response.send_content(403, security.refusal_message(ex), "text/plain")
+            return False
+        return True
 
     def do_GET(
         self, request: pelix.http.AbstractHTTPServletRequest, response: pelix.http.AbstractHTTPServletResponse
@@ -665,6 +697,9 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         :param request: Request handler
         :param response: Response handler
         """
+        if not self.__check_permission(response, security.PERMISSION_ENDPOINTS_READ):
+            return
+
         # Route on the normalized sub path: segment counting would shift with an extra slash or dot
         path_parts = [part for part in request.get_sub_path().split("/") if part]
         if not path_parts:
@@ -732,6 +767,9 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
             return
 
         if not pelix.http.check_content_type(request, response, pelix.http.JSON_CONTENT_TYPES):
+            return
+
+        if not self.__check_permission(response, security.PERMISSION_ENDPOINTS_PUBLISH):
             return
 
         # Read the content

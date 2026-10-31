@@ -42,8 +42,7 @@ from pelix import constants
 from pelix.framework import BundleContext
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo.decorators import Invalidate, Property, Provides, Validate
-from pelix.remote import PROP_CLIENT_MAX_RESPONSE_SIZE, PROP_CLIENT_TIMEOUT, RemoteServiceError
-from pelix.utilities import get_remote_method
+from pelix.remote import PROP_CLIENT_MAX_RESPONSE_SIZE, PROP_CLIENT_TIMEOUT, RemoteServiceError, security
 
 # ------------------------------------------------------------------------------
 
@@ -195,12 +194,18 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
 
         # Get the service
         try:
-            service = self.__endpoints[matching].instance
+            endpoint = self.__endpoints[matching]
         except KeyError:
             raise RemoteServiceError(f"Unknown endpoint: {matching}")
 
-        # Get the method: only the public API of the service can be called remotely
-        method_ref = get_remote_method(service, method_name)
+        assert self._context is not None
+        reference = endpoint.reference
+        security.check_call(self._context, reference.get_properties(), matching, self.is_local_only())
+
+        # Get the method: only the public API of the exported specifications can be called remotely
+        method_ref = security.get_remote_method(
+            endpoint.instance, method_name, pelix.remote.beans.compute_exported_specifications(reference)
+        )
         if method_ref is None:
             # Same error as an unknown method: a caller must not be able to tell
             # a refused method from a missing one
@@ -212,6 +217,15 @@ class AbstractRpcServiceExporter(pelix.remote.RemoteServiceExportProvider):
             return method_ref(**params)
 
         return method_ref(*params)
+
+    def is_local_only(self) -> bool:
+        """
+        Tells if the transport can only be reached from the local host, in which case
+        exported services which declare no permission can be called by anybody
+
+        :return: True if only local callers can reach the transport
+        """
+        return False
 
     def handles(self, configs: None | str | Iterable[str]) -> bool:
         """
