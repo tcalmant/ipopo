@@ -599,6 +599,14 @@ What's your name? Thomas
 Hello, Thomas !
 ```
 
+A command reading a password calls `session.prompt_secret("Password: ")` instead of
+`session.prompt()`: it returns the line, without its end of line, as a
+`pelix.security.Secret[str]` (see the security reference card). The console reads it
+without echo, like `getpass`. The remote and XMPP shells can't: the client shows what
+it types, as it does with the login password of the remote shell. A front end with no
+input (a session given only an output, a closed stream) raises an `EOFError`, which the
+shell reports as the error of the command, rather than returning an empty secret.
+
 The I/O handling of the `session` argument is implemented by the shell
 UI and hides the ways used to communicate with the client. The code of
 this example works with all UIs: local text UI, remote shell and XMPP

@@ -384,6 +384,10 @@ Unreleased
 
 ### Shell
 
+* Added `ShellSession.prompt_secret()` (and `IOHandler.prompt_secret()`): it reads
+  a line as a `pelix.security.Secret`, without echo in the console. The remote
+  and XMPP shells have no echo control. It raises an `EOFError` when there is
+  nothing to read
 * The remote shell can listen on a Unix domain socket (Linux and macOS), with
   the new `pelix.shell.unix.path` property or the `--unix` argument of
   `python -m pelix.shell.remote`. The socket is created with the mode `0600` in
