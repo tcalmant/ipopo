@@ -273,7 +273,13 @@ class HostTest(unittest.TestCase):
             with self.subTest(address=address):
                 service = HttpServiceImpl()
                 service._address = address
-                service._normalize_configuration()
+                if expected is None:
+                    # Open to DNS rebinding: said at validation
+                    with self.assertLogs("pelix.http._base", "WARNING") as logs:
+                        service._normalize_configuration()
+                    self.assertIn("pelix.http.allowed_hosts", logs.output[0])
+                else:
+                    service._normalize_configuration()
                 self.assertEqual(service._allowed_hosts, expected)
 
     def test_socket_timeout(self) -> None:

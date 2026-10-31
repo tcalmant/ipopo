@@ -11,15 +11,23 @@ import http.client as httplib
 import importlib.util
 import json
 import os
+import shutil
 import socket
+import tempfile
+import time
 import unittest
 from email.message import Message
 from typing import Any, cast
 
-from pelix import http
-from pelix.framework import Framework, FrameworkFactory, ServiceRegistration
+from pelix import http, services
+from pelix.framework import Framework, FrameworkFactory, ServiceRegistration, create_framework
 from pelix.http import cors
-from pelix.ipopo.constants import IPopoService
+from pelix.ipopo.constants import (
+    IPOPO_CONFIG_FACTORY_NAME,
+    IPOPO_CONFIGADMIN_FACTORY_PID,
+    IPOPO_INSTANCE_NAME,
+    IPopoService,
+)
 from tests.http.utils import DEFAULT_HOST, install_ipopo
 
 # ------------------------------------------------------------------------------
@@ -333,6 +341,7 @@ class _CorsServerTests:
     assertTrue: Any
     assertFalse: Any
     assertLogs: Any
+    subTest: Any
 
     def setUp(self) -> None:
         self.framework = FrameworkFactory.get_framework()
@@ -731,11 +740,107 @@ class _CorsServerTests:
         finally:
             conn.close()
 
+    def test_live_update(self) -> None:
+        """
+        An update of the header checks (e.g. by ConfigurationAdmin, with the default reconfigure
+        policy) applies to the running server; the address and the port need a restart
+        """
+        self.register_servlet()
+        rebound = {"Host": "rebound.example", "Origin": "http://rebound.example"}
+        self.assertEqual(self.request(headers=rebound)[0], 403)
+
+        port = self.port
+        for properties, expected in (
+            ({http.HTTP_ALLOWED_HOSTS: f"rebound.example, {DEFAULT_HOST}"}, 200),
+            ({http.HTTP_ALLOWED_HOSTS: None}, 403),
+            ({http.HTTP_ALLOWED_HOSTS: "", http.HTTP_CORS_ENFORCE: "true"}, 200),
+            (
+                {http.HTTP_ALLOWED_HOSTS: "", http.HTTP_CORS_ENFORCE: "true", http.HTTP_MAX_BODY_SIZE: "10"},
+                200,
+            ),
+        ):
+            with self.subTest(properties=properties):
+                self.ipopo.reconfigure(SERVER_NAME, properties)
+                self.assertEqual(self.request(headers=rebound)[0], expected)
+        self.assertEqual(self.request(headers={"Origin": OTHER_ORIGIN})[0], 403)
+        self.ipopo.reconfigure(SERVER_NAME, {http.HTTP_CORS_ENFORCE: "false"})
+        self.assertEqual(self.request(headers={"Origin": OTHER_ORIGIN})[0], 200)
+
+        # The server keeps its port, and the component says so
+        with self.assertLogs(SERVER_NAME, "WARNING"):
+            self.ipopo.reconfigure(SERVER_NAME, {http.HTTP_SERVICE_PORT: port + 1})
+        details = self.ipopo.get_instance_details(SERVER_NAME)
+        self.assertEqual(str(details["properties"][http.HTTP_SERVICE_PORT]), str(port))
+        self.assertEqual(self.request()[0], 200)
+
 
 class BasicCorsTest(_CorsServerTests, unittest.TestCase):
     """
     CORS on the basic HTTP service
     """
+
+
+class ConfigAdminHostsTest(unittest.TestCase):
+    """
+    The allowed hosts of an HTTP service created by a ConfigurationAdmin factory configuration
+    """
+
+    def test_update(self) -> None:
+        folder = tempfile.mkdtemp()
+        self.addCleanup(shutil.rmtree, folder, True)
+        framework = create_framework(
+            (
+                "pelix.ipopo.core",
+                "pelix.ipopo.waiting",
+                "pelix.services.configadmin",
+                "pelix.ipopo.configadmin",
+                "pelix.http.basic",
+            ),
+            {"configuration.folder": folder},
+        )
+        self.addCleanup(FrameworkFactory.delete_framework)
+        framework.start()
+        context = framework.get_bundle_context()
+        config_admin = context.get_service(
+            cast(Any, context.get_service_reference(services.IConfigurationAdmin))
+        )
+
+        # A free port, given explicitly: the configuration must match the running server
+        with socket.socket() as sock:
+            sock.bind((DEFAULT_HOST, 0))
+            port = sock.getsockname()[1]
+
+        properties = {
+            IPOPO_CONFIG_FACTORY_NAME: http.FACTORY_HTTP_BASIC,
+            IPOPO_INSTANCE_NAME: SERVER_NAME,
+            http.HTTP_SERVICE_ADDRESS: DEFAULT_HOST,
+            http.HTTP_SERVICE_PORT: port,
+        }
+        config = config_admin.create_factory_configuration(IPOPO_CONFIGADMIN_FACTORY_PID)
+        config.update(properties)
+        context.register_service(http.HTTP_SERVLET, SyncServlet(), {http.HTTP_SERVLET_PATH: "/test"})
+
+        def status() -> int | None:
+            conn = httplib.HTTPConnection(DEFAULT_HOST, port, timeout=5)
+            try:
+                conn.request("GET", "/test", headers={"Host": "app.example.com"})
+                return conn.getresponse().status
+            except OSError:
+                return None
+            finally:
+                conn.close()
+
+        for update, expected in (({}, 403), ({http.HTTP_ALLOWED_HOSTS: "app.example.com"}, 200), (None, 403)):
+            with self.subTest(update=update):
+                if update is not None:
+                    config.update({**properties, **update})
+                else:
+                    # Back to the default allowed hosts
+                    config.update(properties)
+                deadline = time.monotonic() + 5
+                while status() != expected and time.monotonic() < deadline:
+                    time.sleep(0.05)
+                self.assertEqual(status(), expected)
 
 
 @unittest.skipUnless(HAS_AIOHTTP, "aiohttp not installed")

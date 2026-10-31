@@ -112,6 +112,69 @@ pelix.http.auth.realm           Pelix     Protection space given in the
    The asynchronous service accepts the property, as it is common to all the
    implementations, but leaves the timeouts of the connections to ``aiohttp``.
 
+.. _http_host_checks:
+
+Host checks and configuration updates
+-------------------------------------
+
+Since 3.3.0, a server bound to a loopback address (the default) refuses the
+requests whose ``Host`` header is not ``localhost``, ``127.0.0.1`` or
+``[::1]``, and a server bound to another address (``0.0.0.0``, a LAN address)
+logs a warning at start if ``pelix.http.allowed_hosts`` is not set: it is open
+to DNS rebinding. Set the property to the names the clients use, or to an empty
+string to accept any ``Host`` without the warning.
+
+Steps to migrate from 3.2:
+
+* behind a reverse proxy which keeps the public ``Host`` header (as required
+  with ``pelix.http.proxy.trusted``), add the public name to
+  ``pelix.http.allowed_hosts``, e.g. ``app.example.com, localhost``: the server
+  answers 403 to the requests forwarded by the proxy otherwise;
+* list the names of a server bound to another address, e.g. its host name and
+  the names the remote services peers use;
+* give a CORS policy to the pages of other origins which call the server (see
+  :ref:`http_cors`), or set ``pelix.http.cors.enforce`` to ``False``.
+
+``pelix.http.allowed_hosts``, ``pelix.http.cors.enforce``,
+``pelix.http.proxy.trusted``, ``pelix.http.max_body_size``,
+``pelix.http.socket_timeout`` and the ``pelix.http.auth.*`` properties apply to
+the running server when the component is reconfigured, for example by
+:ref:`ipopo_configadmin` with the default ``reconfigure`` update policy: the
+next requests use them, without restarting the server. The address, the port,
+the TLS and the session properties are only read when the server starts: the
+running server keeps its previous values, with a warning, unless the
+configuration uses the ``restart`` update policy.
+
+Here is an HTTP service managed by ConfigurationAdmin (with the
+``pelix.services.configadmin`` and ``pelix.ipopo.configadmin`` bundles), whose
+allowed names are then updated live:
+
+.. code-block:: python
+
+   from pelix.ipopo.constants import (
+       IPOPO_CONFIG_FACTORY_NAME,
+       IPOPO_CONFIGADMIN_FACTORY_PID,
+       IPOPO_INSTANCE_NAME,
+   )
+
+   config = config_admin.create_factory_configuration(IPOPO_CONFIGADMIN_FACTORY_PID)
+   properties = {
+       IPOPO_CONFIG_FACTORY_NAME: pelix.http.FACTORY_HTTP_BASIC,
+       IPOPO_INSTANCE_NAME: "http-server",
+       pelix.http.HTTP_SERVICE_ADDRESS: "0.0.0.0",
+       pelix.http.HTTP_SERVICE_PORT: 8080,
+   }
+   config.update(properties)
+
+   # Later: only accept the names of the machine
+   config.update({**properties, pelix.http.HTTP_ALLOWED_HOSTS: "server.example.com, localhost"})
+
+The same update from the Pelix shell (``pelix.shell.configadmin`` bundle):
+
+.. code-block:: text
+
+   $ config.update pelix.ipopo.component-3d5b0f6e-... pelix.http.allowed_hosts=server.example.com,localhost
+
 Request paths
 -------------
 

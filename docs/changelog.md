@@ -80,9 +80,12 @@ Unreleased
   services, to refuse requests whose `Host` header is not listed (DNS
   rebinding). The header was not checked at all. A service bound to a loopback
   address accepts `localhost`, `127.0.0.1` and `[::1]` by default; set the
-  property to the other names, e.g. the public name given by a reverse proxy,
-  or to an empty string to disable the check. A service bound to another
-  address doesn't check the header unless the property is set
+  property to the other names, or to an empty string to disable the check.
+  Migration: behind a reverse proxy which keeps the public `Host` header (as
+  `pelix.http.proxy.trusted` requires), add the public name to the property,
+  or the proxied requests get a 403 error code. A service bound to another
+  address doesn't check the header unless the property is set, and logs a
+  warning at start about DNS rebinding
 * **Breaking:** the remote services dispatcher servlet (`/endpoints`) and the
   JSON-RPC, Jabsorb-RPC, XML-RPC and RSA XML-RPC servlets answer a 415 error
   code to a `POST` whose `Content-Type` is not JSON (`application/json`,
@@ -141,6 +144,14 @@ Unreleased
   answered with a 400 error code
 * The basic and async HTTP services share the checks of the `Host` and
   `Origin` headers, done before looking for a servlet
+* An update of `pelix.http.allowed_hosts`, `pelix.http.cors.enforce`,
+  `pelix.http.proxy.trusted`, `pelix.http.max_body_size`,
+  `pelix.http.socket_timeout` or `pelix.http.auth.*` (e.g. by the
+  ConfigurationAdmin bridge) applies to the running HTTP service, without
+  restarting it. The address, port, TLS and session properties still need a
+  restart (`ipopo.update.policy=restart`): the running service keeps their
+  previous values, with a warning. Before, the updated values reached the
+  service without being normalized
 * Async HTTP service: stopping it with a WebSocket open no longer blocks. The
   open sessions are closed with the code 1001 and `ws_close()` is called
 * `WebSocketSession` has `submit_text()`, `submit_binary()` and

@@ -52,7 +52,7 @@ from pelix import http, utilities
 from pelix.http import auth, cors
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo import constants
-from pelix.ipopo.decorators import HiddenProperty, Property
+from pelix.ipopo.decorators import HiddenProperty, Modified, Property
 from pelix.security import ANONYMOUS, ATTRIBUTE_SESSION_ID, Subject
 
 # ------------------------------------------------------------------------------
@@ -102,6 +102,18 @@ Local address, if None is given as binding address, instead of the default one
 
 LOOPBACK_HOST_NAMES = ("localhost", "127.0.0.1", "[::1]")
 """ Default ``pelix.http.allowed_hosts`` of a service bound to a loopback address """
+
+# Property -> field of the properties only read when the server starts
+_RESTART_FIELDS = {
+    http.HTTP_SERVICE_ADDRESS: "_address",
+    http.HTTP_SERVICE_PORT: "_port",
+    http.HTTPS_CERT_FILE: "_cert_file",
+    http.HTTPS_KEY_FILE: "_key_file",
+    http.HTTPS_KEY_PASSWORD: "_key_password",
+    http.HTTP_SESSION_ENABLED: "_session_enabled",
+    http.HTTP_SESSION_MAX_INACTIVE_INTERVAL: "_session_interval",
+    http.HTTP_SESSION_COOKIE_NAME: "_session_cookie",
+}
 
 DEFAULT_REQUEST_QUEUE_SIZE = 5
 """ Default size of the queue of clients waiting to be handled """
@@ -564,6 +576,7 @@ class AbstractHttpService(http.HTTPService):
     def __init__(self) -> None:
         # Properties
         self._address = DEFAULT_BIND_ADDRESS
+        self._loopback_bind = True
         self._port = 8080
         self._debug_errors = False
         self._max_body_size: int | None = 1024 * 1024
@@ -669,35 +682,14 @@ class AbstractHttpService(http.HTTPService):
             # Ensure the port is positive (or set it to 0 for a random port)
             self._port = max(self._port, 0)
 
-        # Normalize the resource limits: a non-positive value removes the limit
-        self._max_body_size = normalize_max_body_size(self._max_body_size)
-
-        # None: already normalized as "no timeout" by a previous validation
-        if self._socket_timeout is not None:
-            try:
-                self._socket_timeout = float(self._socket_timeout)
-            except (TypeError, ValueError):
-                # Fail closed: an invalid value must not remove the timeout
-                self.log(logging.WARNING, "Invalid socket timeout %r: using 60 seconds", self._socket_timeout)
-                self._socket_timeout = 60.0
-            else:
-                if self._socket_timeout <= 0:
-                    self._socket_timeout = None
+        address = _parse_ip(self._address)
+        self._loopback_bind = self._address.lower() == "localhost" or (
+            address is not None and address.is_loopback
+        )
 
         # Normalize the extra properties
         if not isinstance(self._extra, dict):
             self._extra = {}
-
-        # Normalize the origin and host checks
-        self._cors_enforce = _to_bool(self._cors_enforce)
-        address = _parse_ip(self._address)
-        if self._allowed_hosts is None and (
-            self._address.lower() == "localhost" or (address is not None and address.is_loopback)
-        ):
-            # Only a local client can reach a loopback address: another name is DNS rebinding
-            self._allowed_hosts = LOOPBACK_HOST_NAMES
-        self._allowed_hosts = normalize_allowed_hosts(self._allowed_hosts)
-        self._proxy_trusted = normalize_trusted_proxies(self._proxy_trusted)
 
         # Normalize the sessions: each start of the service forgets the previous ones
         try:
@@ -716,10 +708,69 @@ class AbstractHttpService(http.HTTPService):
             )
             self._session_cookie = "PELIXSESSIONID"
 
+        self._normalize_live_configuration()
+        if self._allowed_hosts is None and not self._loopback_bind:
+            self.log(
+                logging.WARNING,
+                "The HTTP service is bound to %s without pelix.http.allowed_hosts: it is open to DNS "
+                "rebinding. See https://ipopo.readthedocs.io/en/latest/refcards/http.html",
+                self._address,
+            )
+
+    def _normalize_live_configuration(self) -> None:
+        """
+        Normalizes the properties applied to each request: limits, header checks
+        and authentication. They can change while the server runs.
+        """
+        # Normalize the resource limits: a non-positive value removes the limit
+        self._max_body_size = normalize_max_body_size(self._max_body_size)
+
+        # None: already normalized as "no timeout" by a previous validation
+        if self._socket_timeout is not None:
+            try:
+                self._socket_timeout = float(self._socket_timeout)
+            except (TypeError, ValueError):
+                # Fail closed: an invalid value must not remove the timeout
+                self.log(logging.WARNING, "Invalid socket timeout %r: using 60 seconds", self._socket_timeout)
+                self._socket_timeout = 60.0
+            else:
+                if self._socket_timeout <= 0:
+                    self._socket_timeout = None
+
+        # Normalize the origin and host checks
+        self._cors_enforce = _to_bool(self._cors_enforce)
+        if self._allowed_hosts is None and self._loopback_bind:
+            # Only a local client can reach a loopback address: another name is DNS rebinding
+            self._allowed_hosts = LOOPBACK_HOST_NAMES
+        self._allowed_hosts = normalize_allowed_hosts(self._allowed_hosts)
+        self._proxy_trusted = normalize_trusted_proxies(self._proxy_trusted)
+
         # Normalize the authentication configuration
         self._auth_required = _to_bool(self._auth_required)
         self._auth_realm = str(self._auth_realm or auth.DEFAULT_REALM)
         self._auth_warnings.clear()
+
+    @Modified
+    def _modified(self, properties: dict[str, Any], old_properties: dict[str, Any]) -> None:
+        """
+        Applies an update of the properties (e.g. by ConfigurationAdmin) to the
+        running server, except those only read when it starts
+        """
+        restart = []
+        for name in properties.keys() & _RESTART_FIELDS.keys():
+            # Still served with the previous value: the component must not tell otherwise
+            setattr(self, _RESTART_FIELDS[name], old_properties.get(name))
+            # A configuration from the shell gives "8080" for 8080
+            if str(properties[name]) != str(old_properties.get(name)):
+                restart.append(name)
+        if restart:
+            self.log(
+                logging.WARNING,
+                "%s: only applied when the HTTP service starts again (ipopo.update.policy=restart)",
+                ", ".join(sorted(restart)),
+            )
+
+        self._normalize_live_configuration()
 
     def get_max_body_size(self) -> int | None:
         """
