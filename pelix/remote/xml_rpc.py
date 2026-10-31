@@ -28,6 +28,7 @@ Based on standard package xmlrpclib
 """
 
 import logging
+import uuid
 import xmlrpc.client as xmlrpclib
 from collections.abc import Callable, Iterable
 from typing import Any
@@ -40,7 +41,7 @@ from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.transport import commons
-from pelix.utilities import to_str
+from pelix.utilities import check_xml_no_doctype, to_str
 
 # ------------------------------------------------------------------------------
 
@@ -102,7 +103,13 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher, pelix.http.Servlet):
 
         # Call the other method outside the except block, to avoid messy logs
         # in case of error
-        return self._dispatch_method(name, params)
+        try:
+            return self._dispatch_method(name, params)
+        except Exception:
+            # The stdlib would send the error message: only the log gets the details
+            error_id = uuid.uuid4().hex
+            _logger.exception("Error %s calling %s", error_id, name)
+            raise xmlrpclib.Fault(1, f"Internal error. Error ID: {error_id}") from None
 
     def do_POST(
         self, request: pelix.http.AbstractHTTPServletRequest, response: pelix.http.AbstractHTTPServletResponse
@@ -113,8 +120,18 @@ class _XmlRpcServlet(SimpleXMLRPCDispatcher, pelix.http.Servlet):
         :param request: The HTTP request bean
         :param response: The HTTP response handler
         """
+        if not pelix.http.check_content_type(request, response, pelix.http.XML_CONTENT_TYPES):
+            return
+
         # Get the request content
         data = to_str(request.read_data())
+
+        try:
+            # Refuse documents declaring entities before giving them to the parser
+            check_xml_no_doctype(data)
+        except ValueError:
+            response.send_content(400, "Document type declarations are not accepted", "text/plain")
+            return
 
         # Dispatch
         result = self._marshaled_dispatch(data, self._simple_dispatch)

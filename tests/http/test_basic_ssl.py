@@ -9,6 +9,7 @@ Pelix basic HTTP service test module.
 import http.client as httplib
 import logging
 import shutil
+import socket
 import sys
 import unittest
 from typing import Any
@@ -71,7 +72,7 @@ def get_https_code(
     # Don't check the host name, as it depends on the test machine
     ctx.check_hostname = False
 
-    conn = httplib.HTTPSConnection(host, port, context=ctx)
+    conn = httplib.HTTPSConnection(host, port, context=ctx, timeout=10)
     conn.connect()
     conn.request(method, uri, content, headers or {})
     result = conn.getresponse()
@@ -178,6 +179,15 @@ class BasicHTTPSTest(unittest.TestCase):
         )
         port = srv.get_access()[1]
         self.assertEqual(get_https_code(port=port), 404, "Received something other than a 404")
+
+    def testIdleClient(self) -> None:
+        """
+        A client which never starts the TLS handshake must not block the others
+        """
+        srv = self.instantiate_server(cert_file="server.crt", key_file="server.key")
+        port = srv.get_access()[1]
+        with socket.create_connection((DEFAULT_HOST, port)):
+            self.assertEqual(get_https_code(port=port), 404, "Received something other than a 404")
 
 
 # ------------------------------------------------------------------------------

@@ -721,6 +721,9 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
             response.send_content(404, "Unhandled path", "text/plain")
             return
 
+        if not pelix.http.check_content_type(request, response, pelix.http.JSON_CONTENT_TYPES):
+            return
+
         # Read the content
         endpoints = json.loads(to_str(request.read_data()))
         if endpoints:

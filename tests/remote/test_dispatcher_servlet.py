@@ -205,12 +205,13 @@ class DispatcherTest(unittest.TestCase):
         # Convert the response to a string
         return result.status, to_str(data)
 
-    def _http_post(self, path: str, body: str) -> tuple[int, str]:
+    def _http_post(self, path: str, body: str, headers: dict[str, str] | None = None) -> tuple[int, str]:
         """
-        Makes a HTTP GET request to the given path and returns the response
+        Makes a HTTP POST request to the given path and returns the response
         as a string
 
         :param path: Sub path for the dispatcher servlet
+        :param headers: Headers replacing the default JSON content type
         :return: A (status, response string) tuple
         """
         # Prepare the request path
@@ -220,7 +221,7 @@ class DispatcherTest(unittest.TestCase):
 
         # Request the end points
         conn = httplib.HTTPConnection("localhost", self.port)
-        conn.request("POST", path, body, {"Content-Type": "application/json"})
+        conn.request("POST", path, body, {"Content-Type": "application/json"} if headers is None else headers)
         result = conn.getresponse()
         data = result.read()
         conn.close()
@@ -485,6 +486,43 @@ class DispatcherTest(unittest.TestCase):
         self.assertEqual(imported_endpoint.uid, endpoint_data["uid"])
         self.assertEqual(imported_endpoint.framework, endpoint_data["sender"])
         self.assertEqual(imported_endpoint.name, endpoint_data["name"])
+
+    def testPostEndpointsFromBrowser(self) -> None:
+        """
+        Endpoints posted cross-site by a browser, or through DNS rebinding, are refused
+        """
+        context = self.framework.get_bundle_context()
+        exporter = Exporter(context)
+        context.register_service(pelix.remote.SERVICE_EXPORT_PROVIDER, exporter, {})
+        importer = ImportListener()
+        context.register_service(
+            pelix.remote.SERVICE_IMPORT_ENDPOINT_LISTENER,
+            importer,
+            {pelix.remote.PROP_REMOTE_CONFIGS_SUPPORTED: exporter.configs[0]},
+        )
+        context.register_service("sample.spec", object(), {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+
+        # A valid endpoint, from another framework
+        _, response = self._http_get(f"/endpoint/{exporter.endpoints[-1].uid}")
+        endpoint_data = json.loads(response)
+        endpoint_data.update({"uid": "other-uid", "sender": "other-framework"})
+        body = json.dumps([endpoint_data])
+
+        for headers, expected in (
+            ({}, 415),
+            ({"Content-Type": "text/plain"}, 415),
+            ({"Content-Type": "application/x-www-form-urlencoded"}, 415),
+            ({"Content-Type": "application/json", "Origin": "http://evil.example"}, 403),
+            ({"Content-Type": "application/json", "Host": "evil.example"}, 403),
+        ):
+            with self.subTest(headers=headers):
+                status, _ = self._http_post("endpoints", body, headers)
+                self.assertEqual(status, expected)
+                self.assertEqual(importer.endpoints, {})
+
+        # The same request, from a regular client, is accepted
+        self.assertEqual(self._http_post("endpoints", body)[0], 200)
+        self.assertIn("other-uid", importer.endpoints)
 
     def testDiscovered(self) -> None:
         """

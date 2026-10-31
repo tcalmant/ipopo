@@ -252,9 +252,55 @@ class HostTest(unittest.TestCase):
             ([], None),
             ("a, B:1,", [("a", None), ("b", "1")]),
             (["a"], [("a", None)]),
+            # Already normalized, when the service is validated again
+            ([("a", None), "b:1"], [("a", None), ("b", "1")]),
         ):
             with self.subTest(value=value):
                 self.assertEqual(normalize_allowed_hosts(value), expected)
+
+    def test_default_allowed_hosts(self) -> None:
+        loopback = [("localhost", None), ("127.0.0.1", None), ("[::1]", None)]
+        for address, expected in (
+            ("127.0.0.1", loopback),
+            ("127.0.0.2", loopback),
+            ("::1", loopback),
+            ("LocalHost", loopback),
+            ("0.0.0.0", None),
+            ("::", None),
+            ("192.0.2.1", None),
+            ("example.com", None),
+        ):
+            with self.subTest(address=address):
+                service = HttpServiceImpl()
+                service._address = address
+                if expected is None:
+                    # Open to DNS rebinding: said at validation
+                    with self.assertLogs("pelix.http._base", "WARNING") as logs:
+                        service._normalize_configuration()
+                    self.assertIn("pelix.http.allowed_hosts", logs.output[0])
+                else:
+                    service._normalize_configuration()
+                self.assertEqual(service._allowed_hosts, expected)
+
+    def test_socket_timeout(self) -> None:
+        for value, expected in (
+            (None, None),
+            ("abc", 60.0),
+            ([1], 60.0),
+            ("2.5", 2.5),
+            (0, None),
+            (-1, None),
+        ):
+            with self.subTest(value=value):
+                service = HttpServiceImpl()
+                service._socket_timeout = value  # type: ignore[assignment]
+                if expected == 60.0:
+                    # An invalid value must not remove the timeout
+                    with self.assertLogs("pelix.http._base", "WARNING"):
+                        service._normalize_configuration()
+                else:
+                    service._normalize_configuration()
+                self.assertEqual(service.get_socket_timeout(), expected)
 
 
 class ProxyTest(unittest.TestCase):

@@ -232,6 +232,7 @@ class _AuthServerTests:
     assertIn: Any
     assertIsNone: Any
     assertLogs: Any
+    assertRegex: Any
     assertNotEqual: Any
     assertNotIn: Any
     assertTrue: Any
@@ -392,8 +393,11 @@ class _AuthServerTests:
         self.assertEqual(body, "alice|basic|http")
 
         # Wrong credentials are refused, as the client expects to be authenticated
-        status, headers, _ = self.request(headers=basic("alice", "wrong"))
+        with self.assertLogs("pelix.http.auth", logging.WARNING) as logs:
+            status, headers, _ = self.request(headers=basic("alice", "wrong"))
         self.assertEqual(status, 401)
+        # Logged as the shell does: with the client address, never the attempted name
+        self.assertRegex(logs.output[0], r"Failed login from (127\.0\.0\.1|::1)$")
         self.assertIn('realm="Pelix"', headers["WWW-Authenticate"])
 
     def test_required(self) -> None:

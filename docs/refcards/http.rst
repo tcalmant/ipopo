@@ -45,18 +45,22 @@ pelix.http.socket_timeout       60        Timeout, in seconds, of the sockets
                                           handling the requests. A client which
                                           takes longer to send its request gets a
                                           408 error code. A value lesser than or
-                                          equal to 0 removes the timeout
+                                          equal to 0 removes the timeout, an
+                                          invalid one gives the default
 pelix.http.case_sensitive_paths True      If set, servlet paths are matched
                                           case-sensitively, as URI paths are
                                           defined to be. Unset it to restore the
                                           folding of earlier releases
-pelix.http.allowed_hosts        (none)    Host names accepted in the ``Host``
+pelix.http.allowed_hosts        (auto)    Host names accepted in the ``Host``
                                           header, as a list or a comma-separated
                                           string. Other requests, or requests
                                           without ``Host``, get a 403 error code.
                                           An entry without port matches any port.
-                                          If not set or empty, the header is not
-                                          checked
+                                          If not set, a server bound to a
+                                          loopback address accepts ``localhost``,
+                                          ``127.0.0.1`` and ``[::1]``, and another
+                                          server checks nothing. If empty, the
+                                          header is not checked
 pelix.http.proxy.trusted        (none)    Addresses or networks (CIDR) of the
                                           reverse proxies believed when they
                                           send ``X-Forwarded-For`` and
@@ -65,7 +69,7 @@ pelix.http.proxy.trusted        (none)    Addresses or networks (CIDR) of the
                                           HTTPS (the ``Origin`` check needs it).
                                           The proxy must keep the ``Host``
                                           header. Ignored for other peers
-pelix.http.cors.enforce         False     If set, a request with an ``Origin``
+pelix.http.cors.enforce         True      If set, a request with an ``Origin``
                                           header which is neither the server's
                                           own origin nor allowed by the CORS
                                           policy gets a 403 error code, and no
@@ -93,13 +97,83 @@ pelix.http.auth.realm           Pelix     Protection space given in the
    example one listening on ``127.0.0.1``), and a hostile name can be rebound
    to the address of the server: without those two properties, the servlets
    handle such requests, the browser only hiding the response from the page.
-   Set both on a server which can be reached by a browser.
+   Both are on by default for a server bound to a loopback address. A server
+   bound to another address should list its names in
+   ``pelix.http.allowed_hosts``.
+
+   Behind a reverse proxy which gives its own ``Host`` header (the public
+   name), add that name to ``pelix.http.allowed_hosts``. The pages of other
+   origins calling the server need a CORS policy (see :ref:`http_cors`), or
+   ``pelix.http.cors.enforce`` set to ``False``.
 
 .. note:: ``pelix.http.socket_timeout`` is only applied by the synchronous HTTP
    service.
 
    The asynchronous service accepts the property, as it is common to all the
    implementations, but leaves the timeouts of the connections to ``aiohttp``.
+
+.. _http_host_checks:
+
+Host checks and configuration updates
+-------------------------------------
+
+Since 3.3.0, a server bound to a loopback address (the default) refuses the
+requests whose ``Host`` header is not ``localhost``, ``127.0.0.1`` or
+``[::1]``, and a server bound to another address (``0.0.0.0``, a LAN address)
+logs a warning at start if ``pelix.http.allowed_hosts`` is not set: it is open
+to DNS rebinding. Set the property to the names the clients use, or to an empty
+string to accept any ``Host`` without the warning.
+
+Steps to migrate from 3.2:
+
+* behind a reverse proxy which keeps the public ``Host`` header (as required
+  with ``pelix.http.proxy.trusted``), add the public name to
+  ``pelix.http.allowed_hosts``, e.g. ``app.example.com, localhost``: the server
+  answers 403 to the requests forwarded by the proxy otherwise;
+* list the names of a server bound to another address, e.g. its host name and
+  the names the remote services peers use;
+* give a CORS policy to the pages of other origins which call the server (see
+  :ref:`http_cors`), or set ``pelix.http.cors.enforce`` to ``False``.
+
+``pelix.http.allowed_hosts``, ``pelix.http.cors.enforce``,
+``pelix.http.proxy.trusted``, ``pelix.http.max_body_size``,
+``pelix.http.socket_timeout`` and the ``pelix.http.auth.*`` properties apply to
+the running server when the component is reconfigured, for example by
+:ref:`ipopo_configadmin` with the default ``reconfigure`` update policy: the
+next requests use them, without restarting the server. The address, the port,
+the TLS and the session properties are only read when the server starts: the
+running server keeps its previous values, with a warning, unless the
+configuration uses the ``restart`` update policy.
+
+Here is an HTTP service managed by ConfigurationAdmin (with the
+``pelix.services.configadmin`` and ``pelix.ipopo.configadmin`` bundles), whose
+allowed names are then updated live:
+
+.. code-block:: python
+
+   from pelix.ipopo.constants import (
+       IPOPO_CONFIG_FACTORY_NAME,
+       IPOPO_CONFIGADMIN_FACTORY_PID,
+       IPOPO_INSTANCE_NAME,
+   )
+
+   config = config_admin.create_factory_configuration(IPOPO_CONFIGADMIN_FACTORY_PID)
+   properties = {
+       IPOPO_CONFIG_FACTORY_NAME: pelix.http.FACTORY_HTTP_BASIC,
+       IPOPO_INSTANCE_NAME: "http-server",
+       pelix.http.HTTP_SERVICE_ADDRESS: "0.0.0.0",
+       pelix.http.HTTP_SERVICE_PORT: 8080,
+   }
+   config.update(properties)
+
+   # Later: only accept the names of the machine
+   config.update({**properties, pelix.http.HTTP_ALLOWED_HOSTS: "server.example.com, localhost"})
+
+The same update from the Pelix shell (``pelix.shell.configadmin`` bundle):
+
+.. code-block:: text
+
+   $ config.update pelix.ipopo.component-3d5b0f6e-... pelix.http.allowed_hosts=server.example.com,localhost
 
 Request paths
 -------------
@@ -241,9 +315,16 @@ header on a path covered by a policy:
   including the error pages (400, 404, 413, 500, ...) and the WebSocket
   handshakes. A header the servlet set itself is kept as is.
 
-A refused origin doesn't prevent the request from being handled: CORS is
-enforced by the browser, which won't let the script read the response. It
-doesn't protect the server against a client which ignores it.
+With ``pelix.http.cors.enforce`` (the default), a request whose origin is
+neither the one of the server nor accepted by the policy gets a 403 error code,
+and the servlet is not called. Without it, a refused origin doesn't prevent the
+request from being handled: CORS is enforced by the browser, which won't let
+the script read the response. In both cases, it doesn't protect the server
+against a client which ignores it, as only browsers send ``Origin``.
+
+The remote services servlets (dispatcher, JSON-RPC, Jabsorb-RPC, XML-RPC) only
+accept a JSON or XML ``Content-Type`` (``pelix.http.check_content_type()``): a browser
+asks the CORS policy with a preflight request before sending them anything.
 
 When credentials are allowed, the origin of the request is always sent back
 instead of ``*``, as browsers refuse credentials with a wildcard. A

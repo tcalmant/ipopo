@@ -26,6 +26,7 @@ XmlRpc-on-HttpService-based Export and Import Distribution Providers
 """
 
 import logging
+import uuid
 import xmlrpc.client as xmlrpclib
 from collections.abc import Callable
 from concurrent.futures import Executor
@@ -34,7 +35,14 @@ from typing import Any, cast
 from xmlrpc.server import SimpleXMLRPCDispatcher
 
 from pelix.framework import BundleContext
-from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse, HTTPService, Servlet
+from pelix.http import (
+    XML_CONTENT_TYPES,
+    AbstractHTTPServletRequest,
+    AbstractHTTPServletResponse,
+    HTTPService,
+    Servlet,
+    check_content_type,
+)
 from pelix.ipopo.constants import ARG_BUNDLE_CONTEXT, ARG_PROPERTIES
 from pelix.ipopo.decorators import (
     ComponentFactory,
@@ -57,6 +65,7 @@ from pelix.rsa.providers.distribution import (
     ImportContainer,
     ImportDistributionProvider,
 )
+from pelix.utilities import check_xml_no_doctype
 
 # ------------------------------------------------------------------------------
 # Module version
@@ -116,11 +125,30 @@ class ServerDispatcher(SimpleXMLRPCDispatcher, Servlet):
         self._executor = executor
 
     def do_POST(self, request: AbstractHTTPServletRequest, response: AbstractHTTPServletResponse) -> None:
+        if not check_content_type(request, response, XML_CONTENT_TYPES):
+            return
+
         data = request.read_data().decode()
+        try:
+            # Refuse documents declaring entities before giving them to the parser
+            check_xml_no_doctype(data)
+        except ValueError:
+            response.send_content(400, "Document type declarations are not accepted", "text/plain")
+            return
+
         result = self._marshaled_dispatch(data, self._dispatch)
         response.send_content(200, result, "text/xml")
 
     def _dispatch(self, method: str | None, params: Any) -> Any:
+        try:
+            return self._dispatch_call(method, params)
+        except Exception:
+            # The stdlib would send the error message: only the log gets the details
+            error_id = uuid.uuid4().hex
+            _logger.exception("Error %s calling %s", error_id, method)
+            raise xmlrpclib.Fault(1, f"Internal error. Error ID: {error_id}") from None
+
+    def _dispatch_call(self, method: str | None, params: Any) -> Any:
         if method is None:
             raise ValueError("No method to dispatch given")
         obj_method_list = method.split(".")

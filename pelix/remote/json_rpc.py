@@ -28,6 +28,7 @@ Based on a modified version of the 3rd-party package jsonrpclib-pelix.
 """
 
 import logging
+import uuid
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -120,6 +121,9 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
         :param request: The HTTP request bean
         :param response: The HTTP response handler
         """
+        if not pelix.http.check_content_type(request, response, pelix.http.JSON_CONTENT_TYPES):
+            return
+
         try:
             # Get the request content
             data = to_str(request.read_data())
@@ -129,8 +133,11 @@ class _JsonRpcServlet(SimpleJSONRPCDispatcher):
 
             # Send the result
             response.send_content(200, result, "application/json-rpc")
-        except Exception as ex:  # noqa: BLE001
-            response.send_content(500, f"Internal error:\n{ex}\n", "text/plain")
+        except Exception:
+            # The details describe the server: only the log gets them
+            error_id = uuid.uuid4().hex
+            _logger.exception("Error %s handling a JSON-RPC request", error_id)
+            response.send_content(500, f"Internal error. Error ID: {error_id}\n", "text/plain")
 
 
 # ------------------------------------------------------------------------------

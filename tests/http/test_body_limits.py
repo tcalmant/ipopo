@@ -191,15 +191,23 @@ class BodyLimitsTest(unittest.TestCase):
 
     def test_invalid_content_length(self) -> None:
         """
-        An unparsable Content-Length is handled like a missing one
+        An unparsable or negative Content-Length is handled like a missing one,
+        so that the body limit can't be bypassed
         """
-        port = self.start_server().get_access()[1]
+        port = self.start_server(**{http.HTTP_MAX_BODY_SIZE: 100}).get_access()[1]
 
-        answer = self.request(
-            port, b"POST /echo HTTP/1.0\r\nHost: localhost\r\nContent-Length: abc\r\n\r\nhello"
-        )
-        self.assertIn(b"200", answer.splitlines()[0])
-        self.assertEqual(self.servlet.bodies, [b""])
+        for length in (b"-1", b"-100", b"abc", b""):
+            with self.subTest(length=length):
+                self.servlet.bodies.clear()
+                answer = self.request(
+                    port,
+                    b"POST /echo HTTP/1.0\r\nHost: localhost\r\nContent-Length: "
+                    + length
+                    + b"\r\n\r\n"
+                    + b"x" * 200,
+                )
+                self.assertIn(b"200", answer.splitlines()[0])
+                self.assertEqual(self.servlet.bodies, [b""])
 
     def test_body_too_large(self) -> None:
         """

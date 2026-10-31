@@ -24,12 +24,14 @@ Tests remote services transports based on HTTP
     limitations under the License.
 """
 
+import json
 import queue
 import threading
 import time
 import unittest
+import xmlrpc.client
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, cast
 
 import pelix.http
 import pelix.remote
@@ -370,6 +372,146 @@ class HttpTransportsTest(unittest.TestCase):
         except queue.Empty:
             # Process error
             self.fail("Remote framework took to long to reply")
+
+
+class FakeRequest:
+    """
+    The part of a servlet request the RPC servlets use
+    """
+
+    def __init__(self, body: str, content_type: str | None) -> None:
+        self.body = body.encode()
+        self.content_type = content_type
+
+    def get_header(self, name: str, default: Any = None) -> Any:
+        return self.content_type if name.lower() == "content-type" else default
+
+    def read_data(self) -> bytes:
+        return self.body
+
+
+class FakeResponse:
+    """
+    Keeps what a servlet answers
+    """
+
+    code: int | None = None
+    content: Any = None
+
+    def send_content(self, code: int, content: Any, mime_type: str = "text/html") -> None:
+        self.code, self.content = code, content
+
+
+def make_rpc_servlets(calls: list[Any]) -> list[tuple[Any, str, str]]:
+    """
+    Returns the RPC servlets, recording their calls, with a valid request body and its content type
+    """
+    from pelix.remote.json_rpc import _JsonRpcServlet
+    from pelix.remote.transport.jabsorb_rpc import _JabsorbRpcServlet
+    from pelix.remote.xml_rpc import _XmlRpcServlet
+    from pelix.rsa.providers.distribution.xmlrpc import ServerDispatcher
+
+    json_body = json.dumps({"jsonrpc": "2.0", "id": 1, "method": "svc.method", "params": [1]})
+    xml_body = xmlrpc.client.dumps((1,), "svc.method")
+    return [
+        (_JsonRpcServlet(lambda *args: calls.append(args)), json_body, "application/json-rpc"),
+        (_JabsorbRpcServlet(lambda *args: calls.append(args)), json_body, "application/json"),
+        (_XmlRpcServlet(lambda *args: calls.append(args)), xml_body, "text/xml"),
+        (ServerDispatcher(lambda *args: calls.append(args)), xml_body, "text/xml; charset=utf-8"),
+    ]
+
+
+class RpcServletsTest(unittest.TestCase):
+    """
+    Tests the RPC servlets against hostile requests, without network
+    """
+
+    def test_content_type(self) -> None:
+        """
+        The RPC servlets only accept the content type of their protocol, which a
+        browser can't send cross-site without a CORS preflight
+        """
+        calls: list[Any] = []
+        for servlet, body, content_type in make_rpc_servlets(calls):
+            for bad_type in (
+                None,
+                "",
+                "text/plain",
+                "application/x-www-form-urlencoded",
+                "multipart/form-data",
+            ):
+                with self.subTest(servlet=type(servlet).__name__, content_type=bad_type):
+                    response = FakeResponse()
+                    servlet.do_POST(FakeRequest(body, bad_type), response)
+                    self.assertEqual(response.code, 415)
+                    self.assertEqual(calls, [])
+
+            with self.subTest(servlet=type(servlet).__name__, content_type=content_type):
+                response = FakeResponse()
+                servlet.do_POST(FakeRequest(body, content_type), response)
+                self.assertEqual(response.code, 200)
+                self.assertEqual(len(calls), 1)
+                calls.clear()
+
+    def test_jsonclass_refused(self) -> None:
+        """
+        A JSON-RPC class hint must not instantiate anything
+        """
+        from pelix.remote.json_rpc import _JsonRpcServlet
+
+        calls: list[Any] = []
+        servlet = _JsonRpcServlet(lambda name, params: calls.append(params))
+        payload = json.dumps(
+            {
+                "jsonrpc": "2.0",
+                "id": 1,
+                "method": "svc.method",
+                "params": [{"__jsonclass__": ["collections.OrderedDict", [[["a", 1]]]]}],
+            }
+        )
+        result = json.loads(servlet._marshaled_dispatch(payload, servlet._simple_dispatch))
+        self.assertIn("error", result)
+        self.assertEqual(calls, [])
+
+    def test_xml_doctype(self) -> None:
+        """
+        The XML-RPC servlets refuse a document type declaration, which can declare entities
+        """
+        calls: list[Any] = []
+        for servlet, body, content_type in make_rpc_servlets(calls):
+            if "xml" not in content_type:
+                continue
+
+            for doctype in ("<!DOCTYPE m [<!ENTITY a 'x'>]>", "<!-- c --><!DOCTYPE m>"):
+                with self.subTest(servlet=type(servlet).__name__, doctype=doctype):
+                    payload = body.replace("?>", "?>" + doctype, 1).replace(
+                        "<int>1</int>", "<string>&a;</string>"
+                    )
+                    response = FakeResponse()
+                    servlet.do_POST(FakeRequest(payload, content_type), response)
+                    self.assertEqual(response.code, 400)
+                    self.assertEqual(calls, [])
+
+    def test_error_details(self) -> None:
+        """
+        The caller gets an error ID, not the message of the exception, which only goes to the log
+        """
+
+        def fail(*_: Any) -> None:
+            raise ValueError("secret detail")
+
+        servlets = make_rpc_servlets([])
+        for servlet, _, _ in servlets:
+            servlet._dispatch_method = servlet._dispatch_func = fail
+
+        broken = FakeRequest("", "application/json")
+        cast(Any, broken).read_data = fail
+        for servlet, request in [*((s, FakeRequest(b, t)) for s, b, t in servlets), (servlets[0][0], broken)]:
+            with self.subTest(servlet=type(servlet).__name__), self.assertLogs(level="ERROR") as logs:
+                response = FakeResponse()
+                servlet.do_POST(request, response)
+                self.assertNotIn("secret detail", str(response.content))
+                self.assertIn("secret detail", "\n".join(logs.output))
 
 
 # ------------------------------------------------------------------------------
