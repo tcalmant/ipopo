@@ -271,9 +271,9 @@ Unreleased
   `ipopo.instance` lists them under each unsatisfied requirement
 * Added the `@ErrorHandler` callback decorator (discussion #167): it receives the
   exception raised by the `@Validate` or `@Invalidate` callback of the component
-  and can return `True` to prevent iPOPO from logging the error trace
+  and can return `True` to prevent iPOPO from logging the error trace.
   The handler runs on a component that may be half initialized: it is meant for
-  logging, not for recovering. OSGi Declarative Services has no equivalent
+  logging, not for recovering. OSGi Declarative Services has no equivalent.
 * Added the `@Modified` callback decorator, the counterpart of the `modified`
   method of OSGi Declarative Services: `reconfigure()`, and thus an update of
   the Configuration Admin configuration of a component, gives it the new and
