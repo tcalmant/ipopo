@@ -199,10 +199,10 @@ The exception is also available through
 
    The handler runs on a component which may not be validated and may be half
    initialized: use it to log or report the failure, not to recover. This is
-   specific to iPOPO: as far as we know, OSGi Declarative Services has no
-   equivalent callback. It only logs the failure and records it in the runtime
-   DTO of the component configuration (``ComponentConfigurationDTO``, state
-   ``FAILED_ACTIVATION`` with its ``failure`` message). The counterpart in iPOPO
+   specific to iPOPO: OSGi Declarative Services has no equivalent callback.
+   Since DS 1.4, it records the failure in the runtime DTO of the component
+   configuration (``ComponentConfigurationDTO``, state ``FAILED_ACTIVATION``
+   with its ``failure`` information). The counterpart in iPOPO
    is the ``ERRONEOUS`` state, with ``error`` in ``get_instance_details()`` and
    ``get_instance_error()``.
 
