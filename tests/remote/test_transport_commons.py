@@ -25,7 +25,7 @@ from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import ComponentFactory, Property, Provides
 from pelix.remote import RemoteServiceDispatcher, RemoteServiceError, json_rpc, xml_rpc
 from pelix.remote.beans import ImportEndpoint
-from pelix.remote.transport import commons, jabsorb_rpc
+from pelix.remote.transport import commons, jabsorb_rpc, xmlrpc_client
 from pelix.rsa.providers.distribution.xmlrpc import XmlRpcImportContainer
 
 # ------------------------------------------------------------------------------
@@ -714,11 +714,17 @@ class ClientLimitsTest(unittest.TestCase):
         Tests that the RPC proxies give up on a server which doesn't answer or sends too much
         """
         limits = commons.ClientLimits(0.5, 1024)
-        for is_json, proxy_class in ((False, xmlrpclib.ServerProxy), (True, jsonrpclib.jsonrpc.ServerProxy)):
+        for proxy_class, make_transport in (
+            (xmlrpclib.ServerProxy, xmlrpc_client.make_client_transport),
+            (jsonrpclib.jsonrpc.ServerProxy, json_rpc.make_client_transport),
+        ):
             for body, error in ((None, TimeoutError), (b" " * 4096, RemoteServiceError)):
-                with self.subTest(is_json=is_json, body=body is not None), HostileServer(body) as server:
+                with (
+                    self.subTest(proxy=proxy_class.__module__, body=body is not None),
+                    HostileServer(body) as server,
+                ):
                     url = f"http://127.0.0.1:{server.port}/"
-                    proxy = proxy_class(url, transport=commons.make_client_transport(url, limits, is_json))
+                    proxy = proxy_class(url, transport=make_transport(url, limits))
                     start = time.monotonic()
                     with self.assertRaises(error):
                         proxy.some.method()

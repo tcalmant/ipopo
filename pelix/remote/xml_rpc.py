@@ -41,6 +41,7 @@ from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.transport import commons
+from pelix.remote.transport.xmlrpc_client import make_client_transport
 from pelix.utilities import check_xml_no_doctype, to_str
 
 # ------------------------------------------------------------------------------
@@ -251,7 +252,7 @@ class _ServiceCallProxy:
         proxy = xmlrpclib.ServerProxy(
             self.__url,
             allow_none=True,
-            transport=commons.make_client_transport(self.__url, self.__limits, False),
+            transport=make_client_transport(self.__url, self.__limits),
         )
         return getattr(proxy, f"{self.__name}.{name}")
 

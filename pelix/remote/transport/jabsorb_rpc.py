@@ -39,6 +39,7 @@ from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
 from pelix.misc import jabsorb
 from pelix.remote.beans import ImportEndpoint
+from pelix.remote.json_rpc import make_client_transport
 from pelix.remote.transport import commons
 from pelix.utilities import to_str
 
@@ -285,9 +286,7 @@ class _ServiceCallProxy:
         # This is an ugly trick to handle multithreaded calls, as the
         # underlying proxy reuses the same connection when possible: sometimes
         # it means sending a request before retrieving a result
-        proxy = jsonrpclib.ServerProxy(
-            self.__url, transport=commons.make_client_transport(self.__url, self.__limits, True)
-        )
+        proxy = jsonrpclib.ServerProxy(self.__url, transport=make_client_transport(self.__url, self.__limits))
 
         def wrapped_call(*args: Any, **kwargs: Any) -> Any:
             """
