@@ -2339,6 +2339,11 @@ def ErrorHandler(method: ErrorHandlerT) -> ErrorHandlerT:
     ``@Invalidate`` callback (or their ``Component`` variants) of the component
     raised an exception, before the component goes to the ``ERRONEOUS`` state.
 
+    **The handler is called on a component which may not be validated, and
+    which may be half initialized** (its own ``@Validate`` stopped at the
+    exception): it is meant for logging or reporting the failure, not for
+    recovering. It can't prevent the ``ERRONEOUS`` state.
+
     The decorated method receives the exception and the kind of callback which
     failed (``constants.IPOPO_CALLBACK_VALIDATE`` or
     ``constants.IPOPO_CALLBACK_INVALIDATE``). If it returns ``True``, the error
