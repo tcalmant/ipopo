@@ -52,7 +52,13 @@ from pelix.ipopo.decorators import (
     Validate,
 )
 from pelix.remote import beans
-from pelix.remote.transport.commons import ClientLimits, get_client_limits, read_response
+from pelix.remote.transport.commons import (
+    DEFAULT_CLIENT_MAX_RESPONSE_SIZE,
+    DEFAULT_CLIENT_TIMEOUT,
+    ClientLimits,
+    get_client_limits,
+    read_response,
+)
 from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
@@ -521,7 +527,7 @@ class RegistryServlet(pelix.remote.RemoteServiceDispatcherServlet):
         self._ports: list[int] = []
 
         # Limits of the requests to the discovered frameworks
-        self._limits = ClientLimits(None, None)
+        self._limits = ClientLimits(DEFAULT_CLIENT_TIMEOUT, DEFAULT_CLIENT_MAX_RESPONSE_SIZE)
 
     @Validate
     def _validate(self, context: pelix.framework.BundleContext) -> None:
