@@ -151,7 +151,7 @@ Unreleased
   `mqtt.password` (hidden) properties, plus `mqtt.client_id` and
   `mqtt.keepalive`. The broker certificate and host name are always verified.
   They are read by the new `pelix.misc.mqtt_client.MqttConnectionConfig`, shared
-  by all the MQTT components
+  by all the MQTT components (fixed #55)
 * **Breaking:** the MQTT-RPC exporter publishes each reply on a topic of its
   caller (`<topic>/reply/<caller framework UID>`) instead of one reply topic
   shared by all callers, so that broker ACLs can restrict who reads them. An
