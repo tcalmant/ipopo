@@ -830,6 +830,13 @@ their broker with the ``mqtt.*`` properties described in
 :ref:`mqtt-connection` (host, port, TLS, credentials): they should be
 configured with the same broker.
 
+The MQTT-RPC exporter receives the requests on ``<mqttrpc.topic>/request`` and
+publishes each reply on ``<mqttrpc.topic>/reply/<caller framework UID>``.
+On a shared broker, use its ACLs to restrict who can publish requests and read
+the replies: the broker authenticates the clients, MQTT-RPC itself doesn't.
+The exporter handles at most 10 requests at once, keeps at most 100 waiting,
+and refuses the others with a ``Server busy`` error.
+
 To use the MQTT providers, you'll need to install the following bundles and
 instantiate the associated components:
 

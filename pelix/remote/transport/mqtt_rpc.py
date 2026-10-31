@@ -37,6 +37,7 @@ import logging
 import threading
 import uuid
 from collections.abc import Callable, Iterable
+from concurrent.futures import ThreadPoolExecutor
 from typing import Any
 
 import pelix.remote
@@ -92,6 +93,14 @@ _logger = logging.getLogger(__name__)
 TOPIC_REQUEST = "request"
 TOPIC_RESPONSE = "reply"
 
+# Bounds of the requests handled at once by an exporter: a flood of requests
+# must not start an unlimited number of threads
+_MAX_THREADS = 10
+_MAX_PENDING = 100  # running and queued
+
+# Characters which can't be in a single MQTT topic level
+_TOPIC_SPECIAL_CHARS = frozenset("/+#\0")
+
 # JSON dictionary keys
 KEY_ERROR = "err"
 KEY_DATA = "data"
@@ -137,14 +146,15 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         self._topic = ""
         self.__real_topic = ""
 
-        # Topic to reply to requests
-        self.__reply_topic = ""
-
         # MQTT broker password (hidden property)
         self._mqtt_password: str | None = None
 
         # MQTT client
         self.__mqtt: MqttClient | None = None
+
+        # Requests handling
+        self.__pool: ThreadPoolExecutor | None = None
+        self.__pending = threading.BoundedSemaphore(_MAX_PENDING)
 
     @ValidateComponent(constants.ARG_BUNDLE_CONTEXT, constants.ARG_PROPERTIES)
     def validate(self, context: BundleContext, properties: dict[str, Any] | None = None) -> None:
@@ -157,8 +167,7 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         # Format the topic prefix
         self.__real_topic = self._topic.format(fw_uid=self._framework_uid)
 
-        # Normalize topic
-        self.__reply_topic = make_topic(self.__real_topic, TOPIC_RESPONSE)
+        self.__pool = ThreadPoolExecutor(_MAX_THREADS, thread_name_prefix="MQTT-RPC-Exporter")
 
         # Create the MQTT client
         config = MqttConnectionConfig.from_properties(properties or {}, self._mqtt_password)
@@ -180,11 +189,15 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         if self.__mqtt is not None:
             self.__mqtt.disconnect()
 
+        if self.__pool is not None:
+            self.__pool.shutdown(wait=False, cancel_futures=True)
+
         # Call the parent
         super().invalidate(context)
 
         # Clean up members
         self.__mqtt = None
+        self.__pool = None
 
     def __on_connect(self, client: MqttClient, result_code: int) -> None:
         """
@@ -211,58 +224,89 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
             _logger.error("Error reading MQTT-RPC request: %s", ex)
             return
 
+        sender = data.get(KEY_SENDER) if isinstance(data, dict) else None
+        if sender == self._framework_uid:
+            # We published this message
+            return
+
+        if not sender or not isinstance(sender, str) or not _TOPIC_SPECIAL_CHARS.isdisjoint(sender):
+            # The reply topic is made of the sender UID: it must be a single topic level
+            _logger.debug("Ignoring an MQTT-RPC request without a valid sender")
+            return
+
+        # Each caller has its own reply topic, which the broker can restrict
+        reply_topic = make_topic(self.__real_topic, f"{TOPIC_RESPONSE}/{sender}")
+
+        if self.__pool is None or not self.__pending.acquire(blocking=False):
+            # Too many requests: tell the caller instead of letting it wait
+            _logger.warning("Too many pending MQTT-RPC requests: refusing one from %s", sender)
+            self.__reply(reply_topic, data, None, "Server busy")
+            return
+
         try:
-            if data[KEY_SENDER] == self._framework_uid:
-                # We published this message
-                return
-        except KeyError:
-            # Not sent by us
-            pass
+            self.__pool.submit(self.__handle_rpc, data, reply_topic)
+        except RuntimeError:
+            # Pool shut down while invalidating
+            self.__pending.release()
 
-        # Handle the request in a different thread
-        threading.Thread(name="MQTT-RPC-Exporter", target=self.__handle_rpc, args=(data,)).start()
-
-    def __handle_rpc(self, data: dict[str, Any]) -> None:
+    def __reply(self, topic: str, request: dict[str, Any], data: Any, error: str | None) -> None:
         """
-        Handles an RPC request (should be called in a specific thread)
+        Publishes the reply to a request
 
-        :param data: RPC description
+        :param topic: Reply topic of the caller
+        :param request: The request
+        :param data: Result of the call
+        :param error: Error message, if any
         """
-        assert self.__mqtt is not None
-
-        # Prepare the result dictionary
         result = {
-            KEY_ERROR: None,
-            KEY_DATA: None,
-            KEY_CORRELATION_ID: data.get(KEY_CORRELATION_ID),
+            KEY_ERROR: error,
+            KEY_DATA: data,
+            KEY_CORRELATION_ID: request.get(KEY_CORRELATION_ID),
             KEY_SENDER: self._framework_uid,
         }
 
-        # Extract parameters
-        try:
-            call_info = data[KEY_DATA]
-            if not call_info:
-                raise ValueError("No call information given")
-
-            method = call_info[0]
-            params = call_info[1:]
-        except (KeyError, IndexError, ValueError) as ex:
-            result[KEY_ERROR] = f"Endpoint name is missing: {ex}"
-        else:
-            try:
-                # Call the service
-                result[KEY_DATA] = self.dispatch(method, params)
-            except Exception:
-                # The details describe the server: only the log gets them
-                error_id = uuid.uuid4().hex
-                _logger.exception("Error %s calling %s", error_id, method)
-                result[KEY_ERROR] = f"Internal error. Error ID: {error_id}"
+        mqtt = self.__mqtt
+        if mqtt is None:
+            return
 
         try:
-            # Publish the result
-            self.__mqtt.publish(self.__reply_topic, json.dumps(result), qos=2)
-        except (ValueError, AttributeError) as ex:
+            mqtt.publish(topic, json.dumps(result), qos=2)
+        except (ValueError, TypeError) as ex:
             _logger.error("Error replying an RPC request: %s", ex)
+
+    def __handle_rpc(self, data: dict[str, Any], reply_topic: str) -> None:
+        """
+        Handles an RPC request (called in a thread of the pool)
+
+        :param data: RPC description
+        :param reply_topic: Topic to publish the result to
+        """
+        result: Any = None
+        error: str | None = None
+        try:
+            # Extract parameters
+            try:
+                call_info = data[KEY_DATA]
+                if not call_info:
+                    raise ValueError("No call information given")
+
+                method = call_info[0]
+                params = call_info[1:]
+            except (KeyError, IndexError, TypeError, ValueError) as ex:
+                error = f"Endpoint name is missing: {ex}"
+            else:
+                try:
+                    # Call the service
+                    result = self.dispatch(method, params)
+                except Exception:
+                    # The details describe the server: only the log gets them
+                    error_id = uuid.uuid4().hex
+                    _logger.exception("Error %s calling %s", error_id, method)
+                    error = f"Internal error. Error ID: {error_id}"
+
+            self.__reply(reply_topic, data, result, error)
+        finally:
+            self.__pending.release()
 
     def make_endpoint_properties(
         self, svc_ref: ServiceReference[Any], name: str, fw_uid: str | None
@@ -494,8 +538,8 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         self.__waiting[correlation_id] = proxy
         self.__waiting_endpoints.setdefault(endpoint_uid, set()).add(proxy)
 
-        # Subscribe to the reply
-        self.__mqtt.subscribe(make_topic(topic_prefix, TOPIC_RESPONSE))
+        # Subscribe to our own reply topic
+        self.__mqtt.subscribe(make_topic(topic_prefix, f"{TOPIC_RESPONSE}/{self._framework_uid}"))
 
         # Send the request
         self.__mqtt.publish(make_topic(topic_prefix, TOPIC_REQUEST), request, qos=2)

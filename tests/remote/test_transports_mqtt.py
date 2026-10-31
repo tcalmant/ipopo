@@ -24,6 +24,7 @@ Tests remote services transport and discovery based on MQTT
     limitations under the License.
 """
 
+import json
 import queue
 import threading
 import time
@@ -36,7 +37,9 @@ import pelix.remote
 from pelix.framework import Framework, FrameworkFactory, create_framework
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
+from pelix.misc.mqtt_client import MqttClient
 from pelix.remote import security
+from pelix.remote.transport import mqtt_rpc
 from tests.mqtt_utilities import (
     MQTT_CERTS,
     MQTT_PASSWORD,
@@ -413,6 +416,141 @@ class MqttTransportsTest(unittest.TestCase):
         except queue.Empty:
             # Process error
             self.fail("Remote framework took to long to reply")
+
+
+class BlockingService:
+    """
+    Exported service whose calls wait for an event
+    """
+
+    def __init__(self) -> None:
+        self.release = threading.Event()
+
+    def wait(self) -> str:
+        self.release.wait(30)
+        return "done"
+
+
+class MqttRpcExporterTest(unittest.TestCase):
+    """
+    Tests the MQTT-RPC exporter against raw MQTT callers
+    """
+
+    def setUp(self) -> None:
+        """
+        Exports a blocking service and connects a raw MQTT client
+        """
+        assert MQTT_SERVER is not None
+        self.framework = create_framework(
+            ["pelix.ipopo.core", "pelix.remote.dispatcher", "pelix.remote.transport.mqtt_rpc"]
+        )
+        self.framework.start()
+        context = self.framework.get_bundle_context()
+        with use_ipopo(context) as ipopo:
+            ipopo.instantiate(
+                pelix.remote.FACTORY_TRANSPORT_MQTTRPC_EXPORTER, "rs-exporter", {"mqtt.host": MQTT_SERVER}
+            )
+
+        self.service = BlockingService()
+        context.register_service(SVC_SPEC, self.service, {pelix.remote.PROP_EXPORTED_INTERFACES: "*"})
+
+        dispatcher_ref = context.get_service_reference(pelix.remote.RemoteServiceDispatcher)
+        assert dispatcher_ref is not None
+        dispatcher = context.get_service(dispatcher_ref)
+        endpoint = dispatcher.get_endpoints()[0]
+        self.method = f"{endpoint.name}.wait"
+        self.topic = endpoint.get_properties()[mqtt_rpc.PROP_MQTT_TOPIC]
+
+        # Replies, by topic
+        self.replies: queue.Queue[tuple[str, dict[str, Any]]] = queue.Queue()
+        connected = threading.Event()
+        self.client = MqttClient()
+        self.client.on_connect = lambda clt, rc: connected.set()
+        self.client.on_message = lambda clt, msg: self.replies.put((msg.topic, json.loads(msg.payload)))
+        self.client.connect(MQTT_SERVER)
+        self.assertTrue(connected.wait(10))
+        self.client.subscribe(mqtt_rpc.make_topic(self.topic, f"{mqtt_rpc.TOPIC_RESPONSE}/#"), 1)
+
+    def tearDown(self) -> None:
+        self.service.release.set()
+        self.client.disconnect()
+        FrameworkFactory.delete_framework()
+
+    def _request(self, sender: Any, correlation_id: str) -> None:
+        """
+        Sends a request to the exported service
+
+        :param sender: Value of the sender field
+        :param correlation_id: Request correlation ID
+        """
+        request = {mqtt_rpc.KEY_DATA: [self.method], mqtt_rpc.KEY_CORRELATION_ID: correlation_id}
+        if sender is not None:
+            request[mqtt_rpc.KEY_SENDER] = sender
+        self.client.publish(mqtt_rpc.make_topic(self.topic, mqtt_rpc.TOPIC_REQUEST), json.dumps(request), 1)
+
+    def _wait_ready(self) -> None:
+        """
+        Waits for the exporter to answer, i.e. to be subscribed
+        """
+        self.service.release.set()
+        for _ in range(40):
+            self._request("probe", "probe")
+            try:
+                self.replies.get(True, 0.5)
+            except queue.Empty:
+                continue
+            break
+        else:
+            self.fail("MQTT-RPC exporter not ready")
+
+        # Late replies of the probes
+        time.sleep(0.5)
+        while not self.replies.empty():
+            self.replies.get_nowait()
+        self.service.release.clear()
+
+    def test_reply_topic(self) -> None:
+        """
+        Each caller gets the replies on its own topic, invalid senders get none
+        """
+        self._wait_ready()
+        self.service.release.set()
+
+        caller = str(uuid.uuid4())
+        self._request(caller, "valid")
+        topic, reply = self.replies.get(True, 10)
+        self.assertEqual(topic, mqtt_rpc.make_topic(self.topic, f"{mqtt_rpc.TOPIC_RESPONSE}/{caller}"))
+        self.assertEqual(reply[mqtt_rpc.KEY_CORRELATION_ID], "valid")
+        self.assertEqual(reply[mqtt_rpc.KEY_DATA], "done")
+
+        for sender in (None, "", "a/b", "+", "#", 42):
+            with self.subTest(sender=sender):
+                self._request(sender, "invalid")
+                self.assertRaises(queue.Empty, self.replies.get, True, 1)
+
+    def test_bounded_requests(self) -> None:
+        """
+        A flood of requests uses a bounded number of threads, the requests
+        beyond the bound are refused at once
+        """
+        self._wait_ready()
+        threads_before = threading.active_count()
+
+        extra = 5
+        total = mqtt_rpc._MAX_PENDING + extra
+        for idx in range(total):
+            self._request("flood", str(idx))
+
+        # Calls are blocked: only the refused ones get a reply
+        busy = [self.replies.get(True, 10)[1] for _ in range(extra)]
+        self.assertTrue(all(reply[mqtt_rpc.KEY_ERROR] == "Server busy" for reply in busy))
+        self.assertRaises(queue.Empty, self.replies.get, True, 1)
+        self.assertLessEqual(threading.active_count(), threads_before + mqtt_rpc._MAX_THREADS)
+
+        # The accepted calls are all handled once released
+        self.service.release.set()
+        done = [self.replies.get(True, 10)[1] for _ in range(total - extra)]
+        self.assertTrue(all(reply[mqtt_rpc.KEY_DATA] == "done" for reply in done))
 
 
 # ------------------------------------------------------------------------------

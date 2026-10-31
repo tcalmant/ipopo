@@ -152,6 +152,17 @@ Unreleased
   `mqtt.keepalive`. The broker certificate and host name are always verified.
   They are read by the new `pelix.misc.mqtt_client.MqttConnectionConfig`, shared
   by all the MQTT components
+* **Breaking:** the MQTT-RPC exporter publishes each reply on a topic of its
+  caller (`<topic>/reply/<caller framework UID>`) instead of one reply topic
+  shared by all callers, so that broker ACLs can restrict who reads them. An
+  MQTT-RPC importer of iPOPO 3.2 doesn't receive the replies of a 3.3 exporter,
+  and vice-versa: update all the frameworks sharing a broker together
+* The MQTT-RPC exporter handles at most 10 requests at once and keeps at most
+  100 waiting, instead of starting one thread per message: the requests beyond
+  are refused at once with a "Server busy" error
+* Fixed a dead lock of `MqttClient.publish()` when publishing with a QoS of 1
+  or 2 from several threads. `MqttClient.wait_publication()` now returns
+  `False` when the client is disconnected while waiting
 
 ### HTTP service
 
