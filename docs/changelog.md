@@ -51,6 +51,9 @@ Unreleased
   by pickle and JSON, whose `reveal()` method raises the
   `pelix.security.secret.reveal` audit event (PEP 578) with its owner and the
   calling module. See the security reference card
+* Added the optional `pelix.security.audit` bundle: a component writing the
+  `pelix/security/*` events and the reveals of secrets (with the current
+  subject) to the `pelix.security.audit` logger, without secret values
 * `Subject` has two new fields, `peer_address` (the other end of the
   connection) and `client_address` (the client, as told by the trusted proxies),
   set by the HTTP services and the remote shell and shown by `whoami`.

@@ -76,6 +76,7 @@ class ImportRuleTest(unittest.TestCase):
             "pelix.security.core",
             "pelix.security.htpasswd",
             "pelix.security.policy",
+            "pelix.security.audit",
         ):
             with self.subTest(module=module):
                 self.assertNotIn("pelix.http", imported_modules(module))
