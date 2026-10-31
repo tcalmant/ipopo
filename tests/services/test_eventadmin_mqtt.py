@@ -10,6 +10,7 @@ import json
 import threading
 import unittest
 from typing import Any, cast
+from unittest.mock import MagicMock
 
 import pelix.constants
 import pelix.framework
@@ -19,6 +20,7 @@ from pelix.ipopo.constants import use_ipopo
 
 try:
     from pelix.misc.mqtt_client import MqttClient, MqttMessage
+    from pelix.services.eventadmin_mqtt import EVENT_PROP_STARTING_SLASH, MqttEventAdminBridge
     from tests.mqtt_utilities import find_mqtt_server
 except ImportError:
     raise unittest.SkipTest("MQTT client library not available")
@@ -388,7 +390,7 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
 
         # Configuration
         bridge_prefix = "pelix/test/filter"
-        bridge_event_filter = "/mqtt/*"
+        bridge_event_filter = "from-mqtt/*"
 
         # Instantiate the MQTT Event Admin bridge
         self._setup_bridge(bridge_event_filter, bridge_prefix)
@@ -435,3 +437,42 @@ class EventAdminMqttBridgeTest(unittest.TestCase):
             self.assertDictContains(props, last_props)
         finally:
             client.stop()
+
+    def test_shared_topics(self) -> None:
+        """
+        Tests the topics the bridge accepts to send to and receive from MQTT
+        """
+        prefix = "pelix/test/shared"
+        for event_topics, topic, shared in (
+            # Nothing is shared by default
+            (None, "some/topic", False),
+            ([], "some/topic", False),
+            ("some/*", "some/topic", True),
+            ("some/*", "/some/topic", False),
+            (["other", "/some/*"], "/some/topic", True),
+            ("*", "unrelated", True),
+            # Security events are never shared
+            ("*", "pelix/security/AUTH_SUCCESS", False),
+            ("pelix/security/*", "pelix/security/AUTH_FAILURE", False),
+            ("*", "/pelix/security/ACCESS_DENIED", False),
+        ):
+            with self.subTest(event_topics=event_topics, topic=topic):
+                bridge = MqttEventAdminBridge()
+                bridge._event_topics = event_topics
+                bridge._mqtt_topic = prefix
+                bridge._framework_uid = "local"
+                mqtt = bridge._mqtt = MagicMock()
+                event = bridge._event = MagicMock()
+
+                # Local event to MQTT
+                bridge.handle_event(topic, {pelix.services.EVENT_PROP_PROPAGATE: True})
+                self.assertEqual(mqtt.publish.called, shared)
+
+                # MQTT message to a local event
+                props: dict[str, Any] = {pelix.services.EVENT_PROP_FRAMEWORK_UID: "remote"}
+                if topic.startswith("/"):
+                    props[EVENT_PROP_STARTING_SLASH] = True
+                bridge.handle_mqtt_message(f"{prefix}/{topic.lstrip('/')}", json.dumps(props).encode())
+                self.assertEqual(event.post.called, shared)
+                if shared:
+                    self.assertEqual(event.post.call_args[0][0], topic)

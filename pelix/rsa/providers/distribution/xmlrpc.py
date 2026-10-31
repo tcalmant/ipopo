@@ -53,6 +53,8 @@ from pelix.ipopo.decorators import (
     Requires,
     ValidateComponent,
 )
+from pelix.remote.transport.commons import get_client_limits
+from pelix.remote.transport.xmlrpc_client import make_client_transport
 from pelix.rsa import prop_dot_suffix
 from pelix.rsa.endpointdescription import EndpointDescription
 from pelix.rsa.providers.distribution import (
@@ -315,6 +317,8 @@ class XmlRpcImportContainer(ImportContainer):
         xmlrpc.client.ServerProxy
         """
 
+        limits = get_client_limits(self._get_bundle_context())
+
         class XmlRpcProxy:
             def __init__(self, get_remoteservice_id: tuple[tuple[Any, str], int]) -> None:
                 self._url = get_remoteservice_id[0][1]
@@ -322,7 +326,9 @@ class XmlRpcImportContainer(ImportContainer):
 
             def __getattr__(self, name: str) -> Any:
                 return getattr(
-                    xmlrpclib.ServerProxy(self._url, allow_none=True),
+                    xmlrpclib.ServerProxy(
+                        self._url, allow_none=True, transport=make_client_transport(self._url, limits)
+                    ),
                     f"{self._rsid}.{name}",
                 )
 

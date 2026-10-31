@@ -113,6 +113,32 @@ Unreleased
   name
 * HTTP services: an invalid `pelix.http.socket_timeout` gives the default
   timeout (60 seconds) with a warning, instead of removing the timeout
+* **Breaking:** the EventAdmin MQTT bridge shares no topic by default: set its
+  `event.topics` property (it was `*`). The messages received from the MQTT
+  server are only posted as events when their topic matches `event.topics`,
+  and the `pelix/security/*` events never go through the bridge, either way
+* **Breaking:** the shell scripts (`pelix.shell`, `pelix.shell.remote`,
+  `pelix.shell.xmpp`) no longer load the `.pelix.conf` file of the working
+  folder, nor let its modules be imported: they remove it from `sys.path`,
+  where `python -m` puts it, and set the new `pelix.path.cwd` framework
+  property to false. The new repeatable `--trusted-folder PATH` argument adds a
+  folder to both the configuration lookup and `sys.path`:
+  `--trusted-folder .` restores the previous behaviour
+* New `pelix.path.cwd` framework property: when false, the creation of the
+  framework no longer puts the working folder first in `sys.path`. True by
+  default
+* The multicast discovery binds its socket to the multicast group instead of
+  `0.0.0.0` or `::` (except on Windows), so that it ignores the unicast packets.
+  The protocol only sends to the group, so frameworks keep discovering each
+  other. An IPv6 link-local group needs its interface (`ff02::1%eth0`), else the
+  socket is bound to `::` as before, with a warning
+* The XML-RPC, JSON-RPC and Jabsorb-RPC proxies of the remote services and of
+  RSA, and the requests of the dispatcher servlet to the discovered frameworks,
+  time out after 30 seconds without network activity and refuse responses
+  bigger than 16 MiB, or compressed: see the new
+  `pelix.remote.client.timeout` and `pelix.remote.client.max_response_size`
+  framework properties. They had neither limit, including the calls made by
+  the multicast discovery from its reading thread
 * `SECURITY.md` explains how to deploy a web application with logins behind a
   TLS reverse proxy
 

@@ -8,6 +8,7 @@ Tests the Remote Services Exports Dispatcher
 
 import http.client as httplib
 import json
+import time
 import unittest
 import uuid
 from typing import Any
@@ -20,7 +21,9 @@ from pelix.http import AbstractHTTPServletRequest, AbstractHTTPServletResponse
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
 from pelix.remote import beans
+from pelix.remote.transport.commons import ClientLimits
 from pelix.utilities import to_str
+from tests.remote.test_transport_commons import HostileServer
 
 # ------------------------------------------------------------------------------
 
@@ -584,3 +587,17 @@ class DispatcherTest(unittest.TestCase):
 
         # Test with a connection error
         self.assertFalse(self.servlet.send_discovered("localhost", -1, servlet_path))
+
+    def testHostilePeer(self) -> None:
+        """
+        Tests the requests to a framework which doesn't answer or sends too much
+        """
+        # Short limits, normally read from the framework properties
+        self.servlet._limits = ClientLimits(0.5, 1024)
+
+        for body in (None, b"[" + b" " * 4096 + b"]"):
+            with self.subTest(body=body is not None), HostileServer(body) as server:
+                start = time.monotonic()
+                self.assertFalse(self.servlet.send_discovered("127.0.0.1", server.port, "/"))
+                self.assertIsNone(self.servlet.grab_endpoint("127.0.0.1", server.port, "/", "uid"))
+                self.assertLess(time.monotonic() - start, 5)

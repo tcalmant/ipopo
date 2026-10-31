@@ -56,6 +56,8 @@ __all__ = [
     "FACTORY_TRANSPORT_XMLRPC_EXPORTER",
     "FACTORY_TRANSPORT_XMLRPC_IMPORTER",
     "PREFIX_PROP_EXPORTED",
+    "PROP_CLIENT_MAX_RESPONSE_SIZE",
+    "PROP_CLIENT_TIMEOUT",
     "PROP_ENDPOINT_FRAMEWORK_UUID",
     "PROP_ENDPOINT_ID",
     "PROP_ENDPOINT_NAME",
@@ -279,6 +281,20 @@ PROP_REMOTE_INTENTS_SUPPORTED = "remote.intents.supported"
 Service property identifying the intents supported by a distribution provider.
 Registered by the distribution provider on one of its services to indicate the
 vocabulary of implemented intents. (str or array of str)
+"""
+
+PROP_CLIENT_TIMEOUT = "pelix.remote.client.timeout"
+"""
+Framework property: timeout, in seconds, of the network operations of the calls
+to other frameworks (float, 30 by default). A value lesser than or equal to 0
+removes the timeout.
+"""
+
+PROP_CLIENT_MAX_RESPONSE_SIZE = "pelix.remote.client.max_response_size"
+"""
+Framework property: maximum size, in bytes, of a response from another
+framework (int, 16 MiB by default). A value lesser than or equal to 0 removes
+the limit.
 """
 
 # ------------------------------------------------------------------------------

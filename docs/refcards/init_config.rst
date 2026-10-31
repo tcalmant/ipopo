@@ -36,8 +36,9 @@ the following entries:
   The given paths can contains environment variables and the user path marker
   (``~``).
 
-  Note that the current working directory (*cwd*) will always be the first
-  element of ``sys.path`` when using an initial configuration handler.
+  Note that the creation of the framework puts the current working directory
+  (*cwd*) first in ``sys.path``, unless the ``pelix.path.cwd`` framework
+  property is false.
 * ``bundles``: a JSON array containing the names of the bundles to install and
   start with the framework.
 * ``components``: a JSON array of JSON objects defining the components to
@@ -170,7 +171,13 @@ Currently, all the Pelix Shell interfaces (local console, remote shell and
 XMPP) support the initial configuration, using the following arguments:
 
 * *no argument*: the `.pelix.conf` files are loaded as described in
-  :ref:`init_conf_lookup`.
+  :ref:`init_conf_lookup`, except the one of the current working directory.
+* ``--trusted-folder <folder>``: a `.pelix.conf` file is also looked for in
+  this folder, after the default ones, and the folder is put first in the Python
+  path. The argument can be repeated. Use ``--trusted-folder .`` to load the
+  file of the current working directory and to import its modules: without
+  it, the scripts remove the working directory from the Python path and set the
+  ``pelix.path.cwd`` framework property to false.
 * ``-e``, ``--empty-conf``: no initial configuration file will be loaded
 * ``-c <filename>``, ``--conf <filename>``: the default configuration files,
   then given one will be loaded.

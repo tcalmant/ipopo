@@ -19,6 +19,7 @@ from unittest import mock
 
 import pelix.framework
 import pelix.shell.completion.core as completion_core
+from pelix.constants import PROP_PATH_CWD
 from pelix.framework import Bundle
 from pelix.shell import console
 from pelix.shell.console import (
@@ -60,6 +61,10 @@ class CommonArgumentsTest(unittest.TestCase):
     """
     Tests the common shell argument parsing
     """
+
+    def setUp(self) -> None:
+        # The arguments handler updates sys.path
+        self.addCleanup(setattr, sys, "path", list(sys.path))
 
     def _handle(self, arguments: list[str]) -> Any:
         parser = make_common_parser()
@@ -115,6 +120,50 @@ class CommonArgumentsTest(unittest.TestCase):
         # Missing files must raise an error
         self.assertRaises(IOError, self._handle, ["-e", "--init", "/no/such/script.pelix"])
         self.assertRaises(IOError, self._handle, ["-e", "--run", "/no/such/script.pelix"])
+
+    def test_trusted_folders(self) -> None:
+        """
+        Tests that the working folder is only used when given as --trusted-folder
+        """
+        old_cwd = os.getcwd()
+        self.addCleanup(os.chdir, old_cwd)
+
+        with tempfile.TemporaryDirectory() as cwd, tempfile.TemporaryDirectory() as other:
+            for folder in (cwd, other):
+                with open(os.path.join(folder, ".pelix.conf"), "w") as conf_file:
+                    conf_file.write(f'{{"properties": {{"test.trusted.{os.path.basename(folder)}": 1}}}}')
+            os.chdir(cwd)
+
+            for arguments, trusted in (
+                ([], []),
+                (["-e"], []),
+                (["--trusted-folder", "."], ["."]),
+                (["--trusted-folder", other], [other]),
+                (["--trusted-folder", other, "--trusted-folder", "."], [other, "."]),
+            ):
+                with self.subTest(arguments=arguments):
+                    # As "python -m" does
+                    sys.path = [cwd, *(path for path in sys.path if path not in (".", cwd, other))]
+                    init = self._handle(arguments)
+
+                    # Trusted folders come first in the Python path, the others are removed
+                    self.assertEqual(sys.path[: len(trusted)], trusted)
+                    untrusted = {".", cwd, other}.difference(trusted)
+                    if "." in trusted:
+                        untrusted.discard(cwd)
+                    for folder in untrusted:
+                        self.assertNotIn(folder, sys.path)
+
+                    # The framework must not add the working folder back unless it is trusted
+                    self.assertEqual(init.properties.get(PROP_PATH_CWD, True), "." in trusted)
+
+                    # Only the configuration files of the trusted folders are loaded
+                    loaded = {os.path.realpath(path) for path in trusted if "-e" not in arguments}
+                    for folder in (cwd, other):
+                        self.assertEqual(
+                            f"test.trusted.{os.path.basename(folder)}" in init.properties,
+                            os.path.realpath(folder) in loaded,
+                        )
 
 
 class InteractiveShellTest(unittest.TestCase):

@@ -52,6 +52,7 @@ from pelix.constants import (
     OBJECTCLASS,
     OSGI_FRAMEWORK_UUID,
     PELIX_SPECIFICATION_FIELD,
+    PROP_PATH_CWD,
     BundleException,
     FrameworkException,
     check_specification_name,
@@ -1788,7 +1789,7 @@ class FrameworkFactory:
         """
         if cls.__singleton is None:
             # Normalize sys.path
-            normalize_path()
+            normalize_path(str((properties or {}).get(PROP_PATH_CWD, True)).lower() not in ("false", "0"))
             cls.__singleton = Framework(properties)
 
         return cls.__singleton
@@ -1923,9 +1924,11 @@ def _package_exists(path: str) -> bool:
     return False
 
 
-def normalize_path() -> None:
+def normalize_path(cwd: bool = True) -> None:
     """
     Normalizes sys.path to avoid the use of relative folders
+
+    :param cwd: If True, put the current working directory first in sys.path
     """
     # Normalize Python paths
     whole_path = [os.path.abspath(path) for path in sys.path if os.path.exists(path)]
@@ -1933,7 +1936,7 @@ def normalize_path() -> None:
     # Keep the "dynamic" current folder indicator and add the "static"
     # current path
     # Use an OrderedDict to have a faster lookup (path not in whole_set)
-    whole_set = collections.OrderedDict((("", 1), (os.getcwd(), 1)))
+    whole_set = collections.OrderedDict((("", 1), (os.getcwd(), 1)) if cwd else ())
 
     # Add original path entries
     for path in whole_path:

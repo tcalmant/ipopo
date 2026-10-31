@@ -39,6 +39,7 @@ import os
 import select
 import socket
 import struct
+import sys
 import threading
 from collections.abc import Iterable
 from typing import Any
@@ -205,13 +206,17 @@ def create_multicast_socket(address: str, port: int) -> tuple[socket.socket, str
         # Special for MacOS
         sock.setsockopt(socket.SOL_SOCKET, SO_REUSEPORT, 1)
 
-    # Bind the socket
-    if sock.family == socket.AF_INET:
-        # IPv4 binding
-        sock.bind(("0.0.0.0", port))
+    # Bind to the group, so that unicast packets aren't received (Windows can't)
+    wildcard = ("0.0.0.0" if sock.family == socket.AF_INET else "::", port)
+    if sys.platform == "win32":
+        sock.bind(wildcard)
     else:
-        # IPv6 Binding
-        sock.bind(("::", port))
+        try:
+            sock.bind(addr_info[4])
+        except OSError as ex:
+            # An IPv6 link-local group without its scope ID (ff02::1%eth0) fails here
+            _logger.warning("Can't bind to %s, receiving unicast packets too: %s", address, ex)
+            sock.bind(wildcard)
 
     # Prepare the mreq structure to join the group
     # addrinfo[4] = (addr,port)

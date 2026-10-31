@@ -389,7 +389,7 @@ It can be configured with the following properties:
 ================= ===================== =======================================
 Property          Default Value         Description
 ================= ===================== =======================================
-event.topics      ``*``                 The filter to select the events to share
+event.topics      (none)                The filter to select the events to share
 mqtt.host         localhost             The host name of the MQTT server
 mqtt.port         1883                  The port the MQTT server is bound to
 mqtt.topic.prefix ``/pelix/eventadmin`` The prefix to add to events before sending them over MQTT
@@ -412,5 +412,12 @@ The event properties are then converted to JSON and used as the body the MQTT
 message.
 
 When an MQTT message starting with the configured prefix is received, it is
-converted back to an event, given to EventAdmin.
+converted back to an event, given to EventAdmin, if its topic matches the
+``event.topics`` filter.
 Loopback messages are detected and ignored to avoid loops.
+
+Nothing is shared until ``event.topics`` is set: list only the topics other
+entities of the MQTT server may see and send, as any client of the server can
+post an event on those topics.
+The security events (``pelix/security/*``) never go through the bridge, in
+either direction, whatever the value of ``event.topics``.

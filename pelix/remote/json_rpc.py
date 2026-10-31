@@ -32,6 +32,7 @@ import uuid
 from collections.abc import Callable, Iterable
 from typing import Any
 
+import jsonrpclib.config
 import jsonrpclib.jsonrpc
 from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCDispatcher
 
@@ -42,6 +43,7 @@ from pelix.internals.registry import ServiceReference
 from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Requires, Validate
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.transport import commons
+from pelix.remote.transport.xmlrpc_client import LimitedTransportMixIn
 from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
@@ -53,7 +55,7 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-__all__ = ["JSONRPC_CONFIGURATION", "PROP_JSONRPC_URL"]
+__all__ = ["JSONRPC_CONFIGURATION", "PROP_JSONRPC_URL", "make_client_transport"]
 
 # ------------------------------------------------------------------------------
 
@@ -223,20 +225,45 @@ class JsonRpcServiceExporter(commons.AbstractRpcServiceExporter):
 # ------------------------------------------------------------------------------
 
 
+# jsonrpclib doesn't follow the signatures of the xmlrpc.client stubs
+class _JsonRpcTransport(LimitedTransportMixIn, jsonrpclib.jsonrpc.Transport):  # ty: ignore[invalid-method-override]
+    pass
+
+
+class _JsonRpcSafeTransport(LimitedTransportMixIn, jsonrpclib.jsonrpc.SafeTransport):  # ty: ignore[invalid-method-override]
+    pass
+
+
+def make_client_transport(url: str, limits: commons.ClientLimits) -> jsonrpclib.jsonrpc.Transport:
+    """
+    Prepares the transport of a JSON-RPC server proxy, applying the client limits
+
+    :param url: URL of the server
+    :param limits: The client limits
+    :return: A transport for the ``ServerProxy`` of ``jsonrpclib``
+    """
+    config = jsonrpclib.config.DEFAULT
+    if url.lower().startswith("https:"):
+        return _JsonRpcSafeTransport(limits, config, None)
+    return _JsonRpcTransport(limits, config)
+
+
 class _ServiceCallProxy:
     """
     Service call proxy
     """
 
-    def __init__(self, name: str, url: str) -> None:
+    def __init__(self, name: str, url: str, limits: commons.ClientLimits) -> None:
         """
         Sets up the call proxy
 
         :param name: End point name
         :param url: End point URL
+        :param limits: Limits of the calls
         """
         self.__name = name
         self.__url = url
+        self.__limits = limits
 
     def __getattr__(self, name: str) -> Any:
         """
@@ -246,7 +273,9 @@ class _ServiceCallProxy:
         # This is an ugly trick to handle multi-threaded calls, as the
         # underlying proxy reuses the same connection when possible: sometimes
         # it means sending a request before retrieving a result
-        proxy = jsonrpclib.jsonrpc.ServerProxy(self.__url)
+        proxy = jsonrpclib.jsonrpc.ServerProxy(
+            self.__url, transport=make_client_transport(self.__url, self.__limits)
+        )
         return getattr(proxy, f"{self.__name}.{name}")
 
 
@@ -289,7 +318,7 @@ class JsonRpcServiceImporter(commons.AbstractRpcServiceImporter):
             access_url = access_url.format(server=local_server)
 
         # Return the proxy
-        return _ServiceCallProxy(endpoint.name, access_url)
+        return _ServiceCallProxy(endpoint.name, access_url, commons.get_client_limits(self._context))
 
     def clear_service_proxy(self, endpoint: ImportEndpoint) -> None:
         """

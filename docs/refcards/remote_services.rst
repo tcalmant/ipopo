@@ -243,6 +243,22 @@ All those protocols require the HTTP service to be up and running to work.
 Finally, iPOPO also supports a kind of *MQTT-RPC* protocol, *i.e.* JSON-RPC
 over MQTT.
 
+The calls to the other frameworks over HTTP (XML-RPC, JSON-RPC and Jabsorb-RPC
+proxies, and the requests of the dispatcher servlet to the discovered
+frameworks) are bounded by the following framework properties, as the address
+of a framework comes from the discovery and can't be trusted:
+
+========================================= ============= ===========================================
+Property                                  Default value Description
+========================================= ============= ===========================================
+``pelix.remote.client.timeout``           30            Timeout, in seconds, of each network operation (connection, each read). 0 removes it
+``pelix.remote.client.max_response_size`` 16777216      Maximum size, in bytes, of a response (16 MiB). 0 removes the limit
+========================================= ============= ===========================================
+
+.. versionadded:: 3.3.0
+   The calls had no timeout and read responses of any size. A compressed
+   response is no longer accepted.
+
 
 Providers included with Pelix/iPOPO
 ===================================
@@ -291,6 +307,14 @@ Property        Default value Description
 multicast.group 239.0.0.1     The multicast group (address) to join to send and receive discovery messages.
 multicast.port  42000         The multicast port to listen to
 =============== ============= =================================================
+
+.. versionchanged:: 3.3.0
+   The socket is bound to the multicast group instead of all the addresses
+   (except on Windows, which doesn't allow it), so that it no longer accepts
+   unicast packets: the frameworks only ever send to the group.
+   An IPv6 link-local group must then be given with its interface, as in
+   ``ff02::1%eth0``, else the socket falls back to all the addresses with a
+   warning.
 
 To use this discovery provider, you'll need to install the following bundles
 and instantiate the associated components:
