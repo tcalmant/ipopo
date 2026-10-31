@@ -586,6 +586,25 @@ class BundleMetadataTest(BundleFilesTestCase):
                 self.assertEqual(dict(bundle.get_headers()), {})
                 self.assertEqual(bundle.get_version(), version)
 
+    def testVersionMismatch(self):
+        """
+        Tests the warning when the version header and __version__ differ
+        """
+        block = '"""\n.. pelix-bundle\n   version = "1.2.3"\n"""\n'
+        for source, warned in (
+            (block + "__version__ = '9.9.9'\n", True),
+            (block + "__version__ = '1.2.3'\n", False),
+            (block, False),
+            ("__version__ = '9.9.9'\n", False),
+        ):
+            with self.subTest(source):
+                if warned:
+                    with self.assertLogs("pelix.internals.metadata", "WARNING"):
+                        self.install(source)
+                else:
+                    with self.assertNoLogs("pelix.internals.metadata", "WARNING"):
+                        self.install(source)
+
     def testSideFile(self):
         """
         Tests the side file of a module and of a package, and the unused one
@@ -640,8 +659,11 @@ class BundleMetadataTest(BundleFilesTestCase):
         """
         bundle = self.install('"""\n.. pelix-bundle\n   version = "1.0"\n"""\n')
         module_file = pathlib.Path(bundle.get_location())
-        module_file.write_text('"""\n.. pelix-bundle\n   version = "2.0"\n"""\n', encoding="utf-8")
-        bundle.update()
+        module_file.write_text(
+            '"""\n.. pelix-bundle\n   version = "2.0"\n"""\n__version__ = "1.0"\n', encoding="utf-8"
+        )
+        with self.assertLogs("pelix.internals.metadata", "WARNING"):
+            bundle.update()
         self.assertEqual(bundle.get_version(), "2.0")
 
         module_file.write_text('"""\n.. pelix-bundle\n   version = \n"""\n', encoding="utf-8")

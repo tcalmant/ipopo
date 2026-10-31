@@ -61,7 +61,7 @@ from pelix.constants import (
 )
 from pelix.internals import resources
 from pelix.internals.events import BundleEvent, ServiceEvent
-from pelix.internals.metadata import read_metadata
+from pelix.internals.metadata import check_version, read_metadata
 from pelix.internals.registry import (
     BundleListener,
     EventDispatcher,
@@ -680,6 +680,7 @@ class Bundle:
                 self.__module.__dict__.update(old_content)
             else:
                 self.__metadata = new_metadata
+                check_version(self.__name, new_metadata, self.__module)
 
             if module_stat is not None:
                 try:
@@ -979,6 +980,7 @@ class Framework(Bundle):
 
             # Add the module to sys.modules, just to be sure
             sys.modules[name] = module_
+            check_version(name, metadata, module_)
 
             # Compute the bundle ID
             bundle_id = self.__next_bundle_id

@@ -18,9 +18,10 @@ Unreleased
 
 * Added the bundle metadata: a TOML block after a `.. pelix-bundle` line in a
   module-level docstring, or a `<module>.manifest.toml` file, read when the
-  bundle is installed without executing its module. See
+  bundle is installed, before its module is imported. See
   `Bundle.get_headers()` and the bundles reference card. The `version` header
-  is now used by `Bundle.get_version()` before `__version__`
+  now takes precedence over `__version__` in `Bundle.get_version()`, with a
+  warning when they differ
 * Added the bundle resources: `Bundle.get_entry()` and `Bundle.find_entries()`
   give access to the files of a package bundle, or to the `<module>.res`
   directory of a module bundle

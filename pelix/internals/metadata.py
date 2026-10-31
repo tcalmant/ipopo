@@ -45,7 +45,7 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-__all__ = ["read_metadata"]
+__all__ = ["check_version", "read_metadata"]
 
 _logger = logging.getLogger(__name__)
 
@@ -183,3 +183,24 @@ def read_metadata(name: str, spec: ModuleSpec | None) -> Mapping[str, Any]:
         raise BundleException(f"Invalid metadata of {name}: symbolic-name is {data['symbolic-name']!r}")
 
     return _freeze(data)
+
+
+def check_version(name: str, metadata: Mapping[str, Any], module: types.ModuleType) -> None:
+    """
+    Warns when the version header and the ``__version__`` of the module differ,
+    as the header silently takes precedence
+
+    :param name: The bundle name
+    :param metadata: The bundle metadata
+    :param module: The imported bundle module
+    """
+    header = metadata.get("version")
+    attribute = getattr(module, "__version__", None)
+    if header and attribute and header != attribute:
+        _logger.warning(
+            "Version of %s differs between its metadata (%s) and __version__ (%s): using %s",
+            name,
+            header,
+            attribute,
+            header,
+        )

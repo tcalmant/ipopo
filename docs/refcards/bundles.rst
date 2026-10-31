@@ -174,7 +174,8 @@ Header          Description
 =============== =============================================================
 symbolic-name   Must be the module name, when given
 version         Bundle version, used by :meth:`~pelix.framework.Bundle.get_version`
-                before ``__version__`` and ``__version_info__``
+                over ``__version__`` and ``__version_info__`` (a warning is
+                logged when it differs from ``__version__``)
 name            Human readable name
 description     Short description
 vendor          Name of the vendor
