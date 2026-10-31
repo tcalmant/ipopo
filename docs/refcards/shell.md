@@ -532,6 +532,15 @@ can be used to generate ASCII tables to print out to the user. This is
 the service used by the core method to print the list of bundles,
 services, iPOPO instances, etc.
 
+Tables are measured in terminal cells (wide characters take two, combining marks
+none) and cells can hold several lines. When the `COLUMNS` variable of the session
+is an integer between 20 and 500, `make_table()` shrinks the widest columns and
+wraps their cells (after spaces and `. / _ \ : , ; -`) to fit that width, but
+never below the column header or 8 cells. The `width` argument of `make_table()`
+takes precedence. The local console sets `COLUMNS` from the size of the terminal
+when it starts; the remote and XMPP shells don't set it, so their tables are
+unchanged.
+
 Here is an example of a simple command service providing the *echo* and
 *hello* shell commands. *echo* accepts an unlimited list of arguments
 and prints it back to the client. *hello* asks a name if it wasn't given

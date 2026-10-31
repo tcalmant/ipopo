@@ -274,13 +274,18 @@ class ShellUtils(Protocol):
         ...
 
     @staticmethod
-    def make_table(headers: Iterable[str], lines: Iterable[Any], prefix: str | None = None) -> str:
+    def make_table(
+        headers: Iterable[str], lines: Iterable[Any], prefix: str | None = None, width: int | None = None
+    ) -> str:
         """
         Generates an ASCII table according to the given headers and lines
 
         :param headers: List of table headers (N-tuple)
         :param lines: List of table lines (N-tuples)
         :param prefix: Optional prefix for each line
+        :param width: Maximum width of the table in terminal cells: the widest columns shrink and
+                      their cells wrap (a column keeps at least its header or 8 cells). By default,
+                      the ``COLUMNS`` variable of the session of the running command, if any
         :return: The ASCII representation of the table
         :raise ValueError: Different number of columns between headers and lines
         """

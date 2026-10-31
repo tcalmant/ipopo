@@ -376,6 +376,12 @@ Unreleased
 
 ### Shell
 
+* `ShellUtils.make_table()` has a `width` argument: the widest columns shrink and
+  their cells wrap to fit. By default, it uses the `COLUMNS` session variable
+  (20 to 500) of the running command, which the local console sets from the
+  terminal size. Tables now measure wide and combining characters in terminal
+  cells, split cells on their newlines and expand tabs. The "Invalid type of
+  line" error message is now formatted
 * Added `ShellSession.prompt_secret()` (and `IOHandler.prompt_secret()`): it reads
   a line as a `pelix.security.Secret`, without echo in the console. The remote
   and XMPP shells have no echo control. It raises an `EOFError` when there is

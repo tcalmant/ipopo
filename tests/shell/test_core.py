@@ -7,6 +7,7 @@ Tests the shell core module
 """
 
 import os
+import random
 import sys
 import unittest
 from io import StringIO
@@ -29,6 +30,7 @@ from pelix.shell import (
     beans,
     parser,
 )
+from pelix.shell import core as shell_core
 
 # ------------------------------------------------------------------------------
 
@@ -152,6 +154,84 @@ class ShellUtilsTest(unittest.TestCase):
             self.assertRaises(
                 ValueError, self.utility.make_table, headers, [bad_line], "Bad line type accepted"
             )
+
+    def testTableLayout(self) -> None:
+        """
+        Tests the cells which are not plain text, and the width
+        """
+        cells = shell_core._cells
+        long_row = ("pelix.ipopo.handlers.requiresbroadcast", "a long description of the bundle, with words")
+        cases: list[tuple[str, tuple[str, ...], list[Any], int | None]] = [
+            ("newline", ("A", "B"), [("x\ny", "z")], None),
+            ("wide", ("A", "B"), [("\u65e5\u672c\u8a9e", "z"), ("abc", "z")], None),
+            ("combining", ("A", "B"), [("e\u0301", "z"), ("e", "z")], None),
+            ("tab", ("A", "B"), [("a\tb", "z"), ("a    b", "z")], None),
+            ("fits", ("Name", "Text"), [long_row], 200),
+            ("wrap", ("Name", "Text"), [long_row], 60),
+            ("narrow", ("Name", "Text"), [long_row], 40),
+            ("floor", ("Name", "Text"), [long_row], 20),
+            ("wide-cut", ("A",), [("\u65e5" * 20,)], 12),
+        ]
+        for name, headers, lines, width in cases:
+            with self.subTest(name):
+                table = self.utility.make_table(headers, lines, None, width)
+                physical = table.splitlines()
+
+                # Aligned in terminal cells
+                self.assertEqual(1, len({cells(line) for line in physical}), table)
+
+                # Nothing lost
+                joined = "".join(table.split())
+                for entry in "".join(str(e) for line in lines for e in line).expandtabs(4).split():
+                    for char in entry:
+                        self.assertIn(char, joined)
+
+                # Narrower than asked, unless the floors (header or 8 cells) prevent it
+                if width is not None and name in ("wrap", "narrow"):
+                    self.assertLessEqual(cells(physical[0]), width)
+
+        # No width: the table is only as wide as its content
+        self.assertEqual(
+            self.utility.make_table(("Name", "Text"), [long_row]),
+            self.utility.make_table(("Name", "Text"), [long_row], None, None),
+        )
+        self.assertEqual(
+            "| pelix.ipopo.handlers.requiresbroadcast | a long",
+            self.utility.make_table(("Name", "Text"), [long_row]).splitlines()[3][:49],
+        )
+
+        # The break prefers a separator
+        wrapped = self.utility.make_table(("Name", "Text"), [long_row], None, 60)
+        self.assertIn("pelix.ipopo.handlers.  ", wrapped)
+        self.assertIn("requiresbroadcast", wrapped)
+
+    def testTableBadTypeMessage(self) -> None:
+        """
+        Tests that the error message is formatted
+        """
+        with self.assertRaisesRegex(ValueError, "^Invalid type of line: int$"):
+            self.utility.make_table(("A",), [12])
+
+    def testTableFuzz(self) -> None:
+        """
+        Tests random tables: aligned, nothing lost
+        """
+        rnd = random.Random(42)
+        alphabet = "abcdefghij./_- \n\t\u65e5\u672ce\u0301"
+        for _ in range(300):
+            cols = rnd.randint(1, 5)
+            headers = ["".join(rnd.choices("ABCDEFGH", k=rnd.randint(1, 8))) for _ in range(cols)]
+            rows = [
+                ["".join(rnd.choices(alphabet, k=rnd.randint(0, 60))) for _ in range(cols)]
+                for _ in range(rnd.randint(0, 4))
+            ]
+            width = rnd.choice([None, 10, 20, 40, 80])
+            table = self.utility.make_table(headers, rows, rnd.choice([None, "  "]), width)
+            self.assertEqual(1, len({shell_core._cells(line) for line in table.splitlines()}), table)
+            joined = "".join(table.split())
+            for text in (text for row in rows for text in row):
+                for char in "".join(text.expandtabs(4).split()):
+                    self.assertIn(char, joined)
 
 
 # ------------------------------------------------------------------------------
@@ -698,6 +778,28 @@ class ShellCoreCommandsTest(unittest.TestCase):
 
         # Run the file a second time: it must fail
         self.assertFalse(self.shell.execute(f"run '{filename}'", session))
+
+    def testTableWidthFromColumns(self) -> None:
+        """
+        Tests that the COLUMNS variable of the session sets the width of the tables
+        """
+        self.context.install_bundle("tests.interfaces")
+        session, output = self._make_session()
+        widths = {}
+        for columns in (None, 40, "40", 10, 1000, "bad"):
+            with self.subTest(columns=columns):
+                if columns is not None:
+                    session.set("COLUMNS", columns)
+                widths[columns] = max(
+                    len(line) for line in self._run_command("bl", session=session, output=output).splitlines()
+                )
+
+        self.assertEqual(40, widths[40])
+        self.assertEqual(40, widths["40"])
+        # Ignored values: same as without the variable
+        for columns in (10, 1000, "bad"):
+            self.assertEqual(widths[None], widths[columns])
+        self.assertGreater(widths[None], 40)
 
     def testBundlesInfo(self) -> None:
         """

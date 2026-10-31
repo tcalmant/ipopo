@@ -29,9 +29,12 @@ Provides the basic command parsing and execution support to make a Pelix shell.
 
 import logging
 import os
+import re
 import sys
 import threading
+import unicodedata
 from collections.abc import Iterable
+from contextvars import ContextVar
 from types import FrameType
 from typing import TYPE_CHECKING, Any
 
@@ -70,6 +73,65 @@ __docformat__ = "restructuredtext en"
 # ------------------------------------------------------------------------------
 
 
+# Width of the terminal of the command being executed, used by make_table()
+_TABLE_WIDTH: ContextVar[int | None] = ContextVar("pelix_shell_table_width", default=None)
+
+_MIN_WIDTH = 8
+
+
+def _cells(text: str) -> int:
+    """Width of a text in terminal cells (wide characters take 2, combining marks 0)"""
+    return sum(
+        0 if unicodedata.combining(c) else 2 if unicodedata.east_asian_width(c) in "WF" else 1 for c in text
+    )
+
+
+def _pad(text: str, width: int, center: bool = False) -> str:
+    """Pads a text to a width in terminal cells"""
+    missing = width - _cells(text)
+    if center:
+        return " " * (missing // 2) + text + " " * (missing - missing // 2)
+    return text + " " * missing
+
+
+def _wrap(line: str, width: int) -> list[str]:
+    """
+    Wraps a line to a width in cells, preferring breaks after spaces and the separators of
+    module names, paths and identifiers, cutting a token only when it is longer than the width
+    """
+    result: list[str] = []
+    current = ""
+    for token in re.split(r"(?<=[ ./_\\:,;-])", line):
+        while _cells(token) > width:
+            # A token longer than the width: fill the current line, then cut it
+            room = width - _cells(current)
+            cut = 0
+            while cut < len(token) and _cells(token[: cut + 1]) <= room:
+                cut += 1
+            if cut == 0 and current:
+                result.append(current.rstrip())
+                current = ""
+                continue
+            # A character wider than the whole column: let it overflow rather than loop
+            cut = max(cut, 1)
+            result.append(current + token[:cut])
+            current, token = "", token[cut:]
+        if _cells(current + token.rstrip()) > width:
+            result.append(current.rstrip())
+            current = ""
+        current += token
+    result.append(current.rstrip())
+    return result
+
+
+def _split_cell(text: str, width: int | None) -> list[str]:
+    """Physical lines of a cell: its own lines, wrapped to the width if any"""
+    result: list[str] = []
+    for line in text.expandtabs(4).splitlines() or [""]:
+        result.extend([line] if width is None or _cells(line) <= width else _wrap(line, width))
+    return result
+
+
 class _ShellUtils(ShellUtils):
     """
     Utility methods for the shell
@@ -92,80 +154,73 @@ class _ShellUtils(ShellUtils):
         return states.get(state, f"Unknown state ({state})")
 
     @staticmethod
-    def make_table(headers: Iterable[str], lines: Iterable[Any], prefix: str | None = None) -> str:
+    def make_table(
+        headers: Iterable[str], lines: Iterable[Any], prefix: str | None = None, width: int | None = None
+    ) -> str:
         """
         Generates an ASCII table according to the given headers and lines
 
         :param headers: List of table headers (N-tuple)
         :param lines: List of table lines (N-tuples)
         :param prefix: Optional prefix for each line
+        :param width: Maximum width of the table in terminal cells. By default, the width of the
+                      terminal of the running command (``COLUMNS`` session variable), if any
         :return: The ASCII representation of the table
         :raise ValueError: Different number of columns between headers and lines
         """
-        # Normalize the prefix
+        if width is None:
+            width = _TABLE_WIDTH.get()
         prefix = str(prefix or "")
-
-        # Maximum lengths
-        lengths = [len(title) for title in headers]
-
-        # Store the number of columns (0-based)
-        nb_columns = len(lengths) - 1
-
-        # Lines
-        str_lines = []
+        headers = [str(header) for header in headers]
+        rows: list[list[str]] = []
         for idx, line in enumerate(lines):
-            # Recompute lengths
-            str_line: list[str] = []
-            str_lines.append(str_line)
-            column = -1
-
             try:
-                for column, entry in enumerate(line):
-                    str_entry = str(entry)
-                    str_line.append(str_entry)
-
-                    lengths[column] = max(lengths[column], len(str_entry))
-
-            except IndexError:
-                # Line too small/big
+                row = [str(entry) for entry in line]
+            except TypeError:
+                raise ValueError(f"Invalid type of line: {type(line).__name__}") from None
+            if len(row) != len(headers):
                 raise ValueError(f"Different sizes for header and lines (line {idx + 1})")
+            rows.append(row)
 
-            except (TypeError, AttributeError):
-                # Invalid type of line
-                raise ValueError("Invalid type of line: %s", type(line).__name__)
+        natural = [
+            max([_cells(header)] + [_cells(part) for row in rows for part in _split_cell(row[col], None)])
+            for col, header in enumerate(headers)
+        ]
+        widths = list(natural)
+        if width is not None:
+            # Borders: "| " + " | " between columns + " |", plus the prefix (tabs as 8 cells)
+            overhead = _cells(prefix.expandtabs(8)) + 3 * len(widths) + 1
+            floors = [
+                max(_cells(header), min(_MIN_WIDTH, natural[col])) for col, header in enumerate(headers)
+            ]
+            while overhead + sum(widths) > width:
+                # Shrink the widest column that can still shrink
+                col = max(
+                    (c for c in range(len(widths)) if widths[c] > floors[c]),
+                    key=lambda c: widths[c],
+                    default=None,
+                )
+                if col is None:
+                    break
+                widths[col] -= 1
 
-            else:
-                if column != nb_columns:
-                    # Check if all lines have the same number of columns
-                    raise ValueError(f"Different sizes for header and lines (line {idx + 1})")
-
-        # Prepare the head (centered text)
-        format_str = f"{prefix}|"
-        for column, length in enumerate(lengths):
-            format_str += f" {{{column}:^{length}}} |"
-
-        head_str = format_str.format(*headers)
-
-        # Prepare the separator, according the length of the headers string
-        separator = f"{prefix}{'-' * (len(head_str) - len(prefix))}"
-        idx = head_str.find("|")
-        while idx != -1:
-            separator = "+".join((separator[:idx], separator[idx + 1 :]))
-            idx = head_str.find("|", idx + 1)
-
-        # Prepare the output
-        output = [separator, head_str, separator.replace("-", "=")]
-
-        # Compute the lines
-        format_str = format_str.replace("^", "<")
-        for line in str_lines:
-            output.append(format_str.format(*line))
+        separator = prefix + "+" + "+".join("-" * (w + 2) for w in widths) + "+"
+        output = [
+            separator,
+            prefix + "|" + "|".join(f" {_pad(h, w, center=True)} " for h, w in zip(headers, widths)) + "|",
+            separator.replace("-", "="),
+        ]
+        for row in rows:
+            parts = [_split_cell(text, w) for text, w in zip(row, widths)]
+            for idx in range(max(len(p) for p in parts)):
+                output.append(
+                    prefix
+                    + "|"
+                    + "|".join(f" {_pad(p[idx] if idx < len(p) else '', w)} " for p, w in zip(parts, widths))
+                    + "|"
+                )
             output.append(separator)
-
-        # Force the last end of line
         output.append("")
-
-        # Join'em
         return "\n".join(output)
 
 
@@ -278,6 +333,22 @@ class _ShellService(parser.Shell, ShellService):
         del self._bound_references[svc_ref]
         del self._reference_commands[svc_ref]
         return True
+
+    def execute(self, cmdline: str, session: "ShellSession | None" = None) -> bool:
+        """
+        Executes a command line, with the table width of the session (``COLUMNS``) available
+        """
+        try:
+            columns = int(session.get("COLUMNS")) if session is not None else 0
+        except (KeyError, TypeError, ValueError):
+            columns = 0
+
+        # Out of range values are ignored: a bogus width would make every table unreadable
+        token = _TABLE_WIDTH.set(columns if 20 <= columns <= 500 else None)
+        try:
+            return super().execute(cmdline, session)
+        finally:
+            _TABLE_WIDTH.reset(token)
 
     def get_banner(self) -> str:
         """
