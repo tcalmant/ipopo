@@ -63,6 +63,7 @@ from pelix.rsa import (
     rsid_to_string,
     set_prop_if_null,
 )
+from pelix.security import Secret
 
 # ------------------------------------------------------------------------------
 # Module version
@@ -308,6 +309,11 @@ class EndpointDescription:
 
         if properties is not None:
             all_properties.update(properties)
+
+        # Secrets must not reach the peers
+        all_properties = {
+            key: value for key, value in all_properties.items() if not isinstance(value, Secret)
+        }
 
         if svc_ref is not None:
             self._properties = EndpointDescription._verify_export_props(svc_ref, all_properties)

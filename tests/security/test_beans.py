@@ -8,6 +8,7 @@ Permission and Secret.
 """
 
 import copy
+import io
 import json
 import pickle
 import sys
@@ -488,3 +489,141 @@ class SecretTest(unittest.TestCase):
         assert wrapped is not None
         self.assertEqual(wrapped, existing)
         self.assertEqual(wrapped.owner, "owner")
+
+
+class SecretToolsTest(unittest.TestCase):
+    """
+    The generic tools of Pelix never reveal a secret: they show it masked or refuse it
+    """
+
+    # Packages which must never reveal a secret
+    TOOLS = ("pelix.shell", "pelix.remote", "pelix.rsa", "pelix.misc")
+
+    # Built at run time: the report command shows the source of the running code
+    VALUE = "".join(reversed("2retnuh"))
+
+    def setUp(self) -> None:
+        import pelix.framework
+
+        self.framework = pelix.framework.create_framework(
+            (
+                "pelix.ipopo.core",
+                "pelix.misc.log",
+                "pelix.services.configadmin",
+                "pelix.shell.core",
+                "pelix.shell.ipopo",
+                "pelix.shell.log",
+                "pelix.shell.configadmin",
+                "pelix.shell.report",
+                "tests.ipopo.ipopo_bundle",
+            )
+        )
+        self.framework.start()
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
+        self.context = self.framework.get_bundle_context()
+        del REVEALS[:]
+
+    def tearDown(self) -> None:
+        self.assertEqual([reveal for reveal in REVEALS if str(reveal[1]).startswith(self.TOOLS)], [])
+
+    def _service(self, specification: Any) -> Any:
+        reference = self.context.get_service_reference(specification)
+        assert reference is not None
+        return self.context.get_service(reference)
+
+    def test_shell_and_log(self) -> None:
+        """
+        The shell commands and the log service show the mask
+        """
+        import logging
+
+        from pelix import services
+        from pelix.ipopo.constants import use_ipopo
+        from pelix.misc import LOG_READER_SERVICE
+        from pelix.shell import ShellService, beans
+        from tests.ipopo.ipopo_bundle import FACTORY_HIDDEN_PROPS
+
+        with use_ipopo(self.context) as ipopo:
+            ipopo.instantiate(FACTORY_HIDDEN_PROPS, "hidden", {"hidden.prop": self.VALUE})
+        registration = self.context.register_service(
+            "secret.svc", object(), {"api.token": Secret(self.VALUE)}
+        )
+        self._service(services.IConfigurationAdmin).get_configuration("secret.pid").update(
+            {"password": self.VALUE}
+        )
+        logging.getLogger("secret.test").warning("Password: %s", Secret(self.VALUE))
+
+        shell = self._service(ShellService)
+        for command in (
+            f"sd {registration.get_reference().get_property('service.id')}",
+            "sl secret.svc",
+            f"ipopo.factory {FACTORY_HIDDEN_PROPS}",
+            "ipopo.instance hidden",
+            "config.list",
+            "log.log",
+            "report.show full",
+        ):
+            with self.subTest(command=command):
+                output = io.StringIO()
+                session = beans.ShellSession(beans.IOHandler(None, output), trusted=True)
+                self.assertTrue(shell.execute(command, session), output.getvalue())
+                self.assertNotIn(self.VALUE, output.getvalue())
+
+        entries = self._service(LOG_READER_SERVICE).get_log()
+        self.assertIn("Password: ***", [entry.message for entry in entries])
+
+    def test_exports(self) -> None:
+        """
+        The remote services and RSA endpoints drop the secrets, the JSON-RPC and
+        Jabsorb serializations refuse them (Secret._serialize())
+        """
+        import jsonrpclib.jsonrpc
+        from jsonrpclib.SimpleJSONRPCServer import SimpleJSONRPCDispatcher
+
+        import pelix.rsa
+        from pelix.misc import jabsorb
+        from pelix.remote.beans import ExportEndpoint
+        from pelix.rsa.endpointdescription import EndpointDescription
+
+        registration = self.context.register_service(
+            "secret.svc", object(), {"api.token": Secret(self.VALUE), "public": "value"}
+        )
+        reference = registration.get_reference()
+
+        endpoint = ExportEndpoint("uid", "fw", "xmlrpc", "name", reference, object(), {"other": Secret("x")})
+        rsa_endpoint = EndpointDescription(
+            reference,
+            {
+                pelix.rsa.ENDPOINT_ID: "id",
+                pelix.rsa.SERVICE_IMPORTED_CONFIGS: ["config"],
+                pelix.rsa.ECF_ENDPOINT_ID: "id",
+                pelix.rsa.ECF_ENDPOINT_CONTAINERID_NAMESPACE: "test",
+                pelix.rsa.ENDPOINT_FRAMEWORK_UUID: "fw",
+                "other": Secret("x"),
+            },
+        )
+        for name, properties in (
+            ("remote", endpoint.get_properties()),
+            ("remote import", endpoint.make_import_properties()),
+            ("rsa", rsa_endpoint.get_properties()),
+        ):
+            with self.subTest(endpoint=name):
+                self.assertEqual(properties["public"], "value")
+                self.assertNotIn("api.token", properties)
+                self.assertNotIn("other", properties)
+
+        # A client refuses to send a secret...
+        for name, value in (
+            ("json-rpc", {"key": Secret(self.VALUE)}),
+            ("jabsorb", jabsorb.to_jabsorb([Secret(self.VALUE)])),
+        ):
+            with self.subTest(serialization=name), self.assertRaises(TypeError):
+                jsonrpclib.jsonrpc.dumps((value,), "method")
+
+        # ... and a server answers an error instead
+        dispatcher = SimpleJSONRPCDispatcher()
+        dispatcher.register_function(lambda: Secret(self.VALUE), "get")
+        with self.assertLogs("jsonrpclib.SimpleJSONRPCServer", "ERROR"):
+            response = dispatcher._marshaled_dispatch('{"jsonrpc": "2.0", "method": "get", "id": 1}')
+        self.assertIn("-32603", response)
+        self.assertNotIn(self.VALUE, response)

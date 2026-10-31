@@ -818,6 +818,11 @@ class Secret(Generic[_T]):
     def __reduce_ex__(self, protocol: Any) -> NoReturn:
         raise TypeError("A secret can't be pickled")
 
+    def _serialize(self) -> NoReturn:
+        # Name of the serialization method jsonrpclib looks for before it dumps the
+        # fields of an object: the JSON-RPC and Jabsorb transports refuse a secret
+        raise TypeError("A secret can't be serialized")
+
     def __copy__(self) -> "Secret[_T]":
         return self
 

@@ -35,6 +35,7 @@ import pelix.ldapfilter
 import pelix.remote
 import pelix.utilities
 from pelix.internals.registry import ServiceReference
+from pelix.security import Secret
 
 # ------------------------------------------------------------------------------
 
@@ -168,7 +169,8 @@ class ExportEndpoint:
         # Force the exported configurations
         properties[pelix.remote.PROP_EXPORTED_CONFIGS] = self.configurations
 
-        return properties
+        # Secrets must not reach the peers
+        return {key: value for key, value in properties.items() if not isinstance(value, Secret)}
 
     def make_import_properties(self) -> dict[str, Any]:
         """

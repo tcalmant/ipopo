@@ -395,6 +395,10 @@ Unreleased
 
 ### Remote
 
+* The service properties holding a `pelix.security.Secret` are left out of the
+  endpoints of Remote Services and of Remote Service Admin, and the JSON-RPC
+  and Jabsorb transports refuse to serialize a `Secret` (`TypeError`), as
+  XML-RPC already did
 * **Breaking:** a call to an exported service is refused unless the caller
   holds the `pelix.remote.call:<endpoint name>` permission, when the transport
   can be reached from other hosts (HTTP service not bound to a loopback
