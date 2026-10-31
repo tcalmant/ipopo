@@ -496,6 +496,30 @@ class ConfigAdminBridgeTest(unittest.TestCase):
 
         self.assertFalse(self.is_running("test-7"))
 
+    def testNamedFactoryConfiguration(self) -> None:
+        """
+        A named factory configuration gives one component, named after its PID,
+        which survives a restart and is killed when the configuration is deleted
+        """
+        self.install_test_bundle()
+        config = self.config.get_factory_configuration(IPOPO_CONFIGADMIN_FACTORY_PID, "named")
+        pid = f"{IPOPO_CONFIGADMIN_FACTORY_PID}~named"
+        self.assertEqual(config.get_pid(), pid)
+
+        config.update({IPOPO_CONFIG_FACTORY_NAME: FACTORY_BASIC, "name": "one"})
+        self.pause()
+        self.assertEqual(self.get_property(pid, "name"), "one")
+
+        self.stop_framework()
+        self.start_framework()
+        self.install_test_bundle()
+        self.pause()
+        self.assertEqual(self.get_property(pid, "name"), "one")
+
+        self.config.get_factory_configuration(IPOPO_CONFIGADMIN_FACTORY_PID, "named").delete()
+        self.pause()
+        self.assertFalse(self.is_running(pid))
+
     def testPersistence(self) -> None:
         """
         A configuration stored on disk must create its component at the next start
