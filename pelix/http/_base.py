@@ -1569,7 +1569,7 @@ class AbstractHttpService(http.HTTPService):
 
         with self._binding_lock:
             # Unregister the previous paths
-            self.unregister(None, cast(http.Servlet, service))
+            self.unregister(None, service)
 
             if self._validated:
                 # Register the service with its new properties
@@ -1588,7 +1588,7 @@ class AbstractHttpService(http.HTTPService):
 
         with self._binding_lock:
             # Servlet gone: unregister all paths associated to this servlet
-            self.unregister(None, cast(http.Servlet, service))
+            self.unregister(None, service)
 
             # Remove the service reference
             try:
@@ -1620,7 +1620,7 @@ class AbstractHttpService(http.HTTPService):
 
             # Unregister servlets (to call unbound_from...)
             for service in self._servlets_refs:
-                self.unregister(None, cast(http.Servlet, service))
+                self.unregister(None, service)
 
     @staticmethod
     def _is_imported(service_reference: ServiceReference[Any]) -> bool:

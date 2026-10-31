@@ -203,14 +203,30 @@ class IPopoServiceTest(unittest.TestCase):
 
         # Satisfied once A is there
         self.ipopo.instantiate(module.FACTORY_A, "a")
+        self.assertListEqual(
+            [{"name": "a", "factory": module.FACTORY_A, "state": StoredInstance.VALID}],
+            self.ipopo.get_instances_providing(IEchoService.__name__),
+        )
+        self.assertListEqual([], self.ipopo.get_instances_providing("unknown.spec"))
         self.assertListEqual([], self.ipopo.get_instance_details("b")["unsatisfied"])
 
         # Erroneous component: plain data in the details, object in the method
+        events: list[tuple[int, str | None]] = []
+
+        class Listener:
+            def handle_ipopo_event(self, event):
+                events.append((event.get_kind(), event.get_component_name()))
+
+        self.ipopo.add_listener(Listener())
         log_off()
         try:
             self.ipopo.instantiate(module.FACTORY_ERRONEOUS, "e")
         finally:
             log_on()
+        self.assertIn(
+            ("e", IPopoEvent.ERRONEOUS),
+            [(n, k) for k, n in events],
+        )
         details = self.ipopo.get_instance_details("e")
         self.assertDictEqual({"type": "builtins.OSError", "message": "Error raised"}, details["error"])
         error = self.ipopo.get_instance_error("e")

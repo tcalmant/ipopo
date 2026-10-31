@@ -321,7 +321,7 @@ def compute_cors_headers(
 
         allowed_headers = policy.get_allowed_headers(path)
         if allowed_headers is not None:
-            if allowed_headers:
+            if allowed_headers:  # ty: ignore[truthiness-test-of-iterable]
                 headers["Access-Control-Allow-Headers"] = ", ".join(allowed_headers)
         elif request_headers:
             headers["Access-Control-Allow-Headers"] = request_headers

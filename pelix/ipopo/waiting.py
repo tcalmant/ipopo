@@ -32,7 +32,7 @@ components.
 import logging
 import threading
 from collections.abc import Iterable
-from typing import Any
+from typing import Any, cast
 
 # Pelix
 from pelix.constants import ActivatorProto, BundleActivator, BundleException
@@ -126,7 +126,7 @@ class IPopoWaitingListImpl(IPopoWaitingList):
                     # attempt failed because the component didn't exist yet.
                     # Finish the job now that it does
                     try:
-                        with use_ipopo(self.__context) as ipopo_svc:
+                        with use_ipopo(cast(BundleContext, self.__context)) as ipopo_svc:
                             ipopo_svc.kill(component)
                     except (BundleException, ValueError):
                         pass

@@ -297,10 +297,15 @@ class IPopoCommands(pelix.shell.ShellCommandsProvider):
         # Requirements preventing the validation
         if details["unsatisfied"]:
             lines.append("Unsatisfied requirements:")
-            lines.extend(
-                f"\t{item['field']}: {requirement_specifications_to_str(item)} (filter: {item['filter']})"
-                for item in details["unsatisfied"]
-            )
+            for item in details["unsatisfied"]:
+                lines.append(
+                    f"\t{item['field']}: {requirement_specifications_to_str(item)} (filter: {item['filter']})"
+                )
+                # Components which should provide it: tells a failed provider from no provider
+                lines.extend(
+                    f"\t\tProvider: {provider['name']} ({ipopo_state_to_str(provider['state'])})"
+                    for provider in self._ipopo.get_instances_providing(item["specification"])
+                )
 
         # Properties
         lines.append("Properties:")

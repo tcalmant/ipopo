@@ -624,6 +624,9 @@ class StoredInstance:
 
                     # Consider the component has erroneous
                     self.state = StoredInstance.ERRONEOUS
+                    self._ipopo_service._fire_ipopo_event(
+                        constants.IPopoEvent.ERRONEOUS, self.factory_name, self.name
+                    )
                     return False
 
             # All good

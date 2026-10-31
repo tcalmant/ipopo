@@ -85,6 +85,20 @@ invalid-type-form = "ignore"
 unsupported-base = "ignore"
 unused-type-ignore-comment = "error"
 
+# The tests annotate attributes with @Specification protocols and set them to
+# None in tearDown(). While invalid-type-form was ignored, those annotations
+# were Unknown, so these checks never applied to them
+[[tool.ty.overrides]]
+include = ["tests/**"]
+
+[tool.ty.overrides.rules]
+invalid-assignment = "ignore"
+invalid-argument-type = "ignore"
+invalid-method-override = "ignore"
+unresolved-attribute = "ignore"
+call-non-callable = "ignore"
+unused-type-ignore-comment = "ignore"
+
 [tool.ty.src]
 exclude = [
   "**/*_pb2.py",

@@ -59,7 +59,7 @@ class SubjectTest(unittest.TestCase):
         # Deliberately untyped input: the declared type is frozenset, and the
         # coercion is what keeps the bean hashable when a caller ignores that
         groups = ["dev", "ops"]
-        subject = Subject("bob", groups, ("admin",))  # ty: ignore[invalid-argument-type]
+        subject = Subject("bob", groups, ("admin",))
 
         self.assertIsInstance(subject.groups, frozenset)
         self.assertIsInstance(subject.roles, frozenset)
@@ -88,7 +88,7 @@ class SubjectTest(unittest.TestCase):
         """
         subject = Subject("bob", attributes={"claim": "value"})
         with self.assertRaises(TypeError):
-            subject.attributes["claim"] = "other"  # ty: ignore[invalid-assignment]
+            subject.attributes["claim"] = "other"
 
     def test_a_subject_is_hashable(self) -> None:
         """

@@ -368,7 +368,7 @@ password = "x"
 
         store = security.CredentialsFile()
         store._path = file.name
-        store._validate(None)  # ty: ignore[invalid-argument-type]
+        store._validate(None)
 
         for url, expected in (
             ("https://peer.example/JSON-RPC", "batch"),

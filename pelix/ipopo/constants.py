@@ -303,6 +303,9 @@ class IPopoEvent:
     UNBOUND = 6
     """ A service has been removed from a field of the component (see :meth:`get_field`) """
 
+    ERRONEOUS = 7
+    """ A component went to the ERRONEOUS state: see ``IPopoService.get_instance_error()`` """
+
     KILLED = 9
     """ A component has been killed (removed from the list of instances) """
 
@@ -509,6 +512,18 @@ class IPopoService(Protocol):
         Retrieves the list of the currently registered component instances
 
         :return: A list of (name, factory name, state) tuples.
+        """
+        ...
+
+    def get_instances_providing(self, specification: str) -> list[dict[str, Any]]:
+        """
+        Retrieves the component instances whose factory provides the given
+        specification, whatever their state: it tells a provider which is not
+        valid (e.g. ``ERRONEOUS``) from the absence of any provider.
+
+        :param specification: A service specification name
+        :return: A list, sorted by name, of dictionaries with the keys ``name``,
+                 ``factory`` and ``state``
         """
         ...
 

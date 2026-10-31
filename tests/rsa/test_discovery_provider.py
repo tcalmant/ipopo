@@ -28,7 +28,7 @@ from pelix.rsa.providers.discovery import (
 __version_info__ = (3, 3, 0)
 __version__ = ".".join(str(x) for x in __version_info__)
 
-SCOPE: str = EndpointEventListener.ENDPOINT_LISTENER_SCOPE  # ty: ignore[unresolved-attribute]
+SCOPE: str = EndpointEventListener.ENDPOINT_LISTENER_SCOPE
 
 # ------------------------------------------------------------------------------
 

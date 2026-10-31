@@ -32,6 +32,8 @@ if TYPE_CHECKING:
     from pelix.framework import BundleContext
 
 T = TypeVar("T")
+# The decorated class itself: lets type checkers keep it usable as a type
+ClassT = TypeVar("ClassT", bound=type[Any])
 
 # ------------------------------------------------------------------------------
 
@@ -362,7 +364,7 @@ class Specification:
             else:
                 self.__spec.append(self._get_name(spec))
 
-    def __call__(self, cls: type[T]) -> type[T]:
+    def __call__(self, cls: ClassT) -> ClassT:
         """
         Injects the specification information to the decorated class
         """

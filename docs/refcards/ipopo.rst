@@ -54,6 +54,12 @@ reason code carried by an attribute of the exception. It keeps the traceback
 and its frames alive until the next validation attempt or the death of the
 component.
 
+``get_instances_providing(specification)`` lists, as plain data, the components
+whose factory provides a specification with their state: a provider which is
+``ERRONEOUS`` is not the same problem as no provider. An
+``IPopoEvent.ERRONEOUS`` event is sent to the listeners when a component goes
+to that state.
+
 ``get_factory_details()["services"]`` lists the specifications provided by the
 components of a factory. The shell commands ``ipopo.instance`` and
 ``ipopo.factory`` print the same information.
@@ -87,7 +93,7 @@ components and factories:
 
 .. autoclass:: pelix.ipopo.constants.IPopoService
    :members: get_instances, get_instance_details, get_factories,
-             get_instance_error, get_factory_details, instantiate, kill, retry_erroneous
+             get_instance_error, get_instances_providing, get_factory_details, instantiate, kill, retry_erroneous
 
 Listening to components events
 ******************************

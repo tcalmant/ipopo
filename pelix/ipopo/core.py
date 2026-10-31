@@ -361,7 +361,7 @@ class _IPopoService(IPopoService):
             all_handlers: set[handlers_const.Handler] = set()
             for handler_factory in handler_factories:
                 handlers = handler_factory.get_handlers(component_context, instance)
-                if handlers:
+                if handlers:  # ty: ignore[truthiness-test-of-iterable]
                     all_handlers.update(handlers)
 
             # Prepare the stored instance
@@ -963,6 +963,41 @@ class _IPopoService(IPopoService):
                 (name, stored_instance.factory_name, stored_instance.state)
                 for name, stored_instance in self.__instances.items()
             )
+
+    def get_instances_providing(self, specification: str) -> list[dict[str, Any]]:
+        """
+        Retrieves the component instances whose factory provides the given
+        specification, whatever their state: it tells a provider which is not
+        valid (e.g. ``ERRONEOUS``) from the absence of any provider.
+
+        :param specification: A service specification name
+        :return: A list, sorted by name, of dictionaries with the keys ``name``,
+                 ``factory`` and ``state``
+        """
+        with self.__factories_lock, self.__instances_lock:
+            result: list[dict[str, Any]] = []
+            for name, stored_instance in sorted(self.__instances.items()):
+                factory = self.__factories.get(stored_instance.factory_name)
+                provides = (
+                    cast(
+                        list[tuple[list[str], str | None, bool, bool]] | None,
+                        getattr(factory, constants.IPOPO_FACTORY_CONTEXT).get_handler(
+                            constants.HANDLER_PROVIDES
+                        ),
+                    )
+                    if factory is not None
+                    else None
+                )
+                if any(specification in specs_controller[0] for specs_controller in provides or ()):
+                    result.append(
+                        {
+                            "name": name,
+                            "factory": stored_instance.factory_name,
+                            "state": stored_instance.state,
+                        }
+                    )
+
+            return result
 
     def get_instance(self, name: str) -> Any:
         """
