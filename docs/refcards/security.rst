@@ -38,6 +38,10 @@ May this subject do this?                      :class:`Authorizer`            po
 Plus exactly one facade, :class:`Authorization`, which is what application code
 injects or reaches through :func:`use_authorization`.
 
+The remote services use this layer to authorize the calls to the exported services,
+with the ``pelix.remote.call`` permission, and to send credentials to their peers: see
+:ref:`remote_services_security`.
+
 Bundles
 =======
 
