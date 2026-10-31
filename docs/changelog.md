@@ -368,17 +368,6 @@ Unreleased
   declared default, the values given to `instantiate()`, the confidential
   updates of a `.name` key (from `reconfigure()` or Configuration Admin), the
   values the component sets itself and those given to `@Modified`. The
-  component calls `reveal()` to read the value: `str()` gives `***`. Only
-  `str` and `bytes` values are accepted, any other type raises a `TypeError`.
-  `get_factory_details()["hidden_properties"]` gives `Secret` objects owned by
-  the factory. The bundled components (HTTP, remote shell, XMPP shell, MQTT,
-  Redis) are adapted
-
-* **Breaking:** the values of the properties declared with `@HiddenProperty`
-  are `pelix.security.Secret` objects owned by the component instance: the
-  declared default, the values given to `instantiate()`, the confidential
-  updates of a `.name` key (from `reconfigure()` or Configuration Admin), the
-  values the component sets itself and those given to `@Modified`. The
   component calls `reveal()` to read the value: `str()` gives `***`.
   `get_factory_details()["hidden_properties"]` gives `Secret` objects owned by
   the factory, and `get_instance_details()["hidden_properties"]` (new) the
