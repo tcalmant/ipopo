@@ -631,10 +631,18 @@ class AbstractCommonImporterTest(unittest.TestCase):
         self.assertListEqual(importer.events, [IMPORT_MAKE], "Importer not called after registration")
         importer.clear()
 
+        # Imported services rank below the local ones, whatever the peer says
+        context = self.framework.get_bundle_context()
+        svc_ref = context.get_service_reference("some.spec")
+        assert svc_ref is not None
+        self.assertEqual(svc_ref.get_property(pelix.constants.SERVICE_RANKING), -1)
+
         # Update it
         props = endpoint.properties.copy()
         props["other.value"] = 42
+        props[pelix.constants.SERVICE_RANKING] = 1000
         self.registry.update(endpoint.uid, props)
+        self.assertEqual(svc_ref.get_property(pelix.constants.SERVICE_RANKING), -1)
 
         # The import has not been called
         self.assertListEqual(importer.events, [], "Importer called after update")
@@ -720,6 +728,7 @@ class HostileServer:
         self.port: int = self.__server.getsockname()[1]
         self.__stop = threading.Event()
         self.__thread = threading.Thread(target=self.__serve, daemon=True)
+        self.requests: list[bytes] = []
 
     def __enter__(self) -> Self:
         self.__thread.start()
@@ -738,7 +747,7 @@ class HostileServer:
                 return
 
             with client:
-                client.recv(65536)
+                self.requests.append(client.recv(65536))
                 if self.__body is not None:
                     client.sendall(
                         b"HTTP/1.1 200 OK\r\nContent-Type: text/xml\r\n"
@@ -796,28 +805,34 @@ class ClientLimitsTest(unittest.TestCase):
 
     def test_proxies(self) -> None:
         """
-        Tests that the proxies of the imported services apply the limits
+        Tests that the proxies of the imported services apply the limits and send the headers
         """
         context = mock.Mock(get_property={pelix.remote.PROP_CLIENT_TIMEOUT: 0.5}.get)
+        limits = commons.get_client_limits(context)
+        headers = {"Authorization": "Basic dXNlcjpwYXNz"}
         container = XmlRpcImportContainer()
-
-        with (
-            HostileServer(None) as server,
-            mock.patch.object(container, "_get_bundle_context", lambda: context),
-        ):
-            url = f"http://127.0.0.1:{server.port}/"
-            limits = commons.get_client_limits(context)
-            for proxy in (
-                json_rpc._ServiceCallProxy("name", url, limits),
-                xml_rpc._ServiceCallProxy("name", url, limits),
-                jabsorb_rpc._ServiceCallProxy("name", url, limits),
-                container._prepare_proxy(mock.Mock(get_remoteservice_id=lambda: (("ns", url), 1))),
+        with mock.patch.object(container, "_get_bundle_context", lambda: context):
+            for make_proxy, sends_headers in (
+                (lambda url: json_rpc._ServiceCallProxy("name", url, limits, headers), True),
+                (lambda url: xml_rpc._ServiceCallProxy("name", url, limits, headers), True),
+                (lambda url: jabsorb_rpc._ServiceCallProxy("name", url, limits, headers), True),
+                (
+                    lambda url: container._prepare_proxy(
+                        mock.Mock(get_remoteservice_id=lambda: (("ns", url), 1))
+                    ),
+                    False,
+                ),
             ):
-                with self.subTest(proxy=type(proxy).__module__):
-                    start = time.monotonic()
-                    with self.assertRaises(TimeoutError):
-                        proxy.method()
-                    self.assertLess(time.monotonic() - start, 5)
+                # One server each: it handles a single client at a time
+                with HostileServer(None) as server:
+                    proxy = make_proxy(f"http://127.0.0.1:{server.port}/")
+                    with self.subTest(proxy=type(proxy).__module__):
+                        start = time.monotonic()
+                        with self.assertRaises(TimeoutError):
+                            proxy.method()
+                        self.assertLess(time.monotonic() - start, 5)
+                        if sends_headers:
+                            self.assertIn(b"authorization: basic dxnlcjpwyxnz", server.requests[-1].lower())
 
 
 # ------------------------------------------------------------------------------

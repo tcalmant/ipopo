@@ -246,17 +246,19 @@ class _ServiceCallProxy:
     Service call proxy
     """
 
-    def __init__(self, name: str, url: str, limits: commons.ClientLimits) -> None:
+    def __init__(self, name: str, url: str, limits: commons.ClientLimits, headers: dict[str, str]) -> None:
         """
         Sets up the call proxy
 
         :param name: End point name
         :param url: End point URL
         :param limits: Limits of the calls
+        :param headers: Authentication headers
         """
         self.__name = name
         self.__url = url
         self.__limits = limits
+        self.__headers = headers
 
     def __getattr__(self, name: str) -> Any:
         """
@@ -269,7 +271,7 @@ class _ServiceCallProxy:
         proxy = xmlrpclib.ServerProxy(
             self.__url,
             allow_none=True,
-            transport=make_client_transport(self.__url, self.__limits),
+            transport=make_client_transport(self.__url, self.__limits, self.__headers),
         )
         return getattr(proxy, f"{self.__name}.{name}")
 
@@ -313,7 +315,9 @@ class XmlRpcServiceImporter(commons.AbstractRpcServiceImporter):
             access_url = access_url.format(server=local_server)
 
         # Return the proxy
-        return _ServiceCallProxy(endpoint.name, access_url, commons.get_client_limits(self._context))
+        assert self._context is not None
+        headers = security.get_auth_headers(self._context, "remote.xmlrpc", access_url, endpoint.properties)
+        return _ServiceCallProxy(endpoint.name, access_url, commons.get_client_limits(self._context), headers)
 
     def clear_service_proxy(self, endpoint: ImportEndpoint) -> None:
         """

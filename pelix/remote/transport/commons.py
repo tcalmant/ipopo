@@ -427,7 +427,9 @@ class AbstractRpcServiceImporter(abc.ABC, pelix.remote.RemoteServiceImportEndpoi
                 return
 
             # Register it as a service
-            svc_reg = self._context.register_service(endpoint.specifications, svc, endpoint.properties)
+            # The peer must not be able to outrank the local services
+            properties = security.cap_ranking(self._context, endpoint.properties)
+            svc_reg = self._context.register_service(endpoint.specifications, svc, properties)
 
             # Store references
             self.__registrations[endpoint.uid] = svc_reg
@@ -441,7 +443,10 @@ class AbstractRpcServiceImporter(abc.ABC, pelix.remote.RemoteServiceImportEndpoi
         with self.__lock:
             try:
                 # Update service registration properties
-                self.__registrations[endpoint.uid].set_properties(endpoint.properties)
+                assert self._context is not None
+                self.__registrations[endpoint.uid].set_properties(
+                    security.cap_ranking(self._context, endpoint.properties)
+                )
             except KeyError:
                 # Unknown end point
                 return

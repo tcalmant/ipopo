@@ -41,7 +41,7 @@ from pelix.ipopo.decorators import (
     Requires,
     Validate,
 )
-from pelix.remote import RemoteServiceImportEndpointListener, RemoteServiceRegistry, beans
+from pelix.remote import RemoteServiceImportEndpointListener, RemoteServiceRegistry, beans, security
 
 # ------------------------------------------------------------------------------
 
@@ -80,6 +80,7 @@ class ImportsRegistry(RemoteServiceRegistry):
     def __init__(self) -> None:
         # Framework UID
         self._fw_uid: str | None = None
+        self._context: BundleContext | None = None
 
         # Framework UID -> [ImportEndpoint]
         self._frameworks: dict[str | None, list[beans.ImportEndpoint]] = {}
@@ -119,6 +120,12 @@ class ImportsRegistry(RemoteServiceRegistry):
         with self.__lock:
             # Check framework UID (avoid to import our own services)
             if endpoint.framework == self._fw_uid:
+                return False
+
+            assert self._context is not None
+            properties = {**endpoint.properties, pelix.constants.OBJECTCLASS: endpoint.specifications}
+            if not security.accept_import(self._context, properties):
+                _logger.debug("Endpoint refused by the import filter: %s", endpoint)
                 return False
 
             # Check if the end point already exists
@@ -255,6 +262,7 @@ class ImportsRegistry(RemoteServiceRegistry):
         """
         # Get the framework UID
         self._fw_uid = context.get_property(pelix.constants.FRAMEWORK_UID)
+        self._context = context
 
     @Invalidate
     def _invalidate(self, _: BundleContext) -> None:
