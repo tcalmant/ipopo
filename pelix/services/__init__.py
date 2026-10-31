@@ -55,6 +55,7 @@ __all__ = [
     "EVENT_PROP_PROPAGATE",
     "EVENT_PROP_TIMESTAMP",
     "FACTORY_CONFIGADMIN_JSON",
+    "FACTORY_CONFIGADMIN_MEMORY",
     "FACTORY_EVENT_ADMIN",
     "FACTORY_EVENT_ADMIN_MQTT",
     "FACTORY_TYPED_EVENT_BUS",
@@ -381,6 +382,9 @@ FRAMEWORK_PROP_CONFIGADMIN_DISABLE_DEFAULT_PERSISTENCE = "pelix.configadmin.pers
 If this framework property has a value, the default persistence service of
 ConfigurationAdmin won't be started
 """
+
+FACTORY_CONFIGADMIN_MEMORY = "pelix-configadmin-persistence-memory-factory"
+""" Name of the in-memory persistence component factory """
 
 FACTORY_CONFIGADMIN_JSON = "pelix-configadmin-persistence-json-factory"
 """ Name of the JSON ConfigurationAdmin storage component factory """

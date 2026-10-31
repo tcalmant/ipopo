@@ -25,6 +25,7 @@ ConfigurationAdmin implementation
     limitations under the License.
 """
 
+import copy
 import json
 import logging
 import os
@@ -70,6 +71,7 @@ __all__ = [
     "ConfigurationDirectory",
     "IConfigurationAdminDirectory",
     "JsonPersistence",
+    "MemoryPersistence",
 ]
 
 # ------------------------------------------------------------------------------
@@ -87,6 +89,9 @@ SERVICE_CONFIGURATION_ADMIN_PRIVATE = "pelix.services.configadmin.private"
 """
 Private version of ConfigAdmin, to handle loop-requirements ("that will do")
 """
+
+_SHARED_MODE_BITS = 0o077
+""" Permission bits giving access to a group or to the other users """
 
 PID_FORBIDDEN_CHARACTERS = ("/", "\\", "\0")
 """
@@ -1642,12 +1647,13 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         Component validated
         """
         if not self._conf_folder:
-            # ./conf is the default configuration folder
-            self._conf_folder = os.path.join(os.getcwd(), "conf")
+            # No default folder: it would depend on the working directory of
+            # whoever started the framework
+            raise ValueError("No configuration folder: set the configuration.folder property")
 
-        # Make the folders if necessary
-        if not os.path.exists(self._conf_folder):
-            os.makedirs(self._conf_folder)
+        # Make the folder if necessary: configurations can hold secrets
+        os.makedirs(self._conf_folder, mode=0o700, exist_ok=True)
+        self._warn_if_shared(self._conf_folder)
 
         # Set the folder watcher property
         self._watched_folder = self._conf_folder
@@ -1660,6 +1666,25 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         # Clear the cache
         self._watched_folder = ""
         self._conf_folder = ""
+
+    @staticmethod
+    def _warn_if_shared(path: str) -> None:
+        """
+        Warns when a folder or a file is accessible to other users, like the
+        htpasswd store does
+
+        :param path: Path of a folder or file
+        """
+        if os.name != "posix":
+            return
+
+        try:
+            mode = stat.S_IMODE(os.stat(path).st_mode)
+        except OSError:
+            return
+
+        if mode & _SHARED_MODE_BITS:
+            _logger.warning("%s is accessible to other users (mode %o): run chmod on it", path, mode)
 
     def __load_file(self, filename: str) -> tuple[str, dict[str, Any]] | None:
         """
@@ -1710,8 +1735,11 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         :raise IOError: File not found/readable
         :raise ValueError: Invalid PID or invalid file content
         """
-        with open(self._get_file(pid)) as filep:
+        path = self._get_file(pid)
+        with open(path) as filep:
             data = filep.read()
+
+        self._warn_if_shared(path)
 
         # Store the configuration
         return cast(dict[str, Any], json.loads(data))
@@ -1736,7 +1764,6 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
             # Keep the permissions of an existing file
             mode: int | None = stat.S_IMODE(os.stat(path).st_mode)
         except FileNotFoundError:
-            # New files get the umask-based permissions, as open() gives
             mode = None
 
         # Write a temporary file then replace the configuration file with it,
@@ -1744,7 +1771,8 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         # doesn't end with ".config.js": it isn't taken as a configuration
         tmp_path = os.path.join(os.path.dirname(path), f".{pid}.config.js.{uuid.uuid4().hex[:8]}.tmp")
         try:
-            with open(tmp_path, "x") as filep:
+            # Created readable by the owner only, whatever the umask
+            with open(os.open(tmp_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o600), "w") as filep:
                 filep.write(data)
                 filep.flush()
                 os.fsync(filep.fileno())
@@ -1841,6 +1869,64 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
                     _logger.error("Error updating %s: %s", pid, ex)
 
 
+@ComponentFactory(services.FACTORY_CONFIGADMIN_MEMORY)
+@Provides(services.IConfigurationAdminPersistence)
+class MemoryPersistence(services.IConfigurationAdminPersistence):
+    """
+    Configuration persistence keeping everything in memory: nothing survives
+    the framework, nothing is written on the disk
+    """
+
+    def __init__(self) -> None:
+        """
+        Sets up members
+        """
+        self.__configurations: dict[str, dict[str, Any]] = {}
+        self.__lock = threading.Lock()
+
+    def get_pids(self) -> Iterable[str]:
+        """
+        Returns the list of known PIDs
+        """
+        with self.__lock:
+            return set(self.__configurations)
+
+    def exists(self, pid: str) -> bool:
+        """
+        Returns True if a configuration with the given PID exists
+        """
+        with self.__lock:
+            return pid in self.__configurations
+
+    def load(self, pid: str) -> dict[str, Any]:
+        """
+        Loads the configuration with the given PID
+
+        :raise FileNotFoundError: Unknown PID
+        """
+        with self.__lock:
+            try:
+                return copy.deepcopy(self.__configurations[pid])
+            except KeyError:
+                raise FileNotFoundError(pid) from None
+
+    def store(self, pid: str, properties: dict[str, Any]) -> None:
+        """
+        Stores the configuration with the given PID
+        """
+        with self.__lock:
+            self.__configurations[pid] = copy.deepcopy(properties)
+
+    def delete(self, pid: str) -> bool:
+        """
+        Removes the configuration with the given PID
+
+        :return: True if the configuration existed
+        """
+        with self.__lock:
+            return self.__configurations.pop(pid, None) is not None
+
+
 @pelix.constants.BundleActivator
 class Activator(pelix.constants.ActivatorProto):
     """
@@ -1856,9 +1942,13 @@ class Activator(pelix.constants.ActivatorProto):
             return
 
         # Small trick to add a late Instantiate decoration
-        # to the component factory
+        # to the component factory. Without a configuration folder, nothing is
+        # written on the disk
         try:
-            Instantiate("pelix-services-configuration-json-default")(JsonPersistence)
+            if context.get_property("configuration.folder"):
+                Instantiate("pelix-services-configuration-json-default")(JsonPersistence)
+            else:
+                Instantiate("pelix-services-configuration-memory-default")(MemoryPersistence)
         except NameError:
             # Restarting the bundle doesn't reload its module: the instance
             # declared by the previous start is still there

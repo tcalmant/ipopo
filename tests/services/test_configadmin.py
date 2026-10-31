@@ -28,6 +28,7 @@ from pelix.services.configadmin import (
     ConfigurationDirectory,
     IConfigurationAdminDirectory,
     JsonPersistence,
+    MemoryPersistence,
 )
 from pelix.utilities import use_service
 
@@ -1635,6 +1636,98 @@ class JsonPersistenceAtomicTest(unittest.TestCase):
 
         self.assertDictEqual(self.persistence.load(self.PID), {"answer": 42})
         self.assertEqual(os.listdir(self.conf_folder), [f"{self.PID}.config.js"])
+
+
+class PersistenceDefaultsTest(unittest.TestCase):
+    """
+    The default persistence never writes under the working directory, and the
+    JSON files are private to their owner
+    """
+
+    PID = "test.defaults"
+
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.mkdtemp(prefix="ipopo-configadmin-defaults-")
+        self.addCleanup(shutil.rmtree, self.temp_dir, ignore_errors=True)
+
+    def test_no_folder_is_memory_only(self) -> None:
+        """
+        Without a configuration folder, ConfigurationAdmin works in memory and
+        writes nothing in the working directory
+        """
+        old_cwd = os.getcwd()
+        os.chdir(self.temp_dir)
+        self.addCleanup(os.chdir, old_cwd)
+
+        framework = pelix.framework.create_framework(("pelix.ipopo.core", "pelix.services.configadmin"))
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
+        framework.start()
+        context = framework.get_bundle_context()
+        ref = context.get_service_reference(services.IConfigurationAdmin)
+        assert ref is not None
+        config = context.get_service(ref).get_configuration(self.PID)
+        config.update({"answer": 42})
+        self.assertEqual(config.get_properties(), {"answer": 42, services.CONFIG_PROP_PID: self.PID})
+        self.assertEqual(os.listdir(self.temp_dir), [])
+
+    def test_memory_persistence(self) -> None:
+        """
+        The memory persistence keeps copies and reports unknown PIDs
+        """
+        persistence = MemoryPersistence()
+        properties = {"list": [1]}
+        persistence.store(self.PID, properties)
+        properties["list"].append(2)
+        self.assertTrue(persistence.exists(self.PID))
+        self.assertEqual(set(persistence.get_pids()), {self.PID})
+        self.assertEqual(persistence.load(self.PID), {"list": [1]})
+        self.assertTrue(persistence.delete(self.PID))
+        self.assertFalse(persistence.delete(self.PID))
+        self.assertFalse(persistence.exists(self.PID))
+        with self.assertRaises(OSError):
+            persistence.load(self.PID)
+
+    def test_modes(self) -> None:
+        """
+        The folder is created with mode 0700 and the files with mode 0600,
+        whatever the umask
+        """
+        folder = os.path.join(self.temp_dir, "new", "conf")
+        persistence = JsonPersistence()
+        persistence._conf_folder = folder
+        old_umask = os.umask(0o000)
+        self.addCleanup(os.umask, old_umask)
+        persistence.validate(mock.Mock())
+        persistence.store(self.PID, {"answer": 42})
+
+        self.assertEqual(stat.S_IMODE(os.stat(folder).st_mode), 0o700)
+        self.assertEqual(stat.S_IMODE(os.stat(os.path.join(folder, f"{self.PID}.config.js")).st_mode), 0o600)
+
+    def test_no_folder_is_refused(self) -> None:
+        """
+        The JSON persistence doesn't guess a folder
+        """
+        with self.assertRaises(ValueError):
+            JsonPersistence().validate(mock.Mock())
+
+    def test_shared_files_are_reported(self) -> None:
+        """
+        A folder or a file accessible to other users is reported
+        """
+        persistence = JsonPersistence()
+        persistence._conf_folder = self.temp_dir
+        persistence.store(self.PID, {"answer": 42})
+        path = os.path.join(self.temp_dir, f"{self.PID}.config.js")
+        for mode, warned in ((0o600, False), (0o640, True), (0o644, True)):
+            with self.subTest(mode=oct(mode)):
+                os.chmod(path, mode)
+                check = self.assertLogs if warned else self.assertNoLogs
+                with check("pelix.services.configadmin", "WARNING"):
+                    persistence.load(self.PID)
+
+        os.chmod(self.temp_dir, 0o755)
+        with self.assertLogs("pelix.services.configadmin", "WARNING"):
+            persistence.validate(mock.Mock())
 
 
 class _MutatingService(services.IManagedService):
