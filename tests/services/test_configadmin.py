@@ -22,6 +22,7 @@ from unittest import mock
 import pelix.framework
 from pelix import constants, services
 from pelix.internals.registry import ServiceReference, ServiceRegistration
+from pelix.security import PROP_SECRET_KEYS, Secret
 from pelix.services.configadmin import (
     Configuration,
     ConfigurationAdmin,
@@ -1728,6 +1729,114 @@ class PersistenceDefaultsTest(unittest.TestCase):
         os.chmod(self.temp_dir, 0o755)
         with self.assertLogs("pelix.services.configadmin", "WARNING"):
             persistence.validate(mock.Mock())
+
+
+class SecretKeysTest(unittest.TestCase):
+    """
+    The values of the keys matching pelix.security.secret_keys are kept as secrets,
+    in memory and in the configuration files
+    """
+
+    PID = "test.secrets"
+
+    def setUp(self) -> None:
+        self.temp_dir = tempfile.mkdtemp(prefix="ipopo-configadmin-secrets-")
+        self.addCleanup(shutil.rmtree, self.temp_dir, ignore_errors=True)
+
+    def _get_configuration(self, patterns: Any = None) -> services.Configuration:
+        """
+        Starts a framework with the given secret key patterns and returns the test
+        configuration
+        """
+        properties: dict[str, Any] = {"configuration.folder": self.temp_dir}
+        if patterns is not None:
+            properties[PROP_SECRET_KEYS] = patterns
+
+        framework = pelix.framework.create_framework(
+            ("pelix.ipopo.core", "pelix.services.configadmin"), properties
+        )
+        framework.start()
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
+        context = framework.get_bundle_context()
+        ref = context.get_service_reference(services.IConfigurationAdmin)
+        assert ref is not None
+        return context.get_service(ref).get_configuration(self.PID)
+
+    def test_matching_keys(self) -> None:
+        """
+        Text values under a matching key, case-insensitive, become secrets owned by
+        the configuration
+        """
+        values = {
+            "mqtt.password": "a",
+            ".MQTT.Password": "b",
+            "api_token": "c",
+            "client.secret": "d",
+            "tls.key": "e",
+            "tls.key_file": "f",
+            "name": "g",
+            "password.length": 12,
+            "custom.value": "h",
+            "smtp.passwd": "i",
+            "db.pwd": "j",
+            "ssl.passphrase": "k",
+            "service.api_key": "l",
+            "X-ApiKey": "m",
+            "aws.credentials": "n",
+            "tls.private_key": "o",
+            "db.dsn": "p",
+        }
+        default = set(values) - {"tls.key_file", "name", "password.length", "custom.value"}
+        for patterns, expected in (
+            (None, default),
+            ("custom.*, *PASSWORD*", {"custom.value", "mqtt.password", ".MQTT.Password"}),
+            (["custom.*"], {"custom.value"}),
+            ("", set()),
+        ):
+            with self.subTest(patterns=patterns):
+                config = self._get_configuration(patterns)
+                config.update(values)
+                properties = config.get_properties()
+                assert properties is not None
+                for key, value in values.items():
+                    if key in expected:
+                        self.assertIsInstance(properties[key], Secret, key)
+                        self.assertEqual(properties[key], Secret(value), key)
+                        self.assertEqual(properties[key].owner, self.PID, key)
+                    else:
+                        self.assertEqual(properties[key], value, key)
+                config.delete()
+                pelix.framework.FrameworkFactory.delete_framework()
+
+    def test_persistence(self) -> None:
+        """
+        Secrets are stored as "$secret" objects in a private file and read back as
+        secrets, even when the patterns have changed
+        """
+        config = self._get_configuration()
+        config.update({"password": "hunter2", "other": {"$secret": "x", "key": "y"}})
+        path = os.path.join(self.temp_dir, f"{self.PID}.config.js")
+        with open(path) as filep:
+            stored = json.load(filep)
+        self.assertEqual(stored["password"], {"$secret": "hunter2"})
+        self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o600)
+        pelix.framework.FrameworkFactory.delete_framework()
+
+        # A hand-written "$secret" which is not text stays an object
+        stored["number"] = {"$secret": 42}
+        with open(path, "w") as filep:
+            json.dump(stored, filep)
+
+        properties = self._get_configuration("").get_properties()
+        assert properties is not None
+        self.assertEqual(properties["password"], Secret("hunter2"))
+        self.assertEqual(properties["password"].owner, self.PID)
+        self.assertEqual(properties["other"], {"$secret": "x", "key": "y"})
+        self.assertEqual(properties["number"], {"$secret": 42})
+
+        # Only secrets get a JSON form
+        with self.assertRaises(TypeError):
+            JsonPersistence().store(self.PID, {"object": object()})
 
 
 class _MutatingService(services.IManagedService):

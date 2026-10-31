@@ -290,6 +290,18 @@ Unreleased
   entry of the properties
 * ConfigAdmin: managed service factories (and managed services) sharing a PID
   are notified by decreasing service ranking
+* **Breaking:** ConfigAdmin keeps the `str` and `bytes` values of the keys
+  matching the new `pelix.security.secret_keys` framework property as
+  `pelix.security.Secret` objects owned by the configuration PID: they are what
+  `Configuration.get_properties()` gives to every caller, iPOPO components and
+  plain managed services alike, and `str()` gives `***`. The property holds
+  comma-separated, case-insensitive `fnmatch` patterns, by default those of
+  `pelix.security.DEFAULT_SECRET_KEYS` (`*password*`, `*passwd*`, `*pwd*`,
+  `*passphrase*`, `*secret*`, `*token*`, `*api_key*`, `*apikey*`,
+  `*credential*`, `*private_key*`, `*dsn*` and `*.key`); an empty value
+  disables it.
+  The JSON persistence stores a secret as `{"$secret": "..."}` and reads it back
+  as a `Secret`, whatever the patterns
 * Added `pelix.services.eventdelivery`, the delivery code and topic rules
   shared by both event services
 * Added the Condition service (`pelix.services.condition`), after the OSGi

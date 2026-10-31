@@ -68,6 +68,7 @@ __all__ = [
     "ANONYMOUS",
     "ATTRIBUTE_SESSION_ID",
     "AUDIT_SECRET_REVEAL",
+    "DEFAULT_SECRET_KEYS",
     "EVENT_PROP_AUTHENTICATED",
     "EVENT_PROP_DECLARATION",
     "EVENT_PROP_KIND",
@@ -85,6 +86,7 @@ __all__ = [
     "PROP_HTPASSWD_GROUPS",
     "PROP_HTPASSWD_PLAINTEXT",
     "PROP_POLICY_FILE",
+    "PROP_SECRET_KEYS",
     "PROP_THROTTLE_LOCKOUT",
     "PROP_THROTTLE_MAX_FAILURES",
     "PROP_THROTTLE_MAX_LOCKOUT",
@@ -156,6 +158,32 @@ PROP_THROTTLE_WINDOW = "pelix.security.throttle.window"
 
 PROP_THROTTLE_LOCKOUT = "pelix.security.throttle.lockout"
 """ Framework property: seconds of the first lockout, doubling on each new one. Default: 60 """
+
+PROP_SECRET_KEYS = "pelix.security.secret_keys"
+"""
+Framework property: comma-separated, case-insensitive ``fnmatch`` patterns of the
+configuration keys whose values Configuration Admin keeps as :class:`Secret`
+(:data:`DEFAULT_SECRET_KEYS` if not set, nothing if empty)
+"""
+
+DEFAULT_SECRET_KEYS = (
+    "*password*",
+    "*passwd*",
+    "*pwd*",
+    "*passphrase*",
+    "*secret*",
+    "*token*",
+    "*api_key*",
+    "*apikey*",
+    "*credential*",
+    "*private_key*",
+    "*dsn*",
+    "*.key",
+)
+"""
+Default patterns of :data:`PROP_SECRET_KEYS`, public so that other tools (the Web
+Console) mask the same keys
+"""
 
 PROP_THROTTLE_MAX_LOCKOUT = "pelix.security.throttle.max_lockout"
 """ Framework property: upper bound of a lockout, in seconds. Default: 900 """
