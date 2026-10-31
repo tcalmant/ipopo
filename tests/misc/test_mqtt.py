@@ -11,6 +11,7 @@ import os
 import socket
 import sys
 import threading
+import time
 import unittest
 import uuid
 from typing import cast
@@ -504,17 +505,32 @@ class MqttClientTest(unittest.TestCase):
             if not event_connect.wait(5):
                 self.fail("Connection timeout")
 
-            # Publish in a tight loop: the shorter the delay between the call to
-            # the Paho client and the storage of the event, the more likely the
-            # publication is notified in between
-            for idx in range(100):
-                mid = client.publish(msg_topic, f"value-{idx}", wait=True)
-                self.assertIsNotNone(mid)
-                assert mid is not None
-                self.assertTrue(
-                    client.wait_publication(mid, 5),
-                    f"Publication {idx} (mid={mid}) was not notified",
-                )
+            for qos in (0, 1, 2):
+                with self.subTest(qos=qos):
+                    # Publish in a tight loop: the shorter the delay between the call to
+                    # the Paho client and the storage of the event, the more likely the
+                    # publication is notified in between
+                    for idx in range(100):
+                        mid = client.publish(msg_topic, f"value-{idx}", qos, wait=True)
+                        self.assertIsNotNone(mid)
+                        assert mid is not None
+                        self.assertTrue(
+                            client.wait_publication(mid, 5),
+                            f"Publication {idx} (mid={mid}) was not notified",
+                        )
+
+            # Acknowledgements received while other threads publish used to dead lock
+            def burst_loop(end: float = time.monotonic() + 2) -> None:
+                while time.monotonic() < end:
+                    client.publish(msg_topic, "burst", 1)
+
+            bursts = [threading.Thread(target=burst_loop, daemon=True) for _ in range(4)]
+            for burst in bursts:
+                burst.start()
+            for burst in bursts:
+                burst.join(20)
+                self.assertFalse(burst.is_alive(), "Publication burst blocked")
+
         finally:
             client.disconnect()
 

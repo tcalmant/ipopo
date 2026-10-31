@@ -32,6 +32,7 @@ Eclipse Foundation: see http://www.eclipse.org/paho
 import logging
 import os
 import threading
+import time
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass, field
 from typing import Any, Literal
@@ -248,12 +249,14 @@ class MqttClient:
         # Reconnection timer
         self.__timer: threading.Timer | None = threading.Timer(5, self.__reconnect)
 
-        # Publication events
-        self.__in_flight: dict[int, threading.Event] = {}
-
-        # Protects __in_flight: the publication can be notified by the network
-        # loop thread before publish() had a chance to store its event
+        # Publications to wait for. Paho tracks their state itself: notifying
+        # them from on_publish would need a lock shared with publish(), but Paho
+        # calls on_publish while holding the lock publish() needs (dead lock)
+        self.__in_flight: dict[int, paho.MQTTMessageInfo] = {}
         self.__in_flight_lock = threading.Lock()
+
+        # Set while disconnected, to stop waiting for publications
+        self.__stopped = threading.Event()
 
         # Assert protocol version
         try:
@@ -463,6 +466,7 @@ class MqttClient:
         """
         # Disconnect first (it also stops the timer)
         self.disconnect()
+        self.__stopped.clear()
 
         # Prepare the connection
         if blocking:
@@ -481,11 +485,7 @@ class MqttClient:
         self.__stop_timer()
 
         # Unlock all publishers
-        with self.__in_flight_lock:
-            pending = list(self.__in_flight.values())
-
-        for event in pending:
-            event.set()
+        self.__stopped.set()
 
         # Disconnect from the server
         self.__mqtt.disconnect()
@@ -517,22 +517,17 @@ class MqttClient:
         :param wait: If True, prepares an event to wait for the message to be published
         :return: The local message ID, None on error
         """
-        # The message must be sent and its event stored atomically: the network
-        # loop thread can notify the publication as soon as the packet is sent,
-        # i.e. before this method returns. Without the lock, that notification
-        # would find no event to set and the waiter would block until timeout.
-        with self.__in_flight_lock:
-            result = self.__mqtt.publish(topic, payload, qos, retain)
-            if result.rc != 0:
-                # No success
-                _logger.debug("Failed to publish message on %s: %d", topic, result.rc)
-                return None
+        result = self.__mqtt.publish(topic, payload, qos, retain)
+        if result.rc != 0:
+            # No success
+            _logger.debug("Failed to publish message on %s: %d", topic, result.rc)
+            return None
 
-            if wait:
-                # Publish packet sent, wait for it to return
-                self.__in_flight[result.mid] = threading.Event()
+        if wait:
+            with self.__in_flight_lock:
+                self.__in_flight[result.mid] = result
 
-            return result.mid
+        return result.mid
 
     def wait_publication(self, mid: int, timeout: float | None = None) -> bool:
         """
@@ -540,20 +535,24 @@ class MqttClient:
 
         :param mid: Local message ID (result of publish)
         :param timeout: Wait timeout (in seconds)
-        :return: True if the message was published, False if timeout was raised
+        :return: True if the message was published, False on timeout or disconnection
         :raise KeyError: Unknown waiting local message ID
         """
         with self.__in_flight_lock:
-            event = self.__in_flight[mid]
+            info = self.__in_flight[mid]
 
-        if event.wait(timeout):
-            # Message published: no need to wait for it anymore
-            with self.__in_flight_lock:
-                self.__in_flight.pop(mid, None)
-            return True
+        deadline = None if timeout is None else time.monotonic() + timeout
+        while not info.is_published() and not self.__stopped.is_set():
+            # Wait by slices, as the Paho wait can't be interrupted on disconnection
+            delay = 0.1 if deadline is None else min(0.1, deadline - time.monotonic())
+            if delay <= 0:
+                # Publication not sent yet
+                return False
+            info.wait_for_publish(delay)
 
-        # Publication not sent yet
-        return False
+        with self.__in_flight_lock:
+            self.__in_flight.pop(mid, None)
+        return info.is_published()
 
     def subscribe(self, topic: str, qos: int = 0) -> int | None:
         """
@@ -710,13 +709,6 @@ class MqttClient:
         :param userdata: User data (unused)
         :param mid: Message ID
         """
-        # Unblock wait_publication, if any
-        with self.__in_flight_lock:
-            event = self.__in_flight.get(mid)
-
-        if event is not None:
-            event.set()
-
         # Notify the explicit callback, if any
         if self.__on_publish_cb is not None:
             try:
