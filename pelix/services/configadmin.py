@@ -26,6 +26,7 @@ ConfigurationAdmin implementation
 """
 
 import copy
+import fnmatch
 import json
 import logging
 import os
@@ -49,6 +50,7 @@ from pelix.ipopo.decorators import (
     UnbindField,
     Validate,
 )
+from pelix.security import DEFAULT_SECRET_KEYS, PROP_SECRET_KEYS, Secret
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
@@ -92,6 +94,9 @@ Private version of ConfigAdmin, to handle loop-requirements ("that will do")
 
 _SHARED_MODE_BITS = 0o077
 """ Permission bits giving access to a group or to the other users """
+
+# Key of the JSON object which stores a secret in a configuration file
+_JSON_SECRET = "$secret"
 
 PID_FORBIDDEN_CHARACTERS = ("/", "\\", "\0")
 """
@@ -290,7 +295,9 @@ class Configuration(services.Configuration):
         :return: A private copy of the properties for the caller or null.
                  These properties must not contain the "service.bundleLocation"
                  property. The value of this property may be obtained from the
-                 get_bundle_location() method.
+                 get_bundle_location() method. The values of the keys matching
+                 the ``pelix.security.secret_keys`` framework property are
+                 :class:`~pelix.security.Secret` objects, whoever the caller is.
         """
         with self.__lock:
             if self.__deleted:
@@ -346,6 +353,14 @@ class Configuration(services.Configuration):
         with self.__lock:
             # Make a copy of the properties
             properties = properties.copy()
+
+            # Non-text values can't be secrets: an int under a matching key is kept as is
+            patterns = getattr(self.__config_admin, "secret_keys", DEFAULT_SECRET_KEYS)
+            for key, value in properties.items():
+                if isinstance(value, (str, bytes)) and any(
+                    fnmatch.fnmatchcase(key.lower(), pattern) for pattern in patterns
+                ):
+                    properties[key] = Secret(value, self.__pid)
 
             # Override properties
             properties[services.CONFIG_PROP_PID] = self.__pid
@@ -793,6 +808,9 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         # Service controller
         self._controller = False
 
+        # Patterns of the keys whose values are secrets, read by the configurations
+        self.secret_keys: tuple[str, ...] = DEFAULT_SECRET_KEYS
+
         # Service reference -> Managed Service
         self._managed_refs: dict[ServiceReference[services.IManagedService], services.IManagedService] = {}
         self._factories_refs: dict[
@@ -837,10 +855,16 @@ class ConfigurationAdmin(services.IConfigurationAdmin):
         self._pool.enqueue(self.__notify_pids, pids)
 
     @Validate
-    def _validate(self, _: "BundleContext") -> None:
+    def _validate(self, context: "BundleContext") -> None:
         """
         Component validated
         """
+        patterns = context.get_property(PROP_SECRET_KEYS)
+        if patterns is not None:
+            if isinstance(patterns, str):
+                patterns = patterns.split(",")
+            self.secret_keys = tuple(pattern.strip().lower() for pattern in patterns if pattern.strip())
+
         with self.__lock:
             # Create the notification pool. A single thread keeps the
             # notifications ordered: with more, a managed service could be
@@ -1742,7 +1766,12 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
         self._warn_if_shared(path)
 
         # Store the configuration
-        return cast(dict[str, Any], json.loads(data))
+        # A "$secret" object is read back as a secret of its configuration
+        def load_secret(obj: dict[str, Any]) -> Any:
+            value = obj.get(_JSON_SECRET)
+            return Secret(value, pid) if len(obj) == 1 and isinstance(value, str) else obj
+
+        return cast(dict[str, Any], json.loads(data, object_hook=load_secret))
 
     def store(self, pid: str, properties: dict[str, Any]) -> None:
         """
@@ -1758,7 +1787,7 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
 
         # Serialize first: a non-serializable value must not touch the file.
         # Be nice, add a line feed
-        data = json.dumps(properties, sort_keys=True, indent=4, separators=(",", ": ")) + "\n"
+        data = json.dumps(properties, sort_keys=True, indent=4, default=_store_secret) + "\n"
 
         try:
             # Keep the permissions of an existing file
@@ -1867,6 +1896,17 @@ class JsonPersistence(services.IConfigurationAdminPersistence):
                 except (OSError, KeyError, ValueError) as ex:
                     # Log other errors
                     _logger.error("Error updating %s: %s", pid, ex)
+
+
+def _store_secret(value: Any) -> Any:
+    """
+    Gives the JSON form of a secret, the only value revealed to be stored
+
+    :raise TypeError: Not a secret
+    """
+    if isinstance(value, Secret):
+        return {_JSON_SECRET: value.reveal()}
+    raise TypeError(f"Object of type {type(value).__name__} is not JSON serializable")
 
 
 @ComponentFactory(services.FACTORY_CONFIGADMIN_MEMORY)

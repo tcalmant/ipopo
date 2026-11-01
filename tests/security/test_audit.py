@@ -11,6 +11,7 @@ import unittest
 from typing import Any
 
 import pelix.framework
+from pelix.ipopo.constants import use_ipopo
 from pelix.security import (
     EVENT_PROP_AUTHENTICATED,
     EVENT_PROP_DECLARATION,
@@ -35,13 +36,15 @@ from pelix.security import (
     Credentials,
     Decision,
     Permission,
+    Secret,
     Subject,
     UsernamePassword,
     run_as,
 )
+from pelix.security.audit import AUDIT_LOGGER
 from pelix.security.core import Throttle
 from pelix.security.decorators import AllowGroup, AllowPermission, DenyAll
-from pelix.services import EventAdmin
+from pelix.services import FACTORY_EVENT_ADMIN, EventAdmin
 
 # ------------------------------------------------------------------------------
 
@@ -340,6 +343,71 @@ class AccessDeniedEventsTest(AuditTestCase):
         self.assertIsNotNone(decorators._denial_listener)
         self.framework.stop()
         self.assertIsNone(decorators._denial_listener)
+
+
+class AuditSinkTest(unittest.TestCase):
+    """
+    Tests the optional audit sink bundle
+    """
+
+    def setUp(self) -> None:
+        self.framework = pelix.framework.create_framework(
+            ("pelix.ipopo.core", "pelix.services.eventadmin", "pelix.security.audit")
+        )
+        self.framework.start()
+        self.addCleanup(pelix.framework.FrameworkFactory.delete_framework)
+        with use_ipopo(self.framework.get_bundle_context()) as ipopo:
+            self.event_admin = ipopo.instantiate(FACTORY_EVENT_ADMIN, "evtadmin", {})
+
+    def test_events(self) -> None:
+        """
+        The security events are written without the properties holding a secret
+        """
+        for topic, level in (
+            (TOPIC_AUTH_SUCCESS, "INFO"),
+            (TOPIC_AUTH_FAILURE, "WARNING"),
+            (TOPIC_ACCESS_DENIED, "WARNING"),
+            ("pelix/security/OTHER", "INFO"),
+        ):
+            with self.subTest(topic=topic), self.assertLogs(AUDIT_LOGGER, "INFO") as logs:
+                self.event_admin.send(
+                    topic,
+                    {
+                        EVENT_PROP_USER: "bob",
+                        EVENT_PROP_TRANSPORT: "http",
+                        "password": SECRET,
+                        "value": Secret(SECRET),
+                    },
+                )
+
+            output = "\n".join(logs.output)
+            self.assertEqual([record.levelname for record in logs.records], [level])
+            self.assertIn(topic, output)
+            self.assertIn("user='bob'", output)
+            self.assertIn("transport='http'", output)
+            self.assertNotIn(SECRET, output)
+            self.assertNotIn("password", output)
+            self.assertNotIn("value", output)
+
+        # Other topics are not for the audit trail
+        with self.assertNoLogs(AUDIT_LOGGER):
+            self.event_admin.send("other/topic", {EVENT_PROP_USER: "bob"})
+
+    def test_reveals(self) -> None:
+        """
+        The reveals are written with the current subject, only while the sink is valid
+        """
+        with self.assertLogs(AUDIT_LOGGER, "INFO") as logs, run_as(Subject("bob")):
+            Secret(SECRET, "owner").reveal()
+
+        self.assertEqual(
+            logs.output,
+            [f"INFO:{AUDIT_LOGGER}:secret revealed: owner='owner' module={__name__!r} subject='bob'"],
+        )
+
+        self.framework.stop()
+        with self.assertNoLogs(AUDIT_LOGGER):
+            Secret(SECRET, "owner").reveal()
 
 
 # ------------------------------------------------------------------------------

@@ -34,7 +34,7 @@ from collections.abc import Callable
 from io import IOBase
 from typing import IO, Any, cast
 
-from pelix.security import ANONYMOUS, Subject
+from pelix.security import ANONYMOUS, Secret, Subject
 from pelix.utilities import to_bytes, to_str
 
 # ------------------------------------------------------------------------------
@@ -127,6 +127,18 @@ class ShellSession:
         :return: The read line, after a conversion to str
         """
         return self._io_handler.prompt(prompt)
+
+    def prompt_secret(self, prompt: str | None = None) -> Secret[str]:
+        """
+        Reads a secret written by the user, like a password, without echoing it when the
+        front end allows it: the console does, the remote and XMPP shells can't
+
+        :param prompt: An optional prompt message
+        :return: The read line, without its end of line, as a secret
+        :raise EOFError: The front end has no input, or it has been closed: the shell
+                         reports it as the error of the command
+        """
+        return self._io_handler.prompt_secret(prompt)
 
     def write(self, data: str) -> None:
         """
@@ -257,8 +269,10 @@ class IOHandler:
         if in_stream is sys.stdin:
             # Warning: conflicts with the console
             self.prompt = self._real_prompt
+            self.prompt_secret = self._real_prompt_secret
         else:
             self.prompt = self._prompt
+            self.prompt_secret = self._prompt_secret
 
     def _real_prompt(self, prompt: bytes | str | None = None) -> str:
         """
@@ -268,6 +282,32 @@ class IOHandler:
         :return: The read line, after a conversion to str
         """
         return input(prompt)
+
+    def _real_prompt_secret(self, prompt: str | None = None) -> Secret[str]:
+        """
+        Reads a secret on the terminal, without echo
+
+        :param prompt: An optional prompt message
+        :return: The read line, as a secret
+        """
+        return Secret(getpass.getpass(prompt or "Password: "))
+
+    def _prompt_secret(self, prompt: str | None = None) -> Secret[str]:
+        """
+        Reads a secret from the input stream: a stream has no echo control, the client
+        shows what it sends
+
+        :param prompt: An optional prompt message
+        :return: The read line, without its end of line, as a secret
+        :raise EOFError: No input stream, or end of the stream
+        """
+        line = self._prompt(prompt)
+        if not line:
+            # Not even an end of line: an empty secret would be taken as typed
+            raise EOFError("No input to read a secret from")
+
+        # Only the end of line is removed: a password may start or end with a space
+        return Secret(line.rstrip("\r\n"))
 
     def _prompt(self, prompt: bytes | str | None = None) -> str:
         """

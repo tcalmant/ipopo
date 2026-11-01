@@ -22,6 +22,7 @@ from pelix.ipopo.decorators import (
     RequiresConfiguration,
     Validate,
 )
+from pelix.security import Secret
 
 # ------------------------------------------------------------------------------
 
@@ -244,7 +245,7 @@ class Hidden:
     """
 
     _name: str
-    _secret: str
+    _secret: Secret[str]
     _pid: str
 
     def __init__(self) -> None:

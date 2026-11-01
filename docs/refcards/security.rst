@@ -52,6 +52,8 @@ Bundle                        What it brings
 ``pelix.security.htpasswd``   an :class:`Authenticator` and a :class:`MembershipProvider`
 ``pelix.security.policy``     roles from groups, permissions from roles, certificates to
                               users, and the escape hatch
+``pelix.security.audit``      optional: writes the security events and the reveals of
+                              secrets to the ``pelix.security.audit`` logger
 ============================= =============================================================
 
 :mod:`pelix.security` itself, holding the beans and the current subject, needs no
@@ -616,6 +618,191 @@ And, in a component::
     with run_as(subject):
         submit_job("nightly")
 
+Secrets
+=======
+
+.. versionadded:: 3.3.0
+
+A :class:`Secret` wraps a confidential value (a ``str`` or ``bytes`` password or token,
+an ``int`` PIN, a dictionary of credentials...) so that it can travel through properties, configurations and logs
+without being written in clear text by mistake:
+
+==================================== ===============================================
+Operation                            Behaviour
+==================================== ===============================================
+``repr()``, ``str()``, f-strings     ``Secret(***)`` or ``***``: the shell, the logs, the
+                                     reports and the tracebacks show the mask
+``reveal()``                         returns the value and raises the
+                                     ``pelix.security.secret.reveal`` audit event
+``==``                               compares two secrets (in constant time for
+                                     ``str`` and ``bytes``), never a secret and a
+                                     plain value
+``equals(plain)``                    compares with a plain value, in constant time
+                                     for text, and raises the audit event
+``hash()``                           a keyed digest (process-random key): equal
+                                     secrets hash alike, but not like their value
+``bool()``, ``len()``                allowed: whether it is set is not confidential
+``pickle``, ``json``                 refused (``TypeError``)
+``copy``, ``deepcopy``               return the same object
+==================================== ===============================================
+
+The ``owner`` of a secret (a component instance, a factory or a configuration PID)
+is not confidential: it tells who the secret was created for. :func:`to_secret`
+wraps a plain value and keeps an existing secret, with its owner, as is.
+
+Where secrets come from
+-----------------------
+
+* The properties declared with ``@HiddenProperty`` (see :doc:`ipopo_decorators`)
+  are always ``Secret`` objects owned by the component instance: the declared
+  default, the values given at instantiation, the confidential ``.name`` updates and
+  the values the component sets itself. The component calls ``reveal()`` where it
+  needs the value::
+
+      @ComponentFactory("mqtt-client-factory")
+      @HiddenProperty("_password", "mqtt.password", None)
+      class Client:
+          _password: Secret[str] | None
+
+          @Validate
+          def _validate(self, context):
+              client.username_pw_set("user", self._password.reveal() if self._password else None)
+
+* Configuration Admin keeps the text values of the keys matching the
+  ``pelix.security.secret_keys`` framework property (comma-separated,
+  case-insensitive ``fnmatch`` patterns, :data:`DEFAULT_SECRET_KEYS` by default,
+  nothing if empty) as ``Secret`` objects owned by the
+  configuration PID. ``Configuration.get_properties()`` gives them to every caller,
+  iPOPO components and plain managed services alike. The JSON persistence stores
+  them as ``{"$secret": "..."}`` in its private files and reads them back as secrets,
+  whatever the patterns.
+* The MQTT components accept a ``str`` or a ``Secret`` password and keep it as a
+  secret until the connection.
+* ``ShellSession.prompt_secret()`` reads a password typed in a shell command as a
+  ``Secret[str]`` (see :doc:`shell`).
+
+The credentials handled by a protocol rather than by a component property are not
+secrets: the ``UsernamePassword`` of an authentication, the XMPP and etcd client
+credentials and the remote services authentication keep plain ``str`` or
+``bytearray`` values, as their libraries expect them.
+
+The generic tools never reveal a secret: the shell commands, the log service and the
+reports show the mask, the endpoints of Remote Services and Remote Service Admin leave
+out the properties holding a secret, and the JSON-RPC, Jabsorb and XML-RPC transports
+refuse to serialize one (``Secret._serialize()`` raises a ``TypeError`` for jsonrpclib).
+
+LDAP filters
+------------
+
+In-process, a service property holding a secret is matched by the LDAP filters as its
+value would be: ``(t=hunter2)``, ``(t=hun*)``, ``(t~=HUNTER2)`` and ``(t>=hunter1)`` all
+match ``Secret("hunter2")``. A filter test raises no audit event: the filter reads the
+value through an internal accessor of :mod:`pelix.security`, so that the service
+registry doesn't flood the audit log.
+
+A filter written by a remote caller would then be an unaudited oracle: ``(t=a*)``,
+``(t=b*)``... guesses the value one character at a time. Such a filter **must** be
+parsed with ``get_ldap_filter(text, untrusted=True)``: its criteria only test the
+presence of a secret (``(t=*)`` matches, every other operator never matches, so
+``(!(t=hunter2))`` always matches). The parsed object keeps that mode wherever it goes:
+give it, not the string, to the service registry (``get_all_service_references()``,
+``get_service_references()``), to ``ConfigurationAdmin.list_configurations()`` or to
+``Configuration.matches()``, alone or combined with ``combine_filters()``.
+
+The entry points which must parse their filters this way are those whose filter text
+comes from the network: the ``filter`` parameter of the Web Console
+(``GET services?filter=``, ``GET configadmin/configurations?filter=``), and any servlet,
+remote service or shell command which takes a filter from its caller. The bundles of
+Pelix take no such filter today.
+
+Auditing the reveals
+--------------------
+
+Every call to ``reveal()`` raises the ``pelix.security.secret.reveal`` audit event
+(:pep:`578`) with the owner of the secret and the name of the calling module. An
+audit hook can't be removed once added, which suits a compliance log::
+
+    import logging
+    import sys
+
+    from pelix.security import AUDIT_SECRET_REVEAL
+
+    _audit = logging.getLogger("audit.secrets")
+
+    def log_reveal(event, args):
+        if event == AUDIT_SECRET_REVEAL:
+            owner, module = args
+            _audit.info("Secret of %s revealed by %s", owner, module)
+
+    sys.addaudithook(log_reveal)
+
+``grep -rn "reveal()\|equals("`` lists every disclosure point of the code for a
+review: ``equals()`` tells whether a guess is right, so it is audited like ``reveal()``.
+Comparing two secrets with ``==`` raises no event: both values are already held.
+
+The audit sink bundle
+---------------------
+
+Installing ``pelix.security.audit`` instantiates a component (factory
+``pelix.security.audit.factory``) writing to the ``pelix.security.audit`` logger:
+
+* the EventAdmin events of the ``pelix/security/*`` topics (the component property
+  ``event.topics`` changes them): ``AUTH_SUCCESS`` at the ``INFO`` level,
+  ``AUTH_FAILURE`` and ``ACCESS_DENIED`` at the ``WARNING`` level, with their
+  properties as ``key='value'`` pairs. A property holding a ``Secret``, or named after
+  :data:`DEFAULT_SECRET_KEYS`, is left out. Those events need an EventAdmin service and
+  ``pelix.security.core``;
+* the reveal audit events, as
+  ``secret revealed: owner='...' module='...' subject='...'``, with the name of the
+  current subject. The audit hook stays installed (it can't be removed) but writes
+  only while the component is valid.
+
+That logger is a plain :mod:`logging` logger: send it to a persistent and, for NIS 2
+traceability, preferably remote store, out of reach of the process, for example::
+
+    import logging
+    import logging.handlers
+
+    audit = logging.getLogger("pelix.security.audit")
+    audit.setLevel(logging.INFO)
+    # Keep the trail out of the application logs
+    audit.propagate = False
+    audit.addHandler(logging.handlers.SysLogHandler(address="/dev/log"))
+    # ... or a local file, rotated by logrotate
+    audit.addHandler(logging.handlers.WatchedFileHandler("/var/log/pelix/audit.log"))
+
+Expect some noise among the reveals, from the bundles doing their job: the JSON
+persistence of Configuration Admin reveals each secret it writes to its files, the HTTP
+services and the remote shell reveal their key password when they start, the MQTT
+components reveal their password at each connection (reconnections included), and each
+``equals()`` call is logged as a reveal. A reveal from another module, or for an
+unexpected owner, is what stands out.
+
+Limits
+------
+
+* **No enforcement.** In-process Python code reaches the value anyway (the slots of
+  the object, ``gc``, ``ctypes``), and local bundles are trusted, as stated at the top
+  of this page. The type makes the disclosures explicit and observable, it does not
+  prevent them.
+* **No memory wipe.** A ``str`` is immutable and can't be erased; the copies made by
+  the libraries which receive the revealed value remain too.
+* The key patterns of Configuration Admin are a heuristic: a false positive is a value
+  the component has to reveal, a false negative is a value kept in clear text. Only
+  ``str`` and ``bytes`` values are wrapped.
+* **No encryption on disk.** ``{"$secret": "..."}`` in a configuration file is a
+  marker which keeps the value a secret across restarts, not an encryption: the value
+  is in clear text in the file. What protects it is the mode of the files (``0600``)
+  and of their folder (``0700``), and who can read the disk and its backups.
+* **The hash is not a digest to keep.** ``hash()`` uses a key drawn at each start of
+  the process: it can't be stored nor compared with another process. For a ``str`` or
+  ``bytes`` value it comes from an HMAC-SHA256; for any other value, it is the hash of
+  the value mixed with that key, which only keeps it from being the hash of the plain
+  value, it is not a cryptographic digest.
+* **Login names are logged.** The authentication failures carry the user name as typed,
+  in their events and in the audit trail: a password typed in the login field by
+  mistake ends up there. Treat the audit trail as confidential, like the logs.
+
 API
 ===
 
@@ -639,6 +826,20 @@ Beans
 
 .. autoclass:: Decision
    :members:
+
+Secrets
+-------
+
+.. autoclass:: Secret
+   :members: owner, reveal
+
+.. autofunction:: to_secret
+
+.. autodata:: AUDIT_SECRET_REVEAL
+
+.. autodata:: PROP_SECRET_KEYS
+
+.. autodata:: DEFAULT_SECRET_KEYS
 
 Services
 --------

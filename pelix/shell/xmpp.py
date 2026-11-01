@@ -44,7 +44,7 @@ import pelix.misc.xmpp
 import pelix.shell
 from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import ComponentFactory, HiddenProperty, Invalidate, Property, Requires, Validate
-from pelix.security import Subject
+from pelix.security import Secret, Subject
 from pelix.shell import beans
 from pelix.shell.console import handle_common_arguments, make_common_parser
 from pelix.utilities import EventData, StreamBase, remove_duplicates
@@ -258,7 +258,7 @@ class IPopoXMPPShell:
         self._host: str = "localhost"
         self._port: int = 5222
         self._jid: str | None = None
-        self._password: str | None = None
+        self._password: Secret[str] | None = None
         self._use_tls: bool = True
         self._use_ssl: bool = False
         self._tls_verify: bool = True
@@ -335,7 +335,7 @@ class IPopoXMPPShell:
         )
 
         # Create the bot. Negative priority avoids listening to human messages
-        self.__bot = pelix.misc.xmpp.BasicBot(self._jid, self._password, ssl_verify=self._tls_verify)
+        self.__bot = pelix.misc.xmpp.BasicBot(self._jid, self._password.reveal(), ssl_verify=self._tls_verify)
         # Handled by __on_subscription_request: only the users see the presence of the bot
         self.__bot.auto_authorize = None
 

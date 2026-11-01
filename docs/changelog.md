@@ -16,6 +16,11 @@ Unreleased
 
 ### Framework
 
+* The LDAP filters match a `pelix.security.Secret` as they would match its
+  value (equality, substrings, approximate and ordering operators), without
+  raising its audit event. A filter given by a remote caller must be parsed
+  with `get_ldap_filter(text, untrusted=True)`: it then only tests the
+  presence of a secret, wherever the parsed filter is used
 * Added the bundle metadata: a TOML block after a `.. pelix-bundle` line in a
   module-level docstring, or a `<module>.manifest.toml` file, read when the
   bundle is installed, before its module is imported. See
@@ -38,6 +43,17 @@ Unreleased
 
 ### Security
 
+* Added `pelix.security.Secret`, an immutable wrapper of a confidential value
+  (a `str` or `bytes` password, an `int` PIN, a dictionary of credentials...),
+  masked in its text forms (`***`), compared with another secret in constant
+  time, with a plain value only by `equals()` (audited like `reveal()`), hashed
+  with a process-random key, refused
+  by pickle and JSON, whose `reveal()` method raises the
+  `pelix.security.secret.reveal` audit event (PEP 578) with its owner and the
+  calling module. See the security reference card
+* Added the optional `pelix.security.audit` bundle: a component writing the
+  `pelix/security/*` events and the reveals of secrets (with the current
+  subject) to the `pelix.security.audit` logger, without secret values
 * `Subject` has two new fields, `peer_address` (the other end of the
   connection) and `client_address` (the client, as told by the trusted proxies),
   set by the HTTP services and the remote shell and shown by `whoami`.
@@ -282,6 +298,18 @@ Unreleased
   entry of the properties
 * ConfigAdmin: managed service factories (and managed services) sharing a PID
   are notified by decreasing service ranking
+* **Breaking:** ConfigAdmin keeps the `str` and `bytes` values of the keys
+  matching the new `pelix.security.secret_keys` framework property as
+  `pelix.security.Secret` objects owned by the configuration PID: they are what
+  `Configuration.get_properties()` gives to every caller, iPOPO components and
+  plain managed services alike, and `str()` gives `***`. The property holds
+  comma-separated, case-insensitive `fnmatch` patterns, by default those of
+  `pelix.security.DEFAULT_SECRET_KEYS` (`*password*`, `*passwd*`, `*pwd*`,
+  `*passphrase*`, `*secret*`, `*token*`, `*api_key*`, `*apikey*`,
+  `*credential*`, `*private_key*`, `*dsn*` and `*.key`); an empty value
+  disables it.
+  The JSON persistence stores a secret as `{"$secret": "..."}` and reads it back
+  as a `Secret`, whatever the patterns
 * Added `pelix.services.eventdelivery`, the delivery code and topic rules
   shared by both event services
 * Added the Condition service (`pelix.services.condition`), after the OSGi
@@ -335,9 +363,23 @@ Unreleased
 * Fixed a component killed by a `FrameworkException` raised in `@Validate`: it
   was set back to `VALID` then invalidated without the iPOPO service, so that
   `instantiate()` raised a `ValueError` to its caller
+* **Breaking:** the values of the properties declared with `@HiddenProperty`
+  are `pelix.security.Secret` objects owned by the component instance: the
+  declared default, the values given to `instantiate()`, the confidential
+  updates of a `.name` key (from `reconfigure()` or Configuration Admin), the
+  values the component sets itself and those given to `@Modified`. The
+  component calls `reveal()` to read the value: `str()` gives `***`.
+  `get_factory_details()["hidden_properties"]` gives `Secret` objects owned by
+  the factory, and `get_instance_details()["hidden_properties"]` (new) the
+  secrets of the component, `None` when unset. The bundled components (HTTP, remote shell, XMPP shell, MQTT,
+  Redis) are adapted
 
 ### Shell
 
+* Added `ShellSession.prompt_secret()` (and `IOHandler.prompt_secret()`): it reads
+  a line as a `pelix.security.Secret`, without echo in the console. The remote
+  and XMPP shells have no echo control. It raises an `EOFError` when there is
+  nothing to read
 * The remote shell can listen on a Unix domain socket (Linux and macOS), with
   the new `pelix.shell.unix.path` property or the `--unix` argument of
   `python -m pelix.shell.remote`. The socket is created with the mode `0600` in
@@ -354,6 +396,10 @@ Unreleased
 
 ### Remote
 
+* The service properties holding a `pelix.security.Secret` are left out of the
+  endpoints of Remote Services and of Remote Service Admin, and the JSON-RPC
+  and Jabsorb transports refuse to serialize a `Secret` (`TypeError`), as
+  XML-RPC already did
 * **Breaking:** a call to an exported service is refused unless the caller
   holds the `pelix.remote.call:<endpoint name>` permission, when the transport
   can be reached from other hosts (HTTP service not bound to a loopback

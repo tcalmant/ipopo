@@ -45,6 +45,7 @@ from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo import constants
 from pelix.ipopo.contexts import ComponentContext
+from pelix.security import to_secret
 
 if TYPE_CHECKING:
     from pelix.ipopo.core import _IPopoService
@@ -329,6 +330,7 @@ class StoredInstance:
                     # apply it through the same path the component itself
                     # would use, so it still never becomes a public property
                     hidden_name = name[1:]
+                    new_value = to_secret(new_value, self.name)
                     prefix = constants.IPOPO_HIDDEN_PROPERTY_PREFIX
                     getter = getattr(self.instance, f"{prefix}{constants.IPOPO_GETTER_SUFFIX}", None)
                     setter = getattr(self.instance, f"{prefix}{constants.IPOPO_SETTER_SUFFIX}", None)

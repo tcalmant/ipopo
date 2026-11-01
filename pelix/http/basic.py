@@ -836,7 +836,7 @@ class HttpServiceImpl(AbstractHttpService):
                 self._server.socket,
                 self._cert_file,
                 self._key_file,
-                self._key_password,
+                self._key_password.reveal() if self._key_password else None,
             )
 
         # Property update (if port was 0)

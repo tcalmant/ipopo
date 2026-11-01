@@ -42,6 +42,7 @@ from pelix.internals.registry import PrototypeServiceFactory, ServiceFactory, Se
 from pelix.ipopo import constants
 from pelix.ipopo.contexts import FactoryContext, Requirement
 from pelix.ldapfilter import escape_LDAP
+from pelix.security import to_secret
 from pelix.services.condition import CONDITION_ID, Condition
 from pelix.utilities import get_method_arguments, is_string, to_iterable
 
@@ -794,6 +795,10 @@ class HiddenProperty(Property):
     e.g. ``.some.password`` to update the property declared as
     ``some.password``: the new value is applied but never becomes public.
 
+    The value of a hidden property is always stored and injected as a
+    :class:`~pelix.security.Secret` owned by the component instance: the
+    component calls its ``reveal()`` method where it needs the value.
+
     :Handler ID: :py:const:`pelix.ipopo.constants.HANDLER_PROPERTY`
 
     :Example:
@@ -803,10 +808,13 @@ class HiddenProperty(Property):
           @ComponentFactory()
           @HiddenProperty('_password', 'some.password', "secret")
           class Foo:
-              def call(self):
-                  print(self._password)  # I think we're missing the point
+              _password: Secret[str]
 
-                  # Service properties won't be affected by this change
+              def call(self):
+                  print(self._password)  # Prints "***"
+                  connect(password=self._password.reveal())
+
+                  # Stored as a Secret, service properties won't be affected
                   self._password = "UpdatedSecret"
     """
 
@@ -845,7 +853,9 @@ class HiddenProperty(Property):
         setattr(
             clazz,
             self._field,
-            _ipopo_class_field_property(self._name, self._value, constants.IPOPO_HIDDEN_PROPERTY_PREFIX),
+            _ipopo_class_field_property(
+                self._name, to_secret(self._value), constants.IPOPO_HIDDEN_PROPERTY_PREFIX
+            ),
         )
 
         return clazz

@@ -17,6 +17,7 @@ from pelix import constants
 from pelix.framework import Bundle, BundleContext, Framework, FrameworkFactory, create_framework
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo.constants import use_ipopo
+from pelix.security import Secret
 from pelix.shell import (
     PERMISSION_ADMIN,
     PERMISSION_READ,
@@ -945,6 +946,43 @@ class ShellCoreCommandsTest(unittest.TestCase):
 
         output = self._run_command("thread aaa")
         self.assertIn("Invalid thread", output)
+
+
+class PromptSecretTest(unittest.TestCase):
+    """
+    Tests the reading of a secret in a shell session
+    """
+
+    def test_stream(self) -> None:
+        """
+        A stream front end (remote, XMPP) gives the line without its end of line
+        """
+        for line, expected in (("hunter2\n", "hunter2"), (" pass word \r\n", " pass word "), ("\n", "")):
+            with self.subTest(line=line):
+                output = StringIO()
+                session = beans.ShellSession(beans.IOHandler(StringIO(line), output))
+                secret = session.prompt_secret("Password: ")
+                self.assertIsInstance(secret, Secret)
+                self.assertEqual(secret, Secret(expected))
+                self.assertEqual(output.getvalue(), "Password: ")
+
+        # Nothing to read: no input stream, or its end
+        for in_stream in (None, StringIO("")):
+            with self.subTest(in_stream=in_stream), self.assertRaises(EOFError):
+                beans.ShellSession(beans.IOHandler(in_stream, StringIO())).prompt_secret()
+
+    def test_console(self) -> None:
+        """
+        The console reads the secret without echo
+        """
+        for prompt, expected_prompt in ((None, "Password: "), ("Key: ", "Key: ")):
+            with (
+                self.subTest(prompt=prompt),
+                mock.patch("getpass.getpass", return_value="hunter2") as getpass,
+            ):
+                session = beans.ShellSession(beans.IOHandler(sys.stdin, sys.stdout), trusted=True)
+                self.assertEqual(session.prompt_secret(prompt), Secret("hunter2"))
+                getpass.assert_called_once_with(expected_prompt)
 
 
 # ------------------------------------------------------------------------------

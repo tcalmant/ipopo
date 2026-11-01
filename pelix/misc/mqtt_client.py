@@ -44,6 +44,7 @@ from paho.mqtt.enums import CallbackAPIVersion, MQTTProtocolVersion
 from paho.mqtt.properties import Properties
 from paho.mqtt.reasoncodes import ReasonCode
 
+from pelix.security import Secret, to_secret
 from pelix.utilities import str2bool
 
 # ------------------------------------------------------------------------------
@@ -140,7 +141,7 @@ class MqttConnectionConfig:
     client_id: str | None = None
     max_queued_messages: int = DEFAULT_MAX_QUEUED_MESSAGES
     username: str | None = None
-    password: str | None = field(default=None, repr=False)
+    password: Secret[str] | None = field(default=None, repr=False)
     tls: bool = False
     ca_file: str | None = None
     cert_file: str | None = None
@@ -148,7 +149,7 @@ class MqttConnectionConfig:
 
     @classmethod
     def from_properties(
-        cls, properties: Mapping[str, Any], password: str | None = None
+        cls, properties: Mapping[str, Any], password: str | Secret[str] | None = None
     ) -> "MqttConnectionConfig":
         """
         Reads the ``mqtt.*`` entries of the given properties
@@ -166,7 +167,7 @@ class MqttConnectionConfig:
             client_id=properties.get(PROP_MQTT_CLIENT_ID) or None,
             max_queued_messages=int(properties.get(PROP_MQTT_MAX_QUEUED, DEFAULT_MAX_QUEUED_MESSAGES)),
             username=properties.get(PROP_MQTT_USERNAME) or None,
-            password=password or None,
+            password=to_secret(password) if password else None,
             tls=str2bool(tls) if isinstance(tls, str) else bool(tls),
             ca_file=properties.get(PROP_MQTT_TLS_CA) or None,
             cert_file=properties.get(PROP_MQTT_TLS_CERT) or None,
@@ -447,14 +448,14 @@ class MqttClient:
         """
         return self._client_id
 
-    def set_credentials(self, username: str, password: str | None) -> None:
+    def set_credentials(self, username: str, password: str | Secret[str] | None) -> None:
         """
         Sets the user name and password to be authenticated on the server
 
         :param username: Client username
         :param password: Client password
         """
-        self.__mqtt.username_pw_set(username, password)
+        self.__mqtt.username_pw_set(username, password.reveal() if isinstance(password, Secret) else password)
 
     def set_will(
         self, topic: str, payload: None | bytes | bytearray | str, qos: int = 0, retain: bool = False

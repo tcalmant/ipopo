@@ -52,6 +52,7 @@ from pelix.ipopo.decorators import (
 )
 from pelix.remote import beans
 from pelix.remote.edef_io import EDEFReader, EDEFWriter
+from pelix.security import Secret
 from pelix.utilities import to_str
 
 # ------------------------------------------------------------------------------
@@ -116,7 +117,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         self._redis_host = "localhost"
         self._redis_port = 6379
         self._redis_db = 0
-        self._redis_password: str | None = None
+        self._redis_password: Secret[str] | None = None
         self._redis: redis.StrictRedis | None = None
 
         # PubSub thread
@@ -174,7 +175,7 @@ class RedisDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
             self._redis_host,
             self._redis_port,
             self._redis_db,
-            self._redis_password,
+            self._redis_password.reveal() if self._redis_password else None,
         )
 
         # Configure the server to send key events

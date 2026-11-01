@@ -50,7 +50,8 @@ certificate of a private authority with ``mqtt.tls.ca_file``.
 An invalid or missing TLS file stops the component at validation.
 
 ``mqtt.password`` is declared as a hidden property: it is never visible in the
-service properties of the component.
+service properties of the component, and is kept as a
+:class:`~pelix.security.Secret` until the connection to the broker.
 
 .. code-block:: python
 

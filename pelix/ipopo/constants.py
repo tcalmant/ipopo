@@ -645,7 +645,8 @@ class IPopoService(Protocol):
         * ``name``: The factory name
         * ``bundle``: The Bundle object of the bundle providing the factory
         * ``properties``: Copy of the components properties defined by the factory
-        * ``hidden_properties``: Copy of the declared default values of the
+        * ``hidden_properties``: Copy of the declared default values, as
+          :class:`~pelix.security.Secret` owned by the factory, of the
           properties declared with ``@HiddenProperty`` (never their current,
           possibly confidential, runtime value)
         * ``requirements``: List of the requirements defined by the factory

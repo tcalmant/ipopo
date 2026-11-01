@@ -14,6 +14,7 @@ import unittest
 import uuid
 from typing import cast
 
+from pelix.security import Secret
 from pelix.utilities import EventData, to_str
 
 try:
@@ -738,6 +739,15 @@ class MqttConnectionConfigTest(unittest.TestCase):
             mqtt.MqttConnectionConfig.from_properties({"mqtt.max_queued_messages": "5"}).max_queued_messages,
             5,
         )
+
+        # The password is kept as a secret, with its owner if it was one already
+        owned = Secret("secret", "owner")
+        for password, expected in (("secret", Secret("secret")), (owned, owned), ("", None), (None, None)):
+            with self.subTest(password=password):
+                config = mqtt.MqttConnectionConfig.from_properties({}, password)
+                self.assertEqual(config.password, expected)
+                if password is owned:
+                    self.assertIs(config.password, owned)
 
     def test_connect(self) -> None:
         """

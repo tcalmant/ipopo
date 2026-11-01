@@ -39,7 +39,8 @@ the previous values of the changed properties.
 .. note:: A property declared with ``@HiddenProperty`` never becomes public: a
    configuration entry of the same name is ignored. To update it
    confidentially, e.g. to rotate a password, prefix its name with a dot
-   (``.password`` updates the ``password`` property).
+   (``.password`` updates the ``password`` property). The component gets the
+   value as a :class:`~pelix.security.Secret` (see :ref:`refcard_security`).
 
 .. note:: ``service.pid``, ``service.factoryPid`` and ``service.bundleLocation``
    are added by ConfigurationAdmin, not the administrator, and are never

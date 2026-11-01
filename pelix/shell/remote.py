@@ -75,6 +75,7 @@ from pelix.security import (
     Authorization,
     ClientCertificate,
     Credentials,
+    Secret,
     Subject,
     UsernamePassword,
 )
@@ -1312,7 +1313,7 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
         self._ca_file: str | None = None
         self._cert_file: str | None = None
         self._key_file: str | None = None
-        self._key_password: str | None = None
+        self._key_password: Secret[str] | None = None
 
         # Internals
         self._thread: threading.Thread | None = None
@@ -1531,7 +1532,7 @@ class IPopoRemoteShell(pelix.shell.RemoteShell):
             self._port or 0,
             self._cert_file,
             self._key_file,
-            self._key_password,
+            self._key_password.reveal() if self._key_password else None,
             self._ca_file,
             self.__max_clients,
             self._unix_path,

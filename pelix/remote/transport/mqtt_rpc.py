@@ -56,7 +56,7 @@ from pelix.misc.mqtt_client import PROP_MQTT_PASSWORD, MqttClient, MqttConnectio
 from pelix.remote import RemoteServiceError, security
 from pelix.remote.beans import ImportEndpoint
 from pelix.remote.transport import commons
-from pelix.security import ANONYMOUS, SecurityError, run_as
+from pelix.security import ANONYMOUS, Secret, SecurityError, run_as
 from pelix.security.core import restore_subject
 from pelix.utilities import to_str
 
@@ -161,7 +161,7 @@ class MqttRpcServiceExporter(commons.AbstractRpcServiceExporter):
         self.__real_topic = ""
 
         # MQTT broker password (hidden property)
-        self._mqtt_password: str | None = None
+        self._mqtt_password: Secret[str] | None = None
 
         # Subject of the callers
         self._peer_name: str | None = None
@@ -491,7 +491,7 @@ class MqttRpcServiceImporter(commons.AbstractRpcServiceImporter):
         super().__init__()
 
         # MQTT broker password (hidden property)
-        self._mqtt_password: str | None = None
+        self._mqtt_password: Secret[str] | None = None
 
         # MQTT client
         self.__mqtt: MqttClient | None = None
