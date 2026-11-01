@@ -32,6 +32,7 @@ import argparse
 import logging
 import os
 import shlex
+import shutil
 import sys
 import threading
 from collections.abc import Callable
@@ -118,6 +119,9 @@ class InteractiveShell:
         self.__session = ShellSession(
             IOHandler(sys.stdin, sys.stdout), {}, make_local_subject(TRANSPORT), trusted=True
         )
+        if sys.stdout.isatty():
+            # Tables wrap to the terminal width
+            self.__session.set("COLUMNS", shutil.get_terminal_size().columns)
 
         # Read line cache
         self._readline_matches: list[str] = []
