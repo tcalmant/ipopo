@@ -39,13 +39,26 @@ Synchronous callbacks are called as before.
 Event loop
 ----------
 
-The coroutines run on a single event loop owned by iPOPO, in a dedicated
-daemon thread.
-The thread is only started when a coroutine is run for the first time: a
-framework without coroutine callbacks doesn't start it.
-It is stopped with the iPOPO bundle.
+iPOPO doesn't own an event loop: it runs the coroutines with the best
+``pelix.services.IAsyncRunner`` service (specification
+``pelix.services.async_runner``), *i.e.* the one with the highest ranking.
+iPOPO keeps that service while the framework stops, so that the coroutine
+``@Invalidate`` callbacks still run then.
 
-The thread calling the callback, which holds the lock of the component
+When it starts, iPOPO instantiates the default runner, a component which runs
+the coroutines on an event loop in a daemon thread.
+That thread is only started when a coroutine is run for the first time: a
+framework without coroutine callbacks doesn't start it.
+The default runner is registered with a ranking of ``-1``: a runner registered
+with the default ranking, *e.g.* one using the event loop of an environment
+which can't start threads, replaces it.
+It is the last component killed when iPOPO stops.
+
+Without an ``IAsyncRunner`` service, a coroutine callback fails with a
+``RuntimeError``: a component whose ``@Validate`` is a coroutine becomes
+``ERRONEOUS``.
+
+With the default runner, the thread calling the callback, which holds the lock of the component
 instance, waits for the coroutine to end.
 The coroutine must therefore not wait for another thread which needs that same
 component, *e.g.* to bind it to a service.
@@ -81,11 +94,9 @@ a synchronous callback which raised an exception.
 Async runner service
 --------------------
 
-The event loop of iPOPO is available to the components as the
-``pelix.services.IAsyncRunner`` service (specification
-``pelix.services.async_runner``), to run their own coroutines from synchronous
-code.
-Getting the service doesn't start the loop.
+Components can also use the ``IAsyncRunner`` service to run their own
+coroutines from synchronous code.
+Getting the default runner service doesn't start its loop.
 
 .. code-block:: python
 
