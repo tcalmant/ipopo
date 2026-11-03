@@ -381,6 +381,9 @@ Unreleased
 * Fixed a deadlock between `instantiate()` and `unregister_factory()` (or the removal of the
   factories of a bundle): they took the instances and factories locks in opposite orders. All
   the methods now take the instances lock, then the factories lock
+* Fixed `@Requires(aggregate=True)` on a specification that the component provides itself: the
+  registry scan was skipped when the component's own service was injected first, so the
+  providers registered before it were never bound
 
 ### Shell
 

@@ -477,6 +477,9 @@ class AggregateDependency(_RuntimeDependency):
         # Future injected value
         self._future_value: list[Any] | None = None
 
+        # True once the registry has been scanned: later arrivals come from service events
+        self._scanned = False
+
     def clear(self) -> None:
         """
         Cleans up the manager. The manager can't be used after this method has
@@ -484,6 +487,7 @@ class AggregateDependency(_RuntimeDependency):
         """
         self.services.clear()
         self._future_value = None
+        self._scanned = False
         super().clear()
 
     def get_bindings(self) -> list[ServiceReference[Any]]:
@@ -604,6 +608,7 @@ class AggregateDependency(_RuntimeDependency):
         :return: The removed bindings (list) or None
         """
         super().stop()
+        self._scanned = False
 
         if self.services:
             return [(service, reference) for reference, service in self.services.items()]
@@ -617,8 +622,8 @@ class AggregateDependency(_RuntimeDependency):
         :raise BundleException: Invalid ServiceReference found
         """
         with self._lock:
-            if self.services:
-                # We already are alive (not our first call)
+            if self._scanned:
+                # The registry has already been scanned
                 # => we are updated through service events
                 return
 
@@ -654,3 +659,5 @@ class AggregateDependency(_RuntimeDependency):
 
                 del results[:]
                 raise
+
+            self._scanned = True
