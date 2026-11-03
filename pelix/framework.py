@@ -36,6 +36,7 @@ import os
 import pathlib
 import sys
 import threading
+import time
 import types
 import uuid
 from collections.abc import Callable, Generator, Iterable, Mapping
@@ -1514,6 +1515,30 @@ class ServiceObjects(Generic[T]):
         return self.__registry.unget_service(self.__bundle, self.__reference, service)
 
 
+class _RegistrationWaiter:
+    """
+    Wakes up :meth:`BundleContext.wait_registered` on service events and when
+    the framework stops
+    """
+
+    def __init__(self) -> None:
+        self.event = threading.Event()
+        self.stopping = False
+
+    def service_changed(self, event: ServiceEvent[Any]) -> None:
+        """
+        A matching service has been registered, modified or unregistered
+        """
+        self.event.set()
+
+    def framework_stopping(self) -> None:
+        """
+        The framework is stopping: nothing will be registered anymore
+        """
+        self.stopping = True
+        self.event.set()
+
+
 class BundleContext:
     """
     The bundle context is the link between a bundle and the framework.
@@ -1881,6 +1906,85 @@ class BundleContext:
         """
         # Lose the dependency
         return self.__framework._registry.unget_service(self.__bundle, reference)
+
+    def wait_registered(
+        self,
+        specifications: str | type[Any] | Iterable[str | type[Any]],
+        ldap_filter: None | str | LDAPFilter | LDAPCriteria = None,
+        timeout: float | None = None,
+    ) -> list[ServiceReference[Any]]:
+        """
+        Blocks until a service matching the filter is registered for each of
+        the given specifications. Returns at once if they all already are.
+
+        The calling thread waits for service events: this method must not be
+        called from a component callback (``@Validate``, ``@Bind``, ...), a
+        bundle activator or a service listener, as it would hold the thread
+        that registers the awaited services, or block until the timeout.
+        Call it from a thread of your own, or with ``asyncio.to_thread()``
+        from a coroutine.
+
+        :param specifications: A specification, or a list of specifications
+                               (names or classes)
+        :param ldap_filter: A filter on service properties, applied to each
+                            specification (optional)
+        :param timeout: The maximum time to wait, in seconds (None to wait
+                        forever)
+        :return: The reference to the best service of each specification, in
+                 the given order
+        :raise BundleException: Invalid specification or filter, or the
+                                framework stopped while waiting
+        :raise TimeoutError: The timeout expired, the message lists the
+                             specifications still missing
+        """
+        if isinstance(specifications, str) or inspect.isclass(specifications):
+            specifications = [specifications]
+
+        names: list[str] = []
+        for spec in specifications:
+            spec_names = _get_class_spec(spec) if inspect.isclass(spec) else spec
+            for name in spec_names if isinstance(spec_names, list) else [spec_names]:
+                if name not in names:
+                    names.append(name)
+
+        if not names:
+            raise BundleException("No specification to wait for")
+
+        try:
+            for name in names:
+                check_specification_name(name)
+        except (TypeError, ValueError) as ex:
+            raise BundleException(f"Invalid specification name: {ex}") from ex
+
+        # Wake up on the events of any of the specifications
+        listener_filter = f"(|{''.join(f'({OBJECTCLASS}={escape_LDAP(name)})' for name in names)})"
+        if ldap_filter is not None:
+            listener_filter = f"(&{listener_filter}{ldap_filter})"
+
+        deadline = None if timeout is None else time.monotonic() + timeout
+        waiter = _RegistrationWaiter()
+        try:
+            self.add_framework_stop_listener(waiter)
+            self.add_service_listener(waiter, listener_filter)
+            while True:
+                # Cleared before the look up: an event sent meanwhile is kept
+                waiter.event.clear()
+                if waiter.stopping:
+                    raise BundleException("The framework stopped while waiting for services")
+
+                references = [self.get_service_reference(name, ldap_filter) for name in names]
+                missing = [name for name, reference in zip(names, references) if reference is None]
+                if not missing:
+                    return cast(list[ServiceReference[Any]], references)
+
+                remaining = None if deadline is None else deadline - time.monotonic()
+                if remaining is not None and remaining <= 0:
+                    raise TimeoutError(f"Services not registered after {timeout}s: {', '.join(missing)}")
+
+                waiter.event.wait(remaining)
+        finally:
+            self.remove_service_listener(waiter)
+            self.remove_framework_stop_listener(waiter)
 
 
 # ------------------------------------------------------------------------------
