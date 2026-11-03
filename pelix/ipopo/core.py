@@ -28,8 +28,10 @@ Core iPOPO implementation
 import copy
 import inspect
 import logging
+import os
 import sys
 import threading
+from collections.abc import Coroutine
 from typing import Any, cast
 
 import pelix.ipopo.handlers.constants as handlers_const
@@ -38,10 +40,12 @@ from pelix.framework import Bundle, BundleContext
 from pelix.internals.events import BundleEvent, ServiceEvent
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo import constants
+from pelix.ipopo.async_runner import ThreadAsyncRunner
 from pelix.ipopo.constants import IPopoEventListener, IPopoService
 from pelix.ipopo.contexts import ComponentContext, FactoryContext, Requirement
 from pelix.ipopo.instance import StoredInstance
 from pelix.security import to_secret
+from pelix.services import SERVICE_ASYNC_RUNNER, IAsyncRunner
 from pelix.utilities import add_listener, is_string, remove_listener
 
 # ------------------------------------------------------------------------------
@@ -149,6 +153,38 @@ def _load_bundle_factories(bundle: Bundle) -> list[tuple[FactoryContext, type]]:
 # ------------------------------------------------------------------------------
 
 
+def _get_async_timeout(context: BundleContext) -> float | None:
+    """
+    Reads the maximum duration of coroutine callbacks from the framework properties
+
+    :param context: A bundle context
+    :return: The timeout in seconds, None to disable it
+    """
+    name = constants.IPOPO_ASYNC_CALLBACK_TIMEOUT
+    properties = context.get_framework().get_properties()
+    # A framework property explicitly set to None disables the timeout
+    value = (
+        properties[name]
+        if name in properties
+        else os.getenv(name, constants.IPOPO_ASYNC_CALLBACK_TIMEOUT_DEFAULT)
+    )
+    if value is None:
+        return None
+
+    try:
+        timeout = float(value)
+    except (TypeError, ValueError):
+        _logger.warning(
+            "Invalid value for %s: %r, using %s",
+            name,
+            value,
+            constants.IPOPO_ASYNC_CALLBACK_TIMEOUT_DEFAULT,
+        )
+        return constants.IPOPO_ASYNC_CALLBACK_TIMEOUT_DEFAULT
+
+    return timeout if timeout > 0 else None
+
+
 class _IPopoService(IPopoService):
     """
     The iPOPO registry and service.
@@ -191,6 +227,10 @@ class _IPopoService(IPopoService):
 
         # Instances waiting for a handler: Name -> (ComponentContext, instance)
         self.__waiting_handlers: dict[str, tuple[ComponentContext, Any]] = {}
+
+        # Runs the coroutine callbacks: its event loop starts on first use
+        self._async_runner = ThreadAsyncRunner()
+        self._async_timeout = _get_async_timeout(bundle_context)
 
         # Register the service listener
         bundle_context.add_service_listener(self, None, handlers_const.HandlerFactory)
@@ -470,6 +510,17 @@ class _IPopoService(IPopoService):
                 listener.handle_ipopo_event(constants.IPopoEvent(kind, factory_name, instance_name, field))
             except:  # noqa: E722
                 _logger.exception("Error calling an iPOPO event handler")
+
+    def _run_coroutine(self, coroutine: Coroutine[Any, Any, Any]) -> Any:
+        """
+        Runs the coroutine returned by a component callback, within the
+        configured timeout
+
+        :param coroutine: The coroutine to run
+        :return: The result of the coroutine
+        :raise TimeoutError: The coroutine didn't end in time and has been cancelled
+        """
+        return self._async_runner.run(coroutine, self._async_timeout)
 
     def _prepare_instance_properties(
         self, properties: dict[str, Any] | None, factory_properties: dict[str, Any]
@@ -1380,6 +1431,7 @@ class IPopoActivator(ActivatorProto):
         Sets up the activator
         """
         self._registration: ServiceRegistration[_IPopoService] | None = None
+        self._runner_registration: ServiceRegistration[IAsyncRunner] | None = None
         self._service: _IPopoService | None = None
         self._bundles: list[Bundle] = []
 
@@ -1401,6 +1453,9 @@ class IPopoActivator(ActivatorProto):
         # Register the iPOPO service
         self._service = _IPopoService(context)
         self._registration = context.register_service(constants.SERVICE_IPOPO, self._service, {})
+        self._runner_registration = context.register_service(
+            SERVICE_ASYNC_RUNNER, self._service._async_runner, {}
+        )
 
         # Register as a bundle listener
         context.add_bundle_listener(self._service)
@@ -1441,6 +1496,13 @@ class IPopoActivator(ActivatorProto):
             # Clean up the service
             self._service._unregister_all_factories()
 
+        if self._runner_registration is not None:
+            self._runner_registration.unregister()
+
+        if self._service is not None:
+            # After the components: their @Invalidate can be a coroutine
+            self._service._async_runner.close()
+
         # Remove handler bundles
         for bundle in self._bundles:
             bundle.uninstall()
@@ -1448,4 +1510,5 @@ class IPopoActivator(ActivatorProto):
 
         # Clean up references
         self._registration = None
+        self._runner_registration = None
         self._service = None
