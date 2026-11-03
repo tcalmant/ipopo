@@ -73,12 +73,27 @@ class AggregateSelfProviderTest(unittest.TestCase):
         self.ipopo.instantiate("self-provider-other-factory", "other")
 
         lost = []
+        no_self = []
         for i in range(ROUNDS):
             aggregator = self.ipopo.instantiate("self-provider-aggregator-factory", f"aggregator{i}")
             if provider not in aggregator._all:
                 lost.append(i)
+            if aggregator not in aggregator._all:
+                no_self.append(i)
 
         self.assertEqual([], lost, "aggregators that missed the provider registered before them")
+        # A component's own service is not filtered out: it is injected into itself
+        self.assertEqual([], no_self, "aggregators missing their own service")
+
+    def test_self_is_bound(self):
+        """
+        Without any earlier provider, the component's own service is still injected into itself
+        """
+        context = self.framework.get_bundle_context()
+        self.ipopo.register_factory(context, Aggregator)
+
+        aggregator = self.ipopo.instantiate("self-provider-aggregator-factory", "aggregator")
+        self.assertEqual([aggregator], aggregator._all)
 
 
 if __name__ == "__main__":
