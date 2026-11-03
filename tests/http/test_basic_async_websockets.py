@@ -388,3 +388,90 @@ class WebSocketTestCase(unittest.TestCase):
         self.assertEqual((msg.type, msg.data), (WSMsgType.CLOSE, aiohttp.WSCloseCode.GOING_AWAY))
         self.assertTrue(handler.closed.wait(1))
         self.assertTrue(loop.is_closed())
+
+    # Bigger than the default limit of aiohttp (4 MiB)
+    BIG = 5 * 1024 * 1024
+
+    class SizeHandler(http.AbstractWebSocketHandler):
+        """
+        Answers the size of the messages it receives
+        """
+
+        async def ws_message(self, session: http.WebSocketSession, message: str) -> None:
+            await session.send_text(str(len(message)))
+
+    @async_test
+    async def test_default_limit(self):
+        """
+        A message bigger than 4 MiB closes the connection with the code 1009
+        """
+        self.register_handler(self.SizeHandler())
+        async with ClientSession() as session, session.ws_connect(self.ws_url) as ws:
+            try:
+                await ws.send_str("x" * self.BIG)
+            except ConnectionError:
+                # The server closed the connection while the frame was sent
+                pass
+            msg = await ws.receive(timeout=10)
+            self.assertEqual(msg.type, WSMsgType.CLOSE)
+            self.assertEqual(msg.data, aiohttp.WSCloseCode.MESSAGE_TOO_BIG)
+
+    @async_test
+    async def test_servlet_raises_limit(self):
+        """
+        The pelix.http.max_body_size parameter of the servlet raises the limit
+        """
+        self.handler = self.SizeHandler()
+        self.assertTrue(
+            self.http_server.register_servlet(
+                "/ws/test",
+                self.handler,
+                {http.HTTP_MAX_BODY_SIZE: 2 * self.BIG},
+                servlet_type=http.ServletType.WEBSOCKET,
+            )
+        )
+        async with ClientSession() as session, session.ws_connect(self.ws_url) as ws:
+            await ws.send_str("x" * self.BIG)
+            msg = await ws.receive(timeout=10)
+            self.assertEqual(msg.type, WSMsgType.TEXT)
+            self.assertEqual(msg.data, str(self.BIG))
+
+    @async_test
+    async def test_servlet_no_limit(self):
+        """
+        A None limit disables the limit of the messages
+        """
+        self.handler = self.SizeHandler()
+        self.assertTrue(
+            self.http_server.register_servlet(
+                "/ws/test",
+                self.handler,
+                {http.HTTP_MAX_BODY_SIZE: None},
+                servlet_type=http.ServletType.WEBSOCKET,
+            )
+        )
+        async with ClientSession() as session, session.ws_connect(self.ws_url, max_msg_size=0) as ws:
+            await ws.send_str("x" * self.BIG)
+            msg = await ws.receive(timeout=10)
+            self.assertEqual(msg.type, WSMsgType.TEXT)
+            self.assertEqual(msg.data, str(self.BIG))
+
+    @async_test
+    async def test_servlet_lowers_limit(self):
+        """
+        The parameter can also lower the limit
+        """
+        self.handler = self.SizeHandler()
+        self.assertTrue(
+            self.http_server.register_servlet(
+                "/ws/test",
+                self.handler,
+                {http.HTTP_MAX_BODY_SIZE: 100},
+                servlet_type=http.ServletType.WEBSOCKET,
+            )
+        )
+        async with ClientSession() as session, session.ws_connect(self.ws_url) as ws:
+            await ws.send_str("x" * 1000)
+            msg = await ws.receive(timeout=10)
+            self.assertEqual(msg.type, WSMsgType.CLOSE)
+            self.assertEqual(msg.data, aiohttp.WSCloseCode.MESSAGE_TOO_BIG)
