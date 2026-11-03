@@ -587,7 +587,7 @@ class _IPopoService(IPopoService):
 
         :param bundle: A bundle
         """
-        with self.__factories_lock:
+        with self.__instances_lock, self.__factories_lock:
             # Find out which factories must be removed
             to_remove = [
                 factory_name
@@ -886,7 +886,8 @@ class _IPopoService(IPopoService):
             # Invalid name
             return False
 
-        with self.__factories_lock:
+        # Same lock order as instantiate(): instances, then factories
+        with self.__instances_lock, self.__factories_lock:
             try:
                 # Remove the factory from the registry
                 factory_class = self.__factories.pop(factory_name)
@@ -978,7 +979,7 @@ class _IPopoService(IPopoService):
         :return: A list, sorted by name, of dictionaries with the keys ``name``,
                  ``factory`` and ``state``
         """
-        with self.__factories_lock, self.__instances_lock:
+        with self.__instances_lock, self.__factories_lock:
             result: list[dict[str, Any]] = []
             for name, stored_instance in sorted(self.__instances.items()):
                 factory = self.__factories.get(stored_instance.factory_name)
