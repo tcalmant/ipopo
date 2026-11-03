@@ -378,6 +378,9 @@ Unreleased
   the factory, and `get_instance_details()["hidden_properties"]` (new) the
   secrets of the component, `None` when unset. The bundled components (HTTP, remote shell, XMPP shell, MQTT,
   Redis) are adapted
+* Fixed a deadlock between `instantiate()` and `unregister_factory()` (or the removal of the
+  factories of a bundle): they took the instances and factories locks in opposite orders. All
+  the methods now take the instances lock, then the factories lock
 
 ### Shell
 
