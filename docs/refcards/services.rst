@@ -217,6 +217,41 @@ reconnected.
 .. autodata:: pelix.services.condition.CONDITION_ID_TRUE
 .. autodata:: pelix.services.condition.INSTANCE
 
+Waiting for services
+--------------------
+
+A thread can wait until services are registered, for example to start working
+once the application is ready, with
+:meth:`~BundleContext.wait_registered`.
+It returns the reference to the best service of each specification, in the
+given order, or raises a :class:`TimeoutError` naming the specifications still
+missing.
+An LDAP filter, applied to each specification, can be given too.
+
+.. code-block:: python
+
+    db_ref, mailer_ref = context.wait_registered(
+        ["my.database", "my.mailer"], "(ready=true)", timeout=30
+    )
+
+The method waits for service events, without polling the registry.
+A service registered then unregistered while waiting doesn't count, and a
+:class:`~pelix.constants.BundleException` is raised if the framework stops.
+
+.. warning:: Don't call it from a component callback (``@Validate``,
+   ``@Bind``, ...), a bundle activator or a service listener.
+
+   Those run in the thread that registers services: waiting there can hold it
+   until the timeout, or forever without one.
+   Call it from a thread of your own, or with :func:`asyncio.to_thread` from a
+   coroutine:
+
+   .. code-block:: python
+
+      refs = await asyncio.to_thread(context.wait_registered, "my.database", timeout=30)
+
+.. versionadded:: 3.3.0
+
 Service Factory
 ---------------
 
@@ -382,7 +417,8 @@ class that can be used to handle services:
 .. autoclass:: BundleContext
    :noindex:
    :members: get_all_service_references, get_service, get_service_reference,
-             get_service_references, register_service, unget_service
+             get_service_references, register_service, unget_service,
+             wait_registered
 
 
 Listening to service events
