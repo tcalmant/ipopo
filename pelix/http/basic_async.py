@@ -1131,7 +1131,15 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                             )
 
                             # Prepare the WebSocket response
-                            ws_response = aiohttp.web.WebSocketResponse(timeout=_WS_CLOSE_TIMEOUT)
+                            # A servlet can override the size limit of the messages (aiohttp: 4 MiB,
+                            # 0 for no limit), with the same property as for the bodies of requests
+                            ws_options: dict[str, Any] = {}
+                            if http.HTTP_MAX_BODY_SIZE in routing.parameters:
+                                ws_options["max_msg_size"] = max_body_size or 0
+
+                            ws_response = aiohttp.web.WebSocketResponse(
+                                timeout=_WS_CLOSE_TIMEOUT, **ws_options
+                            )
 
                             # Prepare a session
                             ws_session = WSSession(ws_handler, servlet_request, ws_response, self._loop)

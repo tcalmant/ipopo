@@ -263,6 +263,11 @@ Unreleased
   open sessions are closed with the code 1001 and `ws_close()` is called
 * `WebSocketSession` has `submit_text()`, `submit_binary()` and
   `submit_close()`, thread-safe versions of its coroutines
+* Async HTTP service: a WebSocket servlet registered with the
+  `pelix.http.max_body_size` parameter now also uses it as the maximum size of
+  the messages it receives (`None` for no limit). Without it, the default
+  limit of aiohttp (4 MiB) still applies: bigger frames close the connection
+  with the code 1009
 
 ### Services
 
