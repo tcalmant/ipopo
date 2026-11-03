@@ -40,7 +40,7 @@ from pelix.framework import Bundle, BundleContext
 from pelix.internals.events import BundleEvent, ServiceEvent
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo import constants
-from pelix.ipopo.async_runner import ThreadAsyncRunner
+from pelix.ipopo.async_runner import FACTORY_ASYNC_RUNNER, INSTANCE_ASYNC_RUNNER, ThreadAsyncRunner
 from pelix.ipopo.constants import IPopoEventListener, IPopoService
 from pelix.ipopo.contexts import ComponentContext, FactoryContext, Requirement
 from pelix.ipopo.instance import StoredInstance
@@ -185,6 +185,82 @@ def _get_async_timeout(context: BundleContext) -> float | None:
     return timeout if timeout > 0 else None
 
 
+class _AsyncRunnerTracker:
+    """
+    Keeps the best IAsyncRunner service. Getting the service doesn't start its
+    event loop.
+
+    It is tracked instead of being looked up when needed, as the services are
+    hidden from lookups while the framework stops, when the components are
+    invalidated.
+    """
+
+    def __init__(self, context: BundleContext) -> None:
+        """
+        :param context: The iPOPO bundle context
+        """
+        self.__context = context
+        self.__lock = threading.RLock()
+        self.__reference: ServiceReference[IAsyncRunner] | None = None
+        self.__service: IAsyncRunner | None = None
+
+    def open(self) -> None:
+        """
+        Starts tracking the runners
+        """
+        self.__context.add_service_listener(self, None, IAsyncRunner)
+        self.__update()
+
+    def close(self) -> None:
+        """
+        Stops tracking the runners and releases the current one
+        """
+        self.__context.remove_service_listener(self)
+        with self.__lock:
+            self.__release()
+
+    def get(self) -> IAsyncRunner | None:
+        """
+        Returns the best runner, None if there is none
+        """
+        with self.__lock:
+            return self.__service
+
+    def service_changed(self, event: ServiceEvent[IAsyncRunner]) -> None:
+        """
+        A runner has been registered, modified or unregistered
+        """
+        with self.__lock:
+            if event.get_kind() == ServiceEvent.UNREGISTERING and event.get_service_reference() is (
+                self.__reference
+            ):
+                self.__release()
+            self.__update()
+
+    def __update(self) -> None:
+        """
+        Switches to the best runner
+        """
+        with self.__lock:
+            best = self.__context.get_service_reference(IAsyncRunner)
+            if best is not None and best is not self.__reference:
+                self.__release()
+                self.__service = self.__context.get_service(best)
+                self.__reference = best
+
+    def __release(self) -> None:
+        """
+        Releases the current runner
+        """
+        if self.__reference is not None:
+            try:
+                self.__context.unget_service(self.__reference)
+            except Exception as ex:  # noqa: BLE001
+                _logger.debug("Error releasing the async runner: %s", ex)
+            self.__reference = None
+            self.__service = None
+
+
 class _IPopoService(IPopoService):
     """
     The iPOPO registry and service.
@@ -228,8 +304,8 @@ class _IPopoService(IPopoService):
         # Instances waiting for a handler: Name -> (ComponentContext, instance)
         self.__waiting_handlers: dict[str, tuple[ComponentContext, Any]] = {}
 
-        # Runs the coroutine callbacks: its event loop starts on first use
-        self._async_runner = ThreadAsyncRunner()
+        # Runs the coroutine callbacks
+        self._async_runner = _AsyncRunnerTracker(bundle_context)
         self._async_timeout = _get_async_timeout(bundle_context)
 
         # Register the service listener
@@ -514,13 +590,21 @@ class _IPopoService(IPopoService):
     def _run_coroutine(self, coroutine: Coroutine[Any, Any, Any]) -> Any:
         """
         Runs the coroutine returned by a component callback, within the
-        configured timeout
+        configured timeout, with the best IAsyncRunner service
 
         :param coroutine: The coroutine to run
         :return: The result of the coroutine
         :raise TimeoutError: The coroutine didn't end in time and has been cancelled
+        :raise RuntimeError: No IAsyncRunner service is registered
         """
-        return self._async_runner.run(coroutine, self._async_timeout)
+        runner = self._async_runner.get()
+        if runner is None:
+            coroutine.close()
+            raise RuntimeError(
+                f"No IAsyncRunner service ({SERVICE_ASYNC_RUNNER}) to run the coroutine callback"
+            )
+
+        return runner.run(coroutine, self._async_timeout)
 
     def _prepare_instance_properties(
         self, properties: dict[str, Any] | None, factory_properties: dict[str, Any]
@@ -628,7 +712,9 @@ class _IPopoService(IPopoService):
         Unregisters all factories. This method should be called only after the
         iPOPO service has been unregistered (that's why it's not locked)
         """
-        factories = list(self.__factories.keys())
+        # The default async runner goes last: the other components can have a
+        # coroutine @Invalidate
+        factories = sorted(self.__factories, key=lambda name: name == FACTORY_ASYNC_RUNNER)
         for factory_name in factories:
             self.unregister_factory(factory_name)
 
@@ -1432,7 +1518,6 @@ class IPopoActivator(ActivatorProto):
         Sets up the activator
         """
         self._registration: ServiceRegistration[_IPopoService] | None = None
-        self._runner_registration: ServiceRegistration[IAsyncRunner] | None = None
         self._service: _IPopoService | None = None
         self._bundles: list[Bundle] = []
 
@@ -1454,9 +1539,6 @@ class IPopoActivator(ActivatorProto):
         # Register the iPOPO service
         self._service = _IPopoService(context)
         self._registration = context.register_service(constants.SERVICE_IPOPO, self._service, {})
-        self._runner_registration = context.register_service(
-            SERVICE_ASYNC_RUNNER, self._service._async_runner, {}
-        )
 
         # Register as a bundle listener
         context.add_bundle_listener(self._service)
@@ -1466,6 +1548,11 @@ class IPopoActivator(ActivatorProto):
 
         # Service enters in "run" mode
         self._service.running = True
+
+        # Default runner of the coroutine callbacks (lazy: no thread until used)
+        self._service._async_runner.open()
+        self._service.register_factory(context, ThreadAsyncRunner)
+        self._service.instantiate(FACTORY_ASYNC_RUNNER, INSTANCE_ASYNC_RUNNER, {})
 
         # Get all factories
         for bundle in context.get_bundles():
@@ -1496,12 +1583,6 @@ class IPopoActivator(ActivatorProto):
         if self._service is not None:
             # Clean up the service
             self._service._unregister_all_factories()
-
-        if self._runner_registration is not None:
-            self._runner_registration.unregister()
-
-        if self._service is not None:
-            # After the components: their @Invalidate can be a coroutine
             self._service._async_runner.close()
 
         # Remove handler bundles
@@ -1511,5 +1592,4 @@ class IPopoActivator(ActivatorProto):
 
         # Clean up references
         self._registration = None
-        self._runner_registration = None
         self._service = None

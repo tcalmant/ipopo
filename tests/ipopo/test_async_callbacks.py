@@ -16,9 +16,11 @@ import unittest
 from pathlib import Path
 from typing import Any
 
+from pelix.constants import SERVICE_RANKING
 from pelix.framework import BundleContext, FrameworkFactory
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo import constants
+from pelix.ipopo.async_runner import INSTANCE_ASYNC_RUNNER
 from pelix.ipopo.decorators import (
     Bind,
     BindField,
@@ -38,7 +40,7 @@ from pelix.ipopo.decorators import (
 )
 from pelix.ipopo.instance import StoredInstance
 from pelix.services import SERVICE_ASYNC_RUNNER, IAsyncRunner
-from tests.ipopo import install_ipopo
+from tests.ipopo import install_bundle, install_ipopo
 
 # ------------------------------------------------------------------------------
 
@@ -415,30 +417,86 @@ class AsyncCallbacksTest(unittest.TestCase):
         self.start_framework()
         self.assertEqual(5.0, self.ipopo._async_timeout)
 
-    def test_timeout_disabled(self) -> None:
+    def test_custom_runner(self) -> None:
         """
-        A timeout <= 0 lets the coroutine run as long as needed
+        The best IAsyncRunner service runs the coroutine callbacks, with the
+        configured timeout (here, disabled)
         """
         self.start_framework({constants.IPOPO_ASYNC_CALLBACK_TIMEOUT: 0})
-        runner = self.ipopo._async_runner
         timeouts: list[float | None] = []
-        original_run = runner.run
 
-        def run(coroutine: Any, timeout: float | None = None) -> Any:
-            timeouts.append(timeout)
-            return original_run(coroutine, timeout)
+        class Runner:
+            def run(self, coroutine: Any, timeout: float | None = None) -> Any:
+                timeouts.append(timeout)
+                return asyncio.run(coroutine)
 
-        runner.run = run
+            def submit(self, coroutine: Any) -> Any:
+                raise NotImplementedError
+
+        registration = self.context.register_service(IAsyncRunner, Runner(), {SERVICE_RANKING: 10})
 
         @ComponentFactory("Waiting")
         class Waiting:
+            def __init__(self) -> None:
+                self.thread = ""
+
             @Validate
             async def validate(self, context: BundleContext) -> None:
                 await asyncio.sleep(0.3)
+                self.thread = threading.current_thread().name
 
-        self.instantiate(Waiting)
+            @Invalidate
+            async def invalidate(self, context: BundleContext) -> None:
+                pass
+
+        component = self.instantiate(Waiting)
         self.assertEqual(StoredInstance.VALID, self.state())
         self.assertEqual([None], timeouts)
+        self.assertEqual(threading.current_thread().name, component.thread)
+
+        # Back to the default runner
+        registration.unregister()
+        self.ipopo.kill("component")
+        self.assertEqual([None], timeouts)
+        self.assertEqual(1, len(loop_threads()))
+
+    def test_no_runner(self) -> None:
+        """
+        Without an IAsyncRunner service, a coroutine @Validate fails
+        """
+        self.ipopo.kill(INSTANCE_ASYNC_RUNNER)
+
+        @ComponentFactory("NoRunner")
+        class NoRunner:
+            @Validate
+            async def validate(self, context: BundleContext) -> None:
+                pass
+
+        self.instantiate(NoRunner)
+        self.assertEqual(StoredInstance.ERRONEOUS, self.state())
+        error = self.ipopo.get_instance_error("component")
+        self.assertIsInstance(error, RuntimeError)
+        self.assertIn("IAsyncRunner", str(error))
+
+    def test_framework_stop(self) -> None:
+        """
+        Coroutine @Invalidate callbacks run while the framework stops, when the
+        services are hidden from lookups
+        """
+        module = install_bundle(self.framework, "tests.ipopo.async_bundle")
+        module.INVALIDATED.clear()
+
+        @ComponentFactory("Stopped")
+        class Stopped:
+            @Invalidate
+            async def invalidate(self, context: BundleContext) -> None:
+                await asyncio.sleep(0)
+                module.INVALIDATED.append("framework bundle")
+
+        self.instantiate(Stopped)
+        self.framework.stop()
+        self.assertEqual([RUNNER_THREAD, "framework bundle"], module.INVALIDATED)
+        self.assertEqual([], loop_threads())
 
     def test_lazy_runner(self) -> None:
         """
@@ -485,12 +543,14 @@ class AsyncCallbacksTest(unittest.TestCase):
 
     def test_runner_service(self) -> None:
         """
-        The runner is registered as a service, without starting the loop
+        The default runner is a component providing the service, without
+        starting the loop
         """
         reference = self.context.get_service_reference(IAsyncRunner)
         self.assertIsNotNone(reference)
         assert reference is not None
         self.assertIn(SERVICE_ASYNC_RUNNER, reference.get_property("objectClass"))
+        self.assertEqual(-1, reference.get_property(SERVICE_RANKING))
         runner = self.context.get_service(reference)
         self.assertEqual([], loop_threads())
 
