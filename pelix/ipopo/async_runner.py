@@ -1,7 +1,12 @@
 #!/usr/bin/env python
 # -- Content-Encoding: UTF-8 --
 """
-Event loop of iPOPO, running the coroutine callbacks of the components
+Default IAsyncRunner service: an event loop in a daemon thread, used by iPOPO
+to run the coroutine callbacks of the components.
+
+iPOPO instantiates this component when it starts. It provides its service with
+a ranking of -1, so that a runner registered with the default ranking (e.g. one
+using the running event loop of the environment) is preferred.
 
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
@@ -32,6 +37,9 @@ import threading
 from collections.abc import Coroutine
 from typing import Any, TypeVar
 
+from pelix.constants import SERVICE_RANKING
+from pelix.framework import BundleContext
+from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Validate
 from pelix.services import IAsyncRunner
 
 # ------------------------------------------------------------------------------
@@ -43,7 +51,13 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-__all__ = ["ThreadAsyncRunner"]
+__all__ = ["FACTORY_ASYNC_RUNNER", "INSTANCE_ASYNC_RUNNER", "ThreadAsyncRunner"]
+
+FACTORY_ASYNC_RUNNER = "pelix-ipopo-async-runner-factory"
+""" Name of the factory of the default IAsyncRunner component """
+
+INSTANCE_ASYNC_RUNNER = "pelix-ipopo-async-runner"
+""" Name of the default IAsyncRunner component instance """
 
 # ------------------------------------------------------------------------------
 
@@ -54,13 +68,17 @@ _logger = logging.getLogger(__name__)
 # ------------------------------------------------------------------------------
 
 
+@ComponentFactory(FACTORY_ASYNC_RUNNER)
+@Provides(IAsyncRunner)
+@Property("_ranking", SERVICE_RANKING, -1)
 class ThreadAsyncRunner(IAsyncRunner):
     """
     Runs coroutines on an event loop owned by a daemon thread.
 
     The thread and its loop are created on the first call to ``run()`` or
     ``submit()``, never before. ``close()`` cancels the remaining tasks and
-    stops the thread: the runner can't be used afterwards.
+    stops the thread: the runner can't be used afterwards, until the component
+    is validated again.
     """
 
     def __init__(self, name: str = "ipopo-async") -> None:
@@ -68,10 +86,26 @@ class ThreadAsyncRunner(IAsyncRunner):
         :param name: Name of the thread of the event loop
         """
         self._name = name
+        self._ranking = -1
         self._lock = threading.Lock()
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
         self._closed = False
+
+    @Validate
+    def _validate(self, context: BundleContext) -> None:
+        """
+        Component validated: the loop can be started again
+        """
+        with self._lock:
+            self._closed = False
+
+    @Invalidate
+    def _invalidate(self, context: BundleContext) -> None:
+        """
+        Component invalidated: stops the loop
+        """
+        self.close()
 
     def is_started(self) -> bool:
         """
