@@ -28,7 +28,7 @@ Defines the iPOPO decorators classes to manipulate component factory classes
 import inspect
 import logging
 import threading
-from collections.abc import Callable, Iterable
+from collections.abc import Awaitable, Callable, Iterable
 from typing import (
     Any,
     Generic,
@@ -48,15 +48,21 @@ from pelix.utilities import get_method_arguments, is_string, to_iterable
 
 T = TypeVar("T")
 # Callback decorators return the exact type of the decorated method, while
-# their bound checks its signature
+# their bound checks its signature. Callbacks can be coroutine functions
 CallableT = TypeVar("CallableT", bound=Callable[..., Any])
-BindT = TypeVar("BindT", bound=Callable[[Any, Any, ServiceReference[Any]], None])
-UpdateT = TypeVar("UpdateT", bound=Callable[[Any, Any, ServiceReference[Any], dict[str, Any]], None])
-ContextCallbackT = TypeVar("ContextCallbackT", bound=Callable[[Any, BundleContext], None])
-ModifiedT = TypeVar("ModifiedT", bound=Callable[[Any, dict[str, Any], dict[str, Any]], None])
+BindT = TypeVar("BindT", bound=Callable[[Any, Any, ServiceReference[Any]], Awaitable[None] | None])
+UpdateT = TypeVar(
+    "UpdateT", bound=Callable[[Any, Any, ServiceReference[Any], dict[str, Any]], Awaitable[None] | None]
+)
+ContextCallbackT = TypeVar("ContextCallbackT", bound=Callable[[Any, BundleContext], Awaitable[None] | None])
+ModifiedT = TypeVar(
+    "ModifiedT", bound=Callable[[Any, dict[str, Any], dict[str, Any]], Awaitable[None] | None]
+)
 # Keeps the exact type of the method decorated by @ErrorHandler
-ErrorHandlerT = TypeVar("ErrorHandlerT", bound=Callable[[Any, BaseException, str], bool | None])
-RegistrationT = TypeVar("RegistrationT", bound=Callable[[Any, ServiceReference[Any]], None])
+ErrorHandlerT = TypeVar(
+    "ErrorHandlerT", bound=Callable[[Any, BaseException, str], Awaitable[bool | None] | bool | None]
+)
+RegistrationT = TypeVar("RegistrationT", bound=Callable[[Any, ServiceReference[Any]], Awaitable[None] | None])
 
 # ------------------------------------------------------------------------------
 
