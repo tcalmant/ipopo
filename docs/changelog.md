@@ -268,6 +268,9 @@ Unreleased
   the messages it receives (`None` for no limit). Without it, the default
   limit of aiohttp (4 MiB) still applies: bigger frames close the connection
   with the code 1009
+* The `path` type of the routes accepts any character, as the default type
+  does, plus slashes: dots and dashes were refused, so a route like
+  `/upload/<filename:path>` didn't match `file.txt`. It can contain `..`
 
 ### Services
 

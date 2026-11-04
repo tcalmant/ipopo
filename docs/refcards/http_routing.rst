@@ -69,7 +69,7 @@ Type   Description
 string Simple string used as is. The string can't contain a slash (``/``)
 int    The argument is converted to an integer. The input must be of base 10. Floats are rejected.
 float  The argument is converted to a float. The input must be of base 10.
-path   A string representing a path, containing slashes.
+path   Any text not starting with a slash, slashes included. It can contain ``..``: the servlet must check it.
 uuid   The argument is converted to a ``uuid.UUID`` class.
 ====== ========================================================================
 
