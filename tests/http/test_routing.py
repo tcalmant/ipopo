@@ -559,7 +559,7 @@ class HttpRoutingTests(unittest.TestCase):
                 self.assertIsInstance(router.args[0], float, path)
 
         # Paths
-        for val in ("simple", "root/sub", "A/B/C", "123/456/789"):
+        for val in ("simple", "root/sub", "A/B/C", "123/456/789", "-tmp-alpha/good.md", "a.b/c-d/.e"):
             path = f"/path/{val}"
             router.reset()
             code = self.get_http_code(uri=f"{prefix}/{path}")

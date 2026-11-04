@@ -97,9 +97,10 @@ pelix.http.auth.realm           Pelix     Protection space given in the
    example one listening on ``127.0.0.1``), and a hostile name can be rebound
    to the address of the server: without those two properties, the servlets
    handle such requests, the browser only hiding the response from the page.
-   Both are on by default for a server bound to a loopback address. A server
-   bound to another address should list its names in
-   ``pelix.http.allowed_hosts``.
+   ``pelix.http.cors.enforce`` is on by default, whatever the address of the
+   server. ``pelix.http.allowed_hosts`` only has a default for a server bound
+   to a loopback address: a server bound to another address should list its
+   names in it.
 
    Behind a reverse proxy which gives its own ``Host`` header (the public
    name), add that name to ``pelix.http.allowed_hosts``. The pages of other
