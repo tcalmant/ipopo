@@ -10,6 +10,7 @@ import unittest
 
 from pelix.framework import FrameworkFactory
 from pelix.ipopo import decorators
+from pelix.ipopo.async_runner import FACTORY_ASYNC_RUNNER
 from pelix.ipopo.constants import IPopoEvent
 from pelix.ipopo.instance import StoredInstance
 from tests import log_off, log_on
@@ -64,7 +65,8 @@ class IPopoServiceTest(unittest.TestCase):
 
         # Test if the framework is clean
         factories_1 = self.ipopo.get_factories()
-        self.assertEqual(len(factories_1), 0, "Some factories are already registered.")
+        # Only the built-in default async runner
+        self.assertEqual(factories_1, [FACTORY_ASYNC_RUNNER], "Some factories are already registered.")
 
         self.assertFalse(self.ipopo.is_registered_factory(FACTORY), "Test factory already registered")
 
@@ -75,7 +77,7 @@ class IPopoServiceTest(unittest.TestCase):
         self.assertRaises(TypeError, self.ipopo.register_factory, context, UnManipulatedClass)
         self.assertRaises(TypeError, self.ipopo.register_factory, context, TestComponent())
 
-        self.assertEqual(len(factories_1), 0, "Some factories have already bean registered.")
+        self.assertEqual(factories_1, [FACTORY_ASYNC_RUNNER], "Some factories have already bean registered.")
         self.assertFalse(self.ipopo.is_registered_factory(FACTORY), "Test factory already registered")
 
         # Register the factory
@@ -484,7 +486,9 @@ class IPopoServiceTest(unittest.TestCase):
         assert self.ipopo is not None, "iPOPO service not found"
 
         # Test if the framework is clean
-        self.assertEqual(len(self.ipopo.get_factories()), 0, "Some factories are already registered.")
+        self.assertEqual(
+            self.ipopo.get_factories(), [FACTORY_ASYNC_RUNNER], "Some factories are already registered."
+        )
 
         # Test the KeyError behaviour
         for name in (None, "", "unknown", 42):
