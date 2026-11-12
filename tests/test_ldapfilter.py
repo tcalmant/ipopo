@@ -9,7 +9,7 @@ LDAP filter parser tests
 import inspect
 import sys
 import unittest
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Any, cast
 
 import pelix.ldapfilter
@@ -224,6 +224,68 @@ class LDAPUtilitiesTest(unittest.TestCase):
             ldap_filter.normalize(),
             f"Incorrect result: {ldap_filter}",
         )
+
+    def testParseLDAPRFC1960(self) -> None:
+        """
+        Tests that the parser follows RFC 1960: a single filter, nothing outside the parentheses or between
+        the sub-filters, no operator without sub-filter
+        """
+        for invalid in (
+            # Second top-level filter
+            "(a=1)(b=2)",
+            "(a=1)  (b=2)",
+            "(&(a=1)(b=2))(c=3)",
+            # Text outside the filter
+            "xyz(a=1)",
+            "(a=1)xyz",
+            "(a=1)\\",
+            # Text between the sub-filters, repeated operator
+            "(&(a=1)junk(b=2))",
+            "(&(a=1)(b=2)junk)",
+            "(&junk(a=1))",
+            "(!x(a=1))",
+            "(&&(a=1))",
+            # Operator without sub-filter
+            "(&)",
+            "(|)",
+            "(!)",
+            "(& )",
+            "(&(&))",
+            "(&(a=1)(|))",
+            # Unescaped opening parenthesis in a criterion
+            "(a=1\\)(b=2)",
+            "(a=1(b=2)",
+            "(&(a=1(b=2))",
+            "((a=1)",
+            "((a=1))",
+            "( (a=1))",
+            "(&((a=1))",
+            "(a(b=1)",
+        ):
+            with self.subTest(invalid=invalid):
+                self.assertRaises(ValueError, pelix.ldapfilter._parse_ldap, invalid)
+                self.assertRaises(ValueError, get_ldap_filter, invalid)
+
+        for text, expected in (
+            ("(a=1)", "(a=1)"),
+            ("  (a=1)  ", "(a=1)"),
+            ("(a=1)\n", "(a=1)"),
+            ("(& (a=1) (b=2) )", "(&(a=1)(b=2))"),
+            ("( & (a=1) (b=2) )", "(&(a=1)(b=2))"),
+            ("(&\n(a=1)\n(b=2)\n)", "(&(a=1)(b=2))"),
+            ("(&(a=1)(|(b=2)(!(c=3))))", "(&(a=1)(|(b=2)(!(c=3))))"),
+            # Pelix extensions and tolerance inside a criterion
+            ("(a<1)", "(a<1)"),
+            ("(a>1)", "(a>1)"),
+            ("(a~=x*)", "(a~=x*)"),
+            ("( a = 1 )", "(a=1)"),
+            ("(a==1)", "(a=1)"),
+            ("(a=\\(x\\))", "(a=\\(x\\))"),
+            ("(a=1\\(b)", "(a=1\\(b)"),
+            ("(a=\\(1\\))", "(a=\\(1\\))"),
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(str(get_ldap_filter(text)), expected)
 
     def testCombine(self) -> None:
         """
@@ -559,6 +621,29 @@ class LDAPCriteriaTest(unittest.TestCase):
 
         self.assertTrue(pelix.ldapfilter._comparator_star("T*ue", "True"), "String star test failure")
 
+        # A wildcard matches a line break, and the prefix and the suffix don't overlap
+        for pattern, value, expected in (
+            ("a*c", "a\nc", True),
+            ("a*", "a\n", True),
+            ("*", "\n", True),
+            ("*", "", True),
+            ("ab*ba", "aba", False),
+            ("ab*ba", "abba", True),
+            ("ab*ba", "abXba", True),
+            ("*a*", "", False),
+            ("a**b", "ab", True),
+        ):
+            with self.subTest(pattern=pattern, value=value):
+                self.assertIs(pelix.ldapfilter._comparator_star(pattern, value), expected)
+
+        # Many wildcards must not backtrack (a regular expression takes minutes here)
+        for count in (9, 20, 50):
+            with self.subTest(wildcards=count):
+                pattern = "*".join(["a"] * count) + "*b"
+                self.assertFalse(pelix.ldapfilter._comparator_star(pattern, "a" * 1000))
+                self.assertTrue(pelix.ldapfilter._comparator_star(pattern, "a" * 1000 + "b"))
+                self.assertFalse(pelix.ldapfilter._comparator_star(pattern, "a" * (count - 1) + "b"))
+
     def testEscapedStarCriteria(self) -> None:
         """
         Tests that an escaped star is a literal character, not a wildcard
@@ -777,6 +862,38 @@ class LDAPCriteriaTest(unittest.TestCase):
 
         self.assertEqual(reveals, [])
 
+    def testUntrustedEquality(self) -> None:
+        """
+        A trusted criterion is never equal to its untrusted twin, so that removing the duplicates
+        keeps both
+        """
+        trusted = get_ldap_filter("(t=1)")
+        untrusted = get_ldap_filter("(t=1)", untrusted=True)
+        self.assertNotEqual(trusted, untrusted)
+        self.assertNotEqual(untrusted, trusted)
+        self.assertEqual(untrusted, get_ldap_filter("(t=1)", untrusted=True))
+        self.assertEqual(trusted, get_ldap_filter("(t=1)"))
+
+        # Fewer and more than the children up to which a linear scan is used
+        for extra in ((), ("(a=1)", "(b=1)", "(c=1)")):
+            with self.subTest(extra=extra):
+                and_filter = pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.AND)
+                for child in (trusted, untrusted, trusted, untrusted, *map(get_ldap_filter, extra)):
+                    assert child is not None
+                    and_filter.append(child)
+
+                normalized = and_filter.normalize()
+                assert isinstance(normalized, pelix.ldapfilter.LDAPFilter)
+                self.assertEqual(len(normalized.subfilters), 2 + len(extra))
+                self.assertEqual(
+                    sorted(
+                        c.untrusted
+                        for c in normalized.subfilters
+                        if isinstance(c, LDAPCriteria) and c.name == "t"
+                    ),
+                    [False, True],
+                )
+
 
 # ------------------------------------------------------------------------------
 
@@ -929,6 +1046,89 @@ class LDAPFilterTest(unittest.TestCase):
             self.assertEqual(
                 ldap_filter.normalize(), criteria, "'And' or 'Or' with 1 child must return the child"
             )
+
+    def testNormalizeDuplicates(self) -> None:
+        """
+        Tests that the removal of the duplicates of normalize() (set based above 3 children) gives the
+        same result as the linear scan
+        """
+        eq = pelix.ldapfilter._comparator_eq
+        lt = pelix.ldapfilter._comparator_lt
+        crit = LDAPCriteria
+
+        def nested(*names: str) -> pelix.ldapfilter.LDAPFilter:
+            sub = pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.OR)
+            for name in names:
+                sub.append(crit(name, "x", eq))
+            return sub
+
+        cases: dict[str, Callable[[], list[Any]]] = {
+            "duplicates among plain criteria": lambda: [
+                crit("a", "1", eq),
+                crit("b", "2", eq),
+                crit("a", "1", eq),
+                crit("c", "3", eq),
+                crit("b", "2", eq),
+            ],
+            "same name, different comparators": lambda: [
+                crit("a", "1", eq),
+                crit("a", "1", lt),
+                crit("a", "1", eq),
+                crit("a", "2", eq),
+                crit("a", "1", lt),
+            ],
+            "non-str values": lambda: [
+                crit("a", 1, eq),
+                crit("a", True, eq),
+                crit("a", 1.0, eq),
+                crit("a", "1", eq),
+                crit("a", 1, eq),
+                crit("a", "1", eq),
+                crit("a", True, eq),
+            ],
+            "nested filter duplicated": lambda: [
+                crit("a", "1", eq),
+                nested("b", "c"),
+                crit("d", "4", eq),
+                nested("c", "b"),
+                nested("b", "c"),
+            ],
+            "plain and nested mixed": lambda: [
+                nested("a"),
+                crit("a", "x", eq),
+                crit("b", "2", eq),
+                nested("b", "c"),
+                crit("a", "x", eq),
+                crit("b", "2", eq),
+            ],
+            "no duplicate": lambda: [crit(name, "1", eq) for name in "abcde"],
+            "all duplicates": lambda: [crit("a", "1", eq) for _ in range(6)],
+        }
+
+        for name, make_children in cases.items():
+            for operator in (pelix.ldapfilter.AND, pelix.ldapfilter.OR):
+                with self.subTest(case=name, operator=operator):
+                    # Expected: the linear scan
+                    expected: list[Any] = []
+                    for child in make_children():
+                        norm_child = child.normalize()
+                        if norm_child is not None and norm_child not in expected:
+                            expected.append(norm_child)
+
+                    ldap_filter = pelix.ldapfilter.LDAPFilter(operator)
+                    for child in make_children():
+                        ldap_filter.append(child)
+                    self.assertGreater(len(ldap_filter.subfilters), 3)
+
+                    result = ldap_filter.normalize()
+                    self.assertEqual(ldap_filter.subfilters, expected)
+                    # Order is preserved
+                    self.assertEqual([repr(c) for c in ldap_filter.subfilters], [repr(c) for c in expected])
+                    if len(expected) == 1:
+                        # A single child replaces its parent
+                        self.assertIs(result, ldap_filter.subfilters[0])
+                    else:
+                        self.assertIs(result, ldap_filter)
 
     def testNot(self) -> None:
         """

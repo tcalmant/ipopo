@@ -40,6 +40,24 @@ Unreleased
   reload, the dunder ones included: a removed attribute, or a removed activator,
   no longer survives an update. The shell `update` command reports the failure
   and stops
+* Fixed a deadlock between a filtered service lookup and a change of the
+  `service.ranking` property of a service: the properties of a service are now
+  replaced as a whole when they are updated, so
+  `ServiceReference.get_properties()`, `get_property()` and
+  `get_property_keys()` no longer take a lock
+* Fixed a deadlock between `ServiceRegistration.set_properties()` changing the
+  service ranking and a service factory updating its properties from
+  `get_service()`
+* Filtered service lookups are faster (#15): the filter is matched on the
+  properties of the service without copying them, and the references of the
+  whole registry are kept sorted instead of being sorted at each lookup without
+  a specification
+* LDAP filters are matched faster (#15): the common types of values (strings,
+  integers, lists of strings such as `objectClass`) are tested without the
+  generic type checks
+* Parsing LDAP filters is faster (#15): the removal of the duplicated criteria
+  is no longer quadratic for the criteria of a filter (it still is for its
+  nested sub-filters). A filter with 200 criteria is parsed about 5 times faster
 
 ### Security
 
@@ -218,6 +236,19 @@ Unreleased
   `max_queued_messages` argument and `mqtt.max_queued_messages` property
   (1000 by default)
 * `MqttClient` works with MQTT v5: the constructor raised a `ValueError`
+* LDAP substring filters (`(a=x*y*z)`) no longer use a regular expression,
+  which removes a denial of service with patterns holding many wildcards
+  (a filter given by a remote caller could take minutes to match). A wildcard
+  now also matches a line break
+* The LDAP filter parser follows RFC 1960 more closely: it now rejects a
+  second filter after the first one (`(a=1)(b=2)`), text outside the
+  parentheses or between the sub-filters of an operator, an operator
+  without sub-filter (`(&)`), and an unescaped `(` in a criterion, instead of
+  ignoring them. The Pelix extensions and the tolerance to spaces are kept
+* A filter parsed as untrusted keeps that mode when a service lookup or a
+  service listener is given several specifications: the filters are now
+  combined as objects, instead of being formatted and parsed again. A
+  trusted criterion is no longer equal to its untrusted twin
 
 ### HTTP service
 
