@@ -600,6 +600,46 @@ class SecretToolsTest(unittest.TestCase):
                         found = config_admin.list_configurations(ldap_filter)
                     self.assertEqual(bool(found), expected)
 
+    def test_untrusted_filters_several_specifications(self) -> None:
+        """
+        An untrusted filter object keeps its mode when a lookup or a service listener is given several
+        specifications
+        """
+        from pelix.constants import PELIX_SPECIFICATION_FIELD
+        from pelix.ldapfilter import get_ldap_filter
+
+        class Both:
+            pass
+
+        specifications = ["secret.one", "secret.two"]
+        setattr(Both, PELIX_SPECIFICATION_FIELD, specifications)
+        self.context.register_service(specifications, object(), {"api.token": Secret(self.VALUE)})
+
+        events: list[Any] = []
+
+        class Listener:
+            def service_changed(self, event: Any) -> None:
+                events.append(event)
+
+        for key, found_untrusted in (
+            (f"api.token={self.VALUE}", False),
+            ("api.token=hun*", False),
+            ("api.token=*", True),
+        ):
+            ldap_filter = get_ldap_filter(f"({key})", untrusted=True)
+            with self.subTest(filter=key):
+                for specification in ("secret.one", Both):
+                    found = self.context.get_all_service_references(specification, ldap_filter)
+                    self.assertEqual(bool(found), found_untrusted, specification)
+
+                # Listener with several specifications: a new registration is the event
+                listener = Listener()
+                del events[:]
+                self.context.add_service_listener(listener, ldap_filter, specifications)
+                self.context.register_service(specifications, object(), {"api.token": Secret(self.VALUE)})
+                self.context.remove_service_listener(listener)
+                self.assertEqual(bool(events), found_untrusted)
+
     def test_exports(self) -> None:
         """
         The remote services and RSA endpoints drop the secrets, the JSON-RPC and

@@ -245,6 +245,10 @@ Unreleased
   parentheses or between the sub-filters of an operator, an operator
   without sub-filter (`(&)`), and an unescaped `(` in a criterion, instead of
   ignoring them. The Pelix extensions and the tolerance to spaces are kept
+* A filter parsed as untrusted keeps that mode when a service lookup or a
+  service listener is given several specifications: the filters are now
+  combined as objects, instead of being formatted and parsed again. A
+  trusted criterion is no longer equal to its untrusted twin
 
 ### HTTP service
 

@@ -1328,14 +1328,17 @@ class ServiceRegistry:
 
             clazz = names[0] if names else None
             if len(names) > 1:
-                # Escaped here only: the index is keyed by the names as registered
-                clazz_filter = "".join(
-                    f"({OBJECTCLASS}={ldapfilter.escape_LDAP(name)})" for name in names[1:]
-                )
-                if ldap_filter is None:
-                    ldap_filter = f"(&{clazz_filter})"
-                else:
-                    ldap_filter = f"(&{ldap_filter}{clazz_filter})"
+                # Escaped here only: the index is keyed by the names as registered.
+                # Combine objects: a string would be parsed again, without the untrusted mode
+                try:
+                    ldap_filter = ldapfilter.combine_filters(
+                        (
+                            ldap_filter,
+                            *(f"({OBJECTCLASS}={ldapfilter.escape_LDAP(name)})" for name in names[1:]),
+                        )
+                    )
+                except (TypeError, ValueError) as ex:
+                    raise BundleException(ex) from ex
 
             if clazz is None:
                 # Directly use the given filter

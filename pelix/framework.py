@@ -71,7 +71,7 @@ from pelix.internals.registry import (
     ServiceRegistration,
     ServiceRegistry,
 )
-from pelix.ldapfilter import LDAPCriteria, LDAPFilter, escape_LDAP
+from pelix.ldapfilter import LDAPCriteria, LDAPFilter, combine_filters, escape_LDAP
 from pelix.services.condition import CONDITION_ID, CONDITION_ID_TRUE, SERVICE_CONDITION
 from pelix.services.condition import INSTANCE as CONDITION_INSTANCE
 
@@ -1617,15 +1617,15 @@ class BundleContext:
 
         if isinstance(specification, str):
             single_specification_filter = specification
-        elif specification and isinstance(specification, list):
-            # An empty list would give "(&)", refused by the parser
+        elif isinstance(specification, list):
             single_specification_filter = None
-            spec_filters = [f"({OBJECTCLASS}={escape_LDAP(spec)})" for spec in specification]
-            ldap_specification_filter = f"(&{''.join(spec_filters)})"
-            if ldap_filter is None:
-                ldap_filter = ldap_specification_filter
-            else:
-                ldap_filter = f"(&{ldap_filter}{ldap_specification_filter})"
+            try:
+                # Combine objects: a string would be parsed again, without the untrusted mode
+                ldap_filter = combine_filters(
+                    (ldap_filter, *(f"({OBJECTCLASS}={escape_LDAP(spec)})" for spec in specification))
+                )
+            except (TypeError, ValueError) as ex:
+                raise BundleException(f"Invalid service filter: {ex}") from ex
         else:
             single_specification_filter = None
 

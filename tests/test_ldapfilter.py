@@ -862,6 +862,38 @@ class LDAPCriteriaTest(unittest.TestCase):
 
         self.assertEqual(reveals, [])
 
+    def testUntrustedEquality(self) -> None:
+        """
+        A trusted criterion is never equal to its untrusted twin, so that removing the duplicates
+        keeps both
+        """
+        trusted = get_ldap_filter("(t=1)")
+        untrusted = get_ldap_filter("(t=1)", untrusted=True)
+        self.assertNotEqual(trusted, untrusted)
+        self.assertNotEqual(untrusted, trusted)
+        self.assertEqual(untrusted, get_ldap_filter("(t=1)", untrusted=True))
+        self.assertEqual(trusted, get_ldap_filter("(t=1)"))
+
+        # Fewer and more than the children up to which a linear scan is used
+        for extra in ((), ("(a=1)", "(b=1)", "(c=1)")):
+            with self.subTest(extra=extra):
+                and_filter = pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.AND)
+                for child in (trusted, untrusted, trusted, untrusted, *map(get_ldap_filter, extra)):
+                    assert child is not None
+                    and_filter.append(child)
+
+                normalized = and_filter.normalize()
+                assert isinstance(normalized, pelix.ldapfilter.LDAPFilter)
+                self.assertEqual(len(normalized.subfilters), 2 + len(extra))
+                self.assertEqual(
+                    sorted(
+                        c.untrusted
+                        for c in normalized.subfilters
+                        if isinstance(c, LDAPCriteria) and c.name == "t"
+                    ),
+                    [False, True],
+                )
+
 
 # ------------------------------------------------------------------------------
 

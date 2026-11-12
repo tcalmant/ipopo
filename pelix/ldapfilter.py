@@ -267,7 +267,7 @@ class LDAPCriteria:
             # Bad type
             return False
 
-        for member in "name", "comparator":
+        for member in "name", "comparator", "untrusted":
             if getattr(self, member) != getattr(other, member):
                 # Difference found
                 return False
@@ -346,7 +346,7 @@ def _normalize_unique(subfilters: list[LDAPCriteria | LDAPFilter]) -> list[LDAPC
     :return: The normalized sub-filters, in their order and without duplicates
     """
     result: list[LDAPCriteria | LDAPFilter] = []
-    plain_keys: set[tuple[str, Callable[[Any, Any], bool], str]] = set()
+    plain_keys: set[tuple[str, Callable[[Any, Any], bool], str, bool]] = set()
     others: list[LDAPCriteria | LDAPFilter] = []
     for subfilter in subfilters:
         norm_filter = subfilter.normalize()
@@ -358,7 +358,7 @@ def _normalize_unique(subfilters: list[LDAPCriteria | LDAPFilter]) -> list[LDAPC
             and type(norm_filter.name) is str
             and type(norm_filter.value) is str
         ):
-            key = (norm_filter.name, norm_filter.comparator, norm_filter.value)
+            key = (norm_filter.name, norm_filter.comparator, norm_filter.value, norm_filter.untrusted)
             if key in plain_keys or (others and norm_filter in others):
                 continue
             plain_keys.add(key)
