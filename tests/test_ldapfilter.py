@@ -559,6 +559,29 @@ class LDAPCriteriaTest(unittest.TestCase):
 
         self.assertTrue(pelix.ldapfilter._comparator_star("T*ue", "True"), "String star test failure")
 
+        # A wildcard matches a line break, and the prefix and the suffix don't overlap
+        for pattern, value, expected in (
+            ("a*c", "a\nc", True),
+            ("a*", "a\n", True),
+            ("*", "\n", True),
+            ("*", "", True),
+            ("ab*ba", "aba", False),
+            ("ab*ba", "abba", True),
+            ("ab*ba", "abXba", True),
+            ("*a*", "", False),
+            ("a**b", "ab", True),
+        ):
+            with self.subTest(pattern=pattern, value=value):
+                self.assertIs(pelix.ldapfilter._comparator_star(pattern, value), expected)
+
+        # Many wildcards must not backtrack (a regular expression takes minutes here)
+        for count in (9, 20, 50):
+            with self.subTest(wildcards=count):
+                pattern = "*".join(["a"] * count) + "*b"
+                self.assertFalse(pelix.ldapfilter._comparator_star(pattern, "a" * 1000))
+                self.assertTrue(pelix.ldapfilter._comparator_star(pattern, "a" * 1000 + "b"))
+                self.assertFalse(pelix.ldapfilter._comparator_star(pattern, "a" * (count - 1) + "b"))
+
     def testEscapedStarCriteria(self) -> None:
         """
         Tests that an escaped star is a literal character, not a wildcard

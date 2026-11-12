@@ -27,7 +27,6 @@ Dependency-less LDAP filter parser for Python
 
 import functools
 import inspect
-import re
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -502,15 +501,34 @@ def _split_star_pattern(pattern: str) -> tuple[str, ...]:
     return tuple(parts)
 
 
-@functools.lru_cache(maxsize=1024)
-def _star_regex(pattern: str) -> re.Pattern[str]:
+def _star_match(parts: tuple[str, ...], value: str) -> bool:
     """
-    Compiles a substring pattern into a regular expression
+    Tests a string against a substring pattern in linear time, unlike a regular expression which
+    backtracks on patterns with many wildcards
 
-    :param pattern: A pattern as stored in a substring criterion
-    :return: The compiled regular expression
+    :param parts: The literal parts of the pattern, as returned by ``_split_star_pattern``
+    :param value: The tested string
+    :return: True if the value matches the pattern
     """
-    return re.compile(".*".join(re.escape(part) for part in _split_star_pattern(pattern)) + "\\Z")
+    first = parts[0]
+    last = parts[-1]
+    if not value.startswith(first):
+        return False
+
+    pos = len(first)
+    end = len(value) - len(last)
+    if end < pos or not value.endswith(last):
+        # No suffix, or the prefix and the suffix overlap
+        return False
+
+    # The leftmost match of each inner part leaves the most room for the next ones
+    for part in parts[1:-1]:
+        pos = value.find(part, pos, end)
+        if pos < 0:
+            return False
+        pos += len(part)
+
+    return True
 
 
 # ------------------------------------------------------------------------------
@@ -541,7 +559,29 @@ def _comparator_star(filter_value: Any, tested_value: Any) -> bool:
     """
     if type(tested_value) is str:
         # Common case, no type test
-        return _star_regex(filter_value).match(tested_value) is not None
+        parts = _split_star_pattern(filter_value)
+        if len(parts) == 2:
+            # Single wildcard, no loop and no extra call
+            first, last = parts
+            return (
+                len(tested_value) >= len(first) + len(last)
+                and tested_value.startswith(first)
+                and tested_value.endswith(last)
+            )
+
+        if len(parts) == 3:
+            # Two wildcards, no loop and no extra call
+            first, middle, last = parts
+            if not first and not last:
+                return middle in tested_value
+
+            return (
+                tested_value.startswith(first)
+                and tested_value.endswith(last)
+                and tested_value.find(middle, len(first), len(tested_value) - len(last)) >= 0
+            )
+
+        return _star_match(parts, tested_value)
 
     if isinstance(tested_value, ITERABLES):
         for value in tested_value:
@@ -560,7 +600,7 @@ def _star_comparison(filter_value: Any, tested_value: Any) -> bool:
         # Unhandled value type...
         return False
 
-    return _star_regex(filter_value).match(tested_value) is not None
+    return _star_match(_split_star_pattern(filter_value), tested_value)
 
 
 def _comparator_eq(filter_value: Any, tested_value: Any) -> bool:

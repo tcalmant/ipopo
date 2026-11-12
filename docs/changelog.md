@@ -236,6 +236,10 @@ Unreleased
   `max_queued_messages` argument and `mqtt.max_queued_messages` property
   (1000 by default)
 * `MqttClient` works with MQTT v5: the constructor raised a `ValueError`
+* LDAP substring filters (`(a=x*y*z)`) no longer use a regular expression,
+  which removes a denial of service with patterns holding many wildcards
+  (a filter given by a remote caller could take minutes to match). A wildcard
+  now also matches a line break
 
 ### HTTP service
 
