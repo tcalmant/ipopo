@@ -170,20 +170,19 @@ class LDAPFilter:
         :param properties: A dictionary of properties
         :return: True if the properties matches this filter, else False
         """
-        # Use a generator, and declare it outside of the method call
-        # => seems to be quite a speed up trick
-        generator = (criterion.matches(properties) for criterion in self.subfilters)
+        # Plain loops: cheaper than a generator expression with any() / all()
+        operator = self.operator
+        if operator == OR:
+            for criterion in self.subfilters:
+                if criterion.matches(properties):
+                    return True
+            return False
 
-        # Extract "if" from loops and use built-in methods
-        if self.operator == OR:
-            result = any(generator)
-        else:
-            result = all(generator)
-            if self.operator == NOT:
-                # Revert result
-                return not result
-
-        return result
+        # AND, and NOT which reverts the "all" result
+        for criterion in self.subfilters:
+            if not criterion.matches(properties):
+                return operator == NOT
+        return operator != NOT
 
     def normalize(self) -> "LDAPCriteria | LDAPFilter | None":
         """
@@ -485,8 +484,8 @@ def _comparator_presence(_: Any, tested_value: Any) -> bool:
     # The filter value is a joker : simple presence test
     if tested_value is None:
         return False
-    elif hasattr(tested_value, "__len__"):
-        # Refuse empty values
+    elif type(tested_value) is str or hasattr(tested_value, "__len__"):
+        # Refuse empty values (exact str first: it skips the hasattr() call)
         return len(tested_value) != 0
 
     # Presence validated
@@ -497,6 +496,10 @@ def _comparator_star(filter_value: Any, tested_value: Any) -> bool:
     """
     Tests a filter containing a joker
     """
+    if type(tested_value) is str:
+        # Common case, no type test
+        return _star_regex(filter_value).match(tested_value) is not None
+
     if isinstance(tested_value, ITERABLES):
         for value in tested_value:
             if _star_comparison(filter_value, value):
@@ -510,7 +513,7 @@ def _star_comparison(filter_value: Any, tested_value: Any) -> bool:
     """
     Tests a filter containing a joker
     """
-    if not is_string(tested_value):
+    if not isinstance(tested_value, str):
         # Unhandled value type...
         return False
 
@@ -521,23 +524,32 @@ def _comparator_eq(filter_value: Any, tested_value: Any) -> bool:
     """
     Tests if the filter value is equal to the tested value
     """
-    if isinstance(tested_value, ITERABLES):
-        # Convert the list items to strings
-        for value in tested_value:
-            # Try with the string conversion
-            if not is_string(value):
-                value = repr(value)
+    # Exact types first: a str or an int is neither a str subclass nor an iterable.
+    # A list (e.g. objectClass) goes straight to the loop
+    value_type = type(tested_value)
+    if value_type is not list:
+        if value_type is str:
+            return bool(filter_value == tested_value)
+        if value_type is int:
+            return bool(filter_value == repr(tested_value))
 
-            if filter_value == value:
-                # Match !
-                return True
-    # Standard comparison
-    elif isinstance(tested_value, str):
-        # String vs string
-        return bool(filter_value == tested_value)
-    else:
-        # String vs string representation
-        return bool(filter_value == repr(tested_value))
+        if not isinstance(tested_value, ITERABLES):
+            if isinstance(tested_value, str):
+                # String vs string
+                return bool(filter_value == tested_value)
+
+            # String vs string representation
+            return bool(filter_value == repr(tested_value))
+
+    # Convert the list items to strings
+    for value in tested_value:
+        # Try with the string conversion
+        if not isinstance(value, str):
+            value = repr(value)
+
+        if filter_value == value:
+            # Match !
+            return True
 
     return False
 
@@ -551,13 +563,17 @@ def _comparator_approximate(filter_value: Any, tested_value: Any) -> bool:
     """
     lower_filter_value = filter_value.lower()
 
-    if is_string(tested_value):
+    if isinstance(tested_value, str):
         # Lower case comparison
-        return _comparator_eq(lower_filter_value, tested_value.lower())
+        lower_tested = tested_value.lower()
+        if type(lower_tested) is str:
+            # Same as _comparator_eq(), without the call
+            return bool(lower_filter_value == lower_tested)
+        return _comparator_eq(lower_filter_value, lower_tested)
 
     elif hasattr(tested_value, "__iter__"):
         # Extract a list of strings
-        new_tested = [value.lower() for value in tested_value if is_string(value)]
+        new_tested = [value.lower() for value in tested_value if isinstance(value, str)]
 
         if _comparator_eq(lower_filter_value, new_tested):
             # Value found in the strings
@@ -577,13 +593,13 @@ def _comparator_approximate_star(filter_value: Any, tested_value: Any) -> bool:
     """
     lower_filter_value = filter_value.lower()
 
-    if is_string(tested_value):
+    if isinstance(tested_value, str):
         # Lower case comparison
         return _comparator_star(lower_filter_value, tested_value.lower())
 
     elif hasattr(tested_value, "__iter__"):
         # Extract a list of strings
-        new_tested = [value.lower() for value in tested_value if is_string(value)]
+        new_tested = [value.lower() for value in tested_value if isinstance(value, str)]
 
         if _comparator_star(lower_filter_value, new_tested):
             # Value found in the strings
@@ -608,7 +624,7 @@ def _comparator_lt(filter_value: Any, tested_value: Any) -> bool:
 
     tested_value < filter_value
     """
-    if is_string(filter_value):
+    if isinstance(filter_value, str):
         value_type = type(tested_value)
         try:
             # Try a conversion
@@ -647,7 +663,7 @@ def _comparator_gt(filter_value: Any, tested_value: Any) -> bool:
 
     tested_value > filter_value
     """
-    if is_string(filter_value):
+    if isinstance(filter_value, str):
         value_type = type(tested_value)
         try:
             # Try a conversion

@@ -52,6 +52,9 @@ Unreleased
   properties of the service without copying them, and the references of the
   whole registry are kept sorted instead of being sorted at each lookup without
   a specification
+* LDAP filters are matched faster (#15): the common types of values (strings,
+  integers, lists of strings such as `objectClass`) are tested without the
+  generic type checks
 
 ### Security
 
