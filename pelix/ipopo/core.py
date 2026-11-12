@@ -35,12 +35,13 @@ from collections.abc import Coroutine
 from typing import Any, cast
 
 import pelix.ipopo.handlers.constants as handlers_const
-from pelix.constants import SERVICE_ID, ActivatorProto, BundleActivator, BundleException
+from pelix.constants import SERVICE_ID, SERVICE_RANKING, ActivatorProto, BundleActivator, BundleException
 from pelix.framework import Bundle, BundleContext
 from pelix.internals.events import BundleEvent, ServiceEvent
 from pelix.internals.registry import ServiceReference, ServiceRegistration
 from pelix.ipopo import constants
-from pelix.ipopo.async_runner import FACTORY_ASYNC_RUNNER, INSTANCE_ASYNC_RUNNER, ThreadAsyncRunner
+from pelix.ipopo.async_runner import ThreadAsyncRunner
+from pelix.ipopo.awaiting import CallbackLock, awaiting_callback
 from pelix.ipopo.constants import IPopoEventListener, IPopoService
 from pelix.ipopo.contexts import ComponentContext, FactoryContext, Requirement
 from pelix.ipopo.instance import StoredInstance
@@ -292,8 +293,9 @@ class _IPopoService(IPopoService):
         self.running = False
 
         # Registries locks
-        self.__factories_lock = threading.RLock()
-        self.__instances_lock = threading.RLock()
+        # Raise instead of blocking a coroutine callback awaited by their owner
+        self.__factories_lock = CallbackLock("iPOPO factories")
+        self.__instances_lock = CallbackLock("iPOPO instances")
         self.__listeners_lock = threading.RLock()
         self.__handlers_lock = threading.RLock()
 
@@ -604,7 +606,8 @@ class _IPopoService(IPopoService):
                 f"No IAsyncRunner service ({SERVICE_ASYNC_RUNNER}) to run the coroutine callback"
             )
 
-        return runner.run(coroutine, self._async_timeout)
+        with awaiting_callback(coroutine) as tracked:
+            return runner.run(tracked, self._async_timeout)
 
     def _prepare_instance_properties(
         self, properties: dict[str, Any] | None, factory_properties: dict[str, Any]
@@ -712,9 +715,7 @@ class _IPopoService(IPopoService):
         Unregisters all factories. This method should be called only after the
         iPOPO service has been unregistered (that's why it's not locked)
         """
-        # The default async runner goes last: the other components can have a
-        # coroutine @Invalidate
-        factories = sorted(self.__factories, key=lambda name: name == FACTORY_ASYNC_RUNNER)
+        factories = list(self.__factories.keys())
         for factory_name in factories:
             self.unregister_factory(factory_name)
 
@@ -1520,6 +1521,8 @@ class IPopoActivator(ActivatorProto):
         self._registration: ServiceRegistration[_IPopoService] | None = None
         self._service: _IPopoService | None = None
         self._bundles: list[Bundle] = []
+        self._runner: ThreadAsyncRunner | None = None
+        self._runner_registration: ServiceRegistration[IAsyncRunner] | None = None
 
     def start(self, context: BundleContext) -> None:
         """
@@ -1551,8 +1554,10 @@ class IPopoActivator(ActivatorProto):
 
         # Default runner of the coroutine callbacks (lazy: no thread until used)
         self._service._async_runner.open()
-        self._service.register_factory(context, ThreadAsyncRunner)
-        self._service.instantiate(FACTORY_ASYNC_RUNNER, INSTANCE_ASYNC_RUNNER, {})
+        self._runner = ThreadAsyncRunner()
+        self._runner_registration = context.register_service(
+            IAsyncRunner, self._runner, {SERVICE_RANKING: -1}
+        )
 
         # Get all factories
         for bundle in context.get_bundles():
@@ -1583,6 +1588,13 @@ class IPopoActivator(ActivatorProto):
         if self._service is not None:
             # Clean up the service
             self._service._unregister_all_factories()
+
+        # The components are gone: the default runner can be closed
+        if self._runner_registration is not None:
+            self._runner_registration.unregister()
+        if self._runner is not None:
+            self._runner.close()
+        if self._service is not None:
             self._service._async_runner.close()
 
         # Remove handler bundles
@@ -1593,3 +1605,5 @@ class IPopoActivator(ActivatorProto):
         # Clean up references
         self._registration = None
         self._service = None
+        self._runner = None
+        self._runner_registration = None

@@ -4,9 +4,9 @@
 Default IAsyncRunner service: an event loop in a daemon thread, used by iPOPO
 to run the coroutine callbacks of the components.
 
-iPOPO instantiates this component when it starts. It provides its service with
-a ranking of -1, so that a runner registered with the default ranking (e.g. one
-using the running event loop of the environment) is preferred.
+iPOPO registers it as a plain service when it starts, with a ranking of -1, so
+that a runner registered with the default ranking (e.g. one using the running
+event loop of the environment) is preferred.
 
 :author: Thomas Calmant
 :copyright: Copyright 2026, Thomas Calmant
@@ -37,9 +37,6 @@ import threading
 from collections.abc import Coroutine
 from typing import Any, TypeVar
 
-from pelix.constants import SERVICE_RANKING
-from pelix.framework import BundleContext
-from pelix.ipopo.decorators import ComponentFactory, Invalidate, Property, Provides, Validate
 from pelix.services import IAsyncRunner
 
 # ------------------------------------------------------------------------------
@@ -51,13 +48,7 @@ __version__ = ".".join(str(x) for x in __version_info__)
 # Documentation strings format
 __docformat__ = "restructuredtext en"
 
-__all__ = ["FACTORY_ASYNC_RUNNER", "INSTANCE_ASYNC_RUNNER", "ThreadAsyncRunner"]
-
-FACTORY_ASYNC_RUNNER = "pelix-ipopo-async-runner-factory"
-""" Name of the factory of the default IAsyncRunner component """
-
-INSTANCE_ASYNC_RUNNER = "pelix-ipopo-async-runner"
-""" Name of the default IAsyncRunner component instance """
+__all__ = ["ThreadAsyncRunner"]
 
 # ------------------------------------------------------------------------------
 
@@ -65,47 +56,35 @@ T = TypeVar("T")
 
 _logger = logging.getLogger(__name__)
 
+CANCEL_GRACE_DELAY = 1.0
+""" Delay, in seconds, after the timeout before warning about a coroutine not cancelled yet """
+
+CLOSE_TIMEOUT = 5.0
+""" Maximum time, in seconds, ``close()`` waits for the loop thread to stop """
+
 # ------------------------------------------------------------------------------
 
 
-@ComponentFactory(FACTORY_ASYNC_RUNNER)
-@Provides(IAsyncRunner)
-@Property("_ranking", SERVICE_RANKING, -1)
 class ThreadAsyncRunner(IAsyncRunner):
     """
     Runs coroutines on an event loop owned by a daemon thread.
 
     The thread and its loop are created on the first call to ``run()`` or
     ``submit()``, never before. ``close()`` cancels the remaining tasks and
-    stops the thread: the runner can't be used afterwards, until the component
-    is validated again.
+    stops the thread: the runner can't be used afterwards.
     """
 
-    def __init__(self, name: str = "ipopo-async") -> None:
+    def __init__(self, name: str = "ipopo-async", close_timeout: float = CLOSE_TIMEOUT) -> None:
         """
         :param name: Name of the thread of the event loop
+        :param close_timeout: Maximum time ``close()`` waits for the loop thread
         """
         self._name = name
-        self._ranking = -1
+        self._close_timeout = close_timeout
         self._lock = threading.Lock()
         self._loop: asyncio.AbstractEventLoop | None = None
         self._thread: threading.Thread | None = None
         self._closed = False
-
-    @Validate
-    def _validate(self, context: BundleContext) -> None:
-        """
-        Component validated: the loop can be started again
-        """
-        with self._lock:
-            self._closed = False
-
-    @Invalidate
-    def _invalidate(self, context: BundleContext) -> None:
-        """
-        Component invalidated: stops the loop
-        """
-        self.close()
 
     def is_started(self) -> bool:
         """
@@ -117,6 +96,12 @@ class ThreadAsyncRunner(IAsyncRunner):
     def run(self, coroutine: Coroutine[Any, Any, T], timeout: float | None = None) -> T:
         """
         Runs a coroutine on the event loop and waits for its result
+
+        The timeout is applied in the event loop: this method returns only once
+        the coroutine has ended, including its clean up after the cancellation.
+        A coroutine blocking the loop with synchronous code can't be cancelled
+        before that code returns: a warning is logged after the timeout and a
+        grace delay, then the wait goes on.
 
         Called from the event loop thread itself (a coroutine calling synchronous
         code which ends up here), waiting for the loop would block it forever: the
@@ -135,14 +120,23 @@ class ThreadAsyncRunner(IAsyncRunner):
         if threading.current_thread() is self._thread:
             _logger.debug("Coroutine run from the event loop thread: using a temporary loop")
             with concurrent.futures.ThreadPoolExecutor(1, f"{self._name}-nested") as executor:
-                return executor.submit(lambda: _run_nested(coroutine, timeout)).result()
+                return executor.submit(lambda: asyncio.run(_with_timeout(coroutine, timeout))).result()
 
-        future = self.submit(coroutine)
-        done, _ = concurrent.futures.wait((future,), timeout)
-        if not done:
-            # Cancels the task in the event loop
-            future.cancel()
-            raise TimeoutError(f"{coroutine!r} didn't end within {timeout} seconds")
+        try:
+            future = self.submit(_with_timeout(coroutine, timeout))
+        except RuntimeError:
+            coroutine.close()
+            raise
+
+        if timeout is not None:
+            done, _ = concurrent.futures.wait((future,), timeout + CANCEL_GRACE_DELAY)
+            if not done:
+                _logger.warning(
+                    "%r is still running %.1f seconds after its timeout: the event loop is "
+                    "blocked by synchronous code. Waiting for it to end.",
+                    coroutine,
+                    CANCEL_GRACE_DELAY,
+                )
 
         return future.result()
 
@@ -164,7 +158,11 @@ class ThreadAsyncRunner(IAsyncRunner):
 
     def close(self) -> None:
         """
-        Cancels the pending tasks and stops the event loop thread, if started
+        Cancels the pending tasks and stops the event loop thread, if started.
+
+        Waits for the thread at most ``close_timeout`` seconds: a coroutine
+        blocking the loop with synchronous code delays its stop. The thread
+        being a daemon, it doesn't prevent the process from exiting.
         """
         with self._lock:
             self._closed = True
@@ -175,7 +173,14 @@ class ThreadAsyncRunner(IAsyncRunner):
         if loop is not None and thread is not None:
             loop.call_soon_threadsafe(loop.stop)
             if thread is not threading.current_thread():
-                thread.join()
+                thread.join(self._close_timeout)
+                if thread.is_alive():
+                    _logger.warning(
+                        "The event loop thread %s didn't stop within %s seconds: "
+                        "a coroutine is blocking it with synchronous code",
+                        thread.name,
+                        self._close_timeout,
+                    )
 
     def _get_loop(self) -> asyncio.AbstractEventLoop:
         """
@@ -197,16 +202,21 @@ class ThreadAsyncRunner(IAsyncRunner):
             return self._loop
 
 
-def _run_nested(coroutine: Coroutine[Any, Any, T], timeout: float | None) -> T:
+async def _with_timeout(coroutine: Coroutine[Any, Any, T], timeout: float | None) -> T:
     """
-    Runs the coroutine on a new event loop, in the current thread
-    """
+    Awaits the coroutine, cancelled after the timeout (None to wait forever)
 
-    async def with_timeout() -> T:
-        async with asyncio.timeout(timeout):
+    :raise TimeoutError: The coroutine has been cancelled after the timeout
+    """
+    deadline = asyncio.timeout(timeout)
+    try:
+        async with deadline:
             return await coroutine
-
-    return asyncio.run(with_timeout())
+    except TimeoutError:
+        if not deadline.expired():
+            # Raised by the coroutine itself
+            raise
+        raise TimeoutError(f"{coroutine!r} didn't end within {timeout} seconds") from None
 
 
 def _serve(loop: asyncio.AbstractEventLoop) -> None:

@@ -27,7 +27,6 @@ Instance manager class definition
 
 import inspect
 import logging
-import threading
 import traceback
 from collections.abc import Callable, Iterable
 from typing import (
@@ -45,6 +44,7 @@ from pelix.framework import BundleContext
 from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo import constants
+from pelix.ipopo.awaiting import CallbackLock
 from pelix.ipopo.contexts import ComponentContext
 from pelix.security import to_secret
 
@@ -125,8 +125,8 @@ class StoredInstance:
         # The logger
         self._logger = logging.getLogger(f"InstanceManager-{context.name}")
 
-        # The lock
-        self._lock = threading.RLock()
+        # The lock, held while the callbacks run
+        self._lock = CallbackLock(f"component '{context.name}'")
 
         # The iPOPO service
         self._ipopo_service: _IPopoService | None = ipopo_service

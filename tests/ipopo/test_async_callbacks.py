@@ -12,15 +12,18 @@ import subprocess
 import sys
 import tempfile
 import threading
+import time
 import unittest
 from pathlib import Path
 from typing import Any
+from unittest import mock
 
 from pelix.constants import SERVICE_RANKING
 from pelix.framework import BundleContext, FrameworkFactory
 from pelix.internals.registry import ServiceReference
-from pelix.ipopo import constants
-from pelix.ipopo.async_runner import INSTANCE_ASYNC_RUNNER
+from pelix.ipopo import async_runner, constants
+from pelix.ipopo.async_runner import ThreadAsyncRunner
+from pelix.ipopo.constants import use_ipopo
 from pelix.ipopo.decorators import (
     Bind,
     BindField,
@@ -464,7 +467,8 @@ class AsyncCallbacksTest(unittest.TestCase):
         """
         Without an IAsyncRunner service, a coroutine @Validate fails
         """
-        self.ipopo.kill(INSTANCE_ASYNC_RUNNER)
+        # Stops tracking the default runner
+        self.ipopo._async_runner.close()
 
         @ComponentFactory("NoRunner")
         class NoRunner:
@@ -543,9 +547,11 @@ class AsyncCallbacksTest(unittest.TestCase):
 
     def test_runner_service(self) -> None:
         """
-        The default runner is a component providing the service, without
-        starting the loop
+        The default runner is a plain service registered by iPOPO, not a
+        component, which doesn't start its loop
         """
+        self.assertEqual([], self.ipopo.get_factories())
+        self.assertEqual([], self.ipopo.get_instances())
         reference = self.context.get_service_reference(IAsyncRunner)
         self.assertIsNotNone(reference)
         assert reference is not None
@@ -605,6 +611,199 @@ class AsyncCallbacksTest(unittest.TestCase):
         self.assertEqual(StoredInstance.VALID, self.state())
         self.assertTrue(consumer.bound)
         self.assertEqual(StoredInstance.VALID, self.state("consumer"))
+
+    def test_validate_calls_ipopo(self) -> None:
+        """
+        A coroutine @Validate calling the iPOPO service fails at once with a
+        RuntimeError instead of a deadlock, without side effects afterwards
+        """
+
+        @ComponentFactory("plain")
+        class Plain:
+            pass
+
+        self.ipopo.register_factory(self.context, Plain)
+
+        for timeout in (2, 0):
+            with self.subTest(timeout=timeout):
+                self.start_framework({constants.IPOPO_ASYNC_CALLBACK_TIMEOUT: timeout})
+                self.ipopo.register_factory(self.context, Plain)
+
+                @ComponentFactory("Caller")
+                class Caller:
+                    @Validate
+                    async def validate(self, context: BundleContext) -> None:
+                        with use_ipopo(context) as ipopo:
+                            ipopo.instantiate("plain", "inner")
+
+                start = time.monotonic()
+                self.instantiate(Caller)
+                self.assertLess(time.monotonic() - start, 1)
+                self.assertEqual(StoredInstance.ERRONEOUS, self.state())
+                error = self.ipopo.get_instance_error("component")
+                self.assertIsInstance(error, RuntimeError)
+                self.assertIn("Deadlock avoided", str(error))
+
+                time.sleep(0.2)
+                self.assertFalse(self.ipopo.is_registered_instance("inner"))
+
+    def test_validate_calls_ipopo_in_thread(self) -> None:
+        """
+        A coroutine @Validate awaiting a thread which calls the iPOPO service
+        fails the same way
+        """
+
+        @ComponentFactory("ThreadCaller")
+        class ThreadCaller:
+            @Validate
+            async def validate(self, context: BundleContext) -> None:
+                with use_ipopo(context) as ipopo:
+                    await asyncio.to_thread(ipopo.get_instances)
+
+        self.instantiate(ThreadCaller)
+        self.assertEqual(StoredInstance.ERRONEOUS, self.state())
+        self.assertIsInstance(self.ipopo.get_instance_error("component"), RuntimeError)
+
+    def test_loop_blocked_by_other_task(self) -> None:
+        """
+        Another task of the loop waiting for a lock held by a thread which
+        waits for a coroutine callback on that loop fails instead of a deadlock
+        """
+        started = threading.Event()
+
+        @ComponentFactory("Waiting")
+        class Waiting:
+            @Validate
+            async def validate(self, context: BundleContext) -> None:
+                started.set()
+                await asyncio.sleep(0.5)
+
+        thread = threading.Thread(target=self.instantiate, args=(Waiting,))
+        thread.start()
+        self.assertTrue(started.wait(5))
+
+        ipopo = self.ipopo
+
+        async def list_instances() -> Any:
+            return ipopo.get_instances()
+
+        reference = self.context.get_service_reference(IAsyncRunner)
+        assert reference is not None
+        runner = self.context.get_service(reference)
+        with self.assertRaises(RuntimeError):
+            runner.submit(list_instances()).result(5)
+
+        thread.join(5)
+        self.assertEqual(StoredInstance.VALID, self.state())
+
+    def test_ipopo_from_own_thread(self) -> None:
+        """
+        A thread of the coroutine, not awaited by it, calls the iPOPO service
+        once the validation is over
+        """
+        done = threading.Event()
+
+        @ComponentFactory("plain")
+        class Plain:
+            pass
+
+        @ComponentFactory("Starter")
+        class Starter:
+            @Validate
+            async def validate(self, context: BundleContext) -> None:
+                def instantiate() -> None:
+                    with use_ipopo(context) as ipopo:
+                        ipopo.instantiate("plain", "inner")
+                    done.set()
+
+                threading.Thread(target=instantiate).start()
+
+        self.ipopo.register_factory(self.context, Plain)
+        self.instantiate(Starter)
+        self.assertTrue(done.wait(5))
+        self.assertEqual(StoredInstance.VALID, self.state())
+        self.assertEqual(StoredInstance.VALID, self.state("inner"))
+
+    def test_timeout_waits_for_cleanup(self) -> None:
+        """
+        On timeout, iPOPO goes on only once the cancelled coroutine has ended,
+        including its clean up
+        """
+        self.start_framework({constants.IPOPO_ASYNC_CALLBACK_TIMEOUT: 0.2})
+        cleaned = threading.Event()
+
+        @ComponentFactory("SlowCleanup")
+        class SlowCleanup:
+            @Validate
+            async def validate(self, context: BundleContext) -> None:
+                try:
+                    await asyncio.sleep(30)
+                finally:
+                    await asyncio.sleep(0.3)
+                    cleaned.set()
+
+        self.instantiate(SlowCleanup)
+        self.assertTrue(cleaned.is_set())
+        self.assertEqual(StoredInstance.ERRONEOUS, self.state())
+        self.assertIsInstance(self.ipopo.get_instance_error("component"), TimeoutError)
+
+    def test_own_timeout_error(self) -> None:
+        """
+        A TimeoutError raised by the coroutine itself is kept as is
+        """
+        runner = ThreadAsyncRunner("test-own-timeout")
+        self.addCleanup(runner.close)
+
+        async def fail() -> None:
+            raise TimeoutError("own")
+
+        with self.assertRaises(TimeoutError) as ctx:
+            runner.run(fail(), 5)
+        self.assertEqual("own", str(ctx.exception))
+
+    def test_blocked_loop(self) -> None:
+        """
+        A coroutine blocking the loop past its timeout is waited for, with a
+        warning
+        """
+        runner = ThreadAsyncRunner("test-blocked-run")
+        self.addCleanup(runner.close)
+
+        async def blocking() -> str:
+            # Blocks the loop on purpose
+            time.sleep(0.5)  # noqa: ASYNC251
+            return "ended"
+
+        with (
+            mock.patch.object(async_runner, "CANCEL_GRACE_DELAY", 0.1),
+            self.assertLogs(async_runner.__name__, "WARNING"),
+        ):
+            self.assertEqual("ended", runner.run(blocking(), 0.1))
+
+    def test_close_timeout(self) -> None:
+        """
+        Closing the runner doesn't wait forever for a loop blocked by
+        synchronous code
+        """
+        runner = ThreadAsyncRunner("test-blocked-close", close_timeout=0.2)
+        started = threading.Event()
+
+        async def blocking() -> None:
+            started.set()
+            # Blocks the loop on purpose
+            time.sleep(1)  # noqa: ASYNC251
+
+        runner.submit(blocking())
+        self.assertTrue(started.wait(5))
+        threads = [thread for thread in threading.enumerate() if thread.name == "test-blocked-close"]
+        self.assertEqual(1, len(threads))
+
+        start = time.monotonic()
+        with self.assertLogs(async_runner.__name__, "WARNING"):
+            runner.close()
+        self.assertLess(time.monotonic() - start, 0.8)
+        self.assertTrue(threads[0].daemon)
+        threads[0].join(5)
 
     def test_type_checker_accepts_coroutines(self) -> None:
         """
