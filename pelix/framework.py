@@ -1924,61 +1924,84 @@ class BundleContext:
         Call it from a thread of your own, or with ``asyncio.to_thread()``
         from a coroutine.
 
+        The returned references can be unregistered right after this method
+        returns.
+
         :param specifications: A specification, or a list of specifications
                                (names or classes)
         :param ldap_filter: A filter on service properties, applied to each
                             specification (optional)
         :param timeout: The maximum time to wait, in seconds (None to wait
                         forever)
-        :return: The reference to the best service of each specification, in
-                 the given order
+        :return: One reference per given specification, in the given order:
+                 the one ``get_service_reference(specification, ldap_filter)``
+                 returns
         :raise BundleException: Invalid specification or filter, or the
-                                framework stopped while waiting
+                                framework is not running or stopped while
+                                waiting
         :raise TimeoutError: The timeout expired, the message lists the
                              specifications still missing
         """
         if isinstance(specifications, str) or inspect.isclass(specifications):
             specifications = [specifications]
 
-        names: list[str] = []
-        for spec in specifications:
-            spec_names = _get_class_spec(spec) if inspect.isclass(spec) else spec
-            for name in spec_names if isinstance(spec_names, list) else [spec_names]:
-                if name not in names:
-                    names.append(name)
-
-        if not names:
+        items = list(specifications)
+        if not items:
             raise BundleException("No specification to wait for")
 
-        try:
-            for name in names:
-                check_specification_name(name)
-        except (TypeError, ValueError) as ex:
-            raise BundleException(f"Invalid specification name: {ex}") from ex
+        # All the names, only to wake up on the events of any of them
+        names: list[str] = []
+        labels: list[str] = []
+        for item in items:
+            if isinstance(item, str):
+                item_names: Any = item
+            elif inspect.isclass(item):
+                item_names = _get_class_spec(item)
+            else:
+                raise BundleException(f"Invalid specification: {item!r}")
 
-        # Wake up on the events of any of the specifications
+            item_names = [
+                name if isinstance(name, str) else getattr(name, "__name__", name)
+                for name in (item_names if isinstance(item_names, list) else [item_names])
+            ]
+            try:
+                for name in item_names:
+                    check_specification_name(name)
+            except (TypeError, ValueError) as ex:
+                raise BundleException(f"Invalid specification name: {ex}") from ex
+
+            labels.append(" & ".join(item_names))
+            names.extend(name for name in item_names if name not in names)
+
         listener_filter = f"(|{''.join(f'({OBJECTCLASS}={escape_LDAP(name)})' for name in names)})"
         if ldap_filter is not None:
             listener_filter = f"(&{listener_filter}{ldap_filter})"
 
+        def check_running() -> None:
+            if self.__framework.get_state() not in (Bundle.STARTING, Bundle.ACTIVE):
+                raise BundleException("The framework is not running: no service will be registered")
+
+        check_running()
         deadline = None if timeout is None else time.monotonic() + timeout
         waiter = _RegistrationWaiter()
         try:
             self.add_framework_stop_listener(waiter)
             self.add_service_listener(waiter, listener_filter)
+            # Stopped meanwhile: the stop listener may have been missed
+            check_running()
             while True:
                 # Cleared before the look up: an event sent meanwhile is kept
                 waiter.event.clear()
                 if waiter.stopping:
                     raise BundleException("The framework stopped while waiting for services")
 
-                references = [self.get_service_reference(name, ldap_filter) for name in names]
-                missing = [name for name, reference in zip(names, references) if reference is None]
-                if not missing:
+                references = [self.get_service_reference(item, ldap_filter) for item in items]
+                if all(reference is not None for reference in references):
                     return cast(list[ServiceReference[Any]], references)
 
                 remaining = None if deadline is None else deadline - time.monotonic()
                 if remaining is not None and remaining <= 0:
+                    missing = [label for label, reference in zip(labels, references) if reference is None]
                     raise TimeoutError(f"Services not registered after {timeout}s: {', '.join(missing)}")
 
                 waiter.event.wait(remaining)

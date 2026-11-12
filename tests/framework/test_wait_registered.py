@@ -12,7 +12,7 @@ import unittest
 from typing import Any
 
 from pelix.constants import BundleException, Specification
-from pelix.framework import FrameworkFactory
+from pelix.framework import Bundle, FrameworkFactory, _RegistrationWaiter
 
 # ------------------------------------------------------------------------------
 
@@ -30,6 +30,11 @@ class SpecB:
     pass
 
 
+@Specification([SPEC_A, SPEC_B])
+class SpecAB:
+    pass
+
+
 class WaitRegisteredTest(unittest.TestCase):
     """
     Tests the wait for services registration
@@ -41,27 +46,18 @@ class WaitRegisteredTest(unittest.TestCase):
         self.framework.start()
         self.context = self.framework.get_bundle_context()
 
-        # Records the listeners of wait_registered() and tells when it listens
-        self.listeners: list[Any] = []
-        self.listening = threading.Event()
-        add_service_listener = self.context.add_service_listener
-
-        def add_listener(listener, *args, **kwargs):
-            result = add_service_listener(listener, *args, **kwargs)
-            self.listeners.append(listener)
-            self.listening.set()
-            return result
-
-        self.context.add_service_listener = add_listener
-
-        self.stop_listeners: list[Any] = []
-        add_stop_listener = self.context.add_framework_stop_listener
-
-        def add_framework_listener(listener):
-            self.stop_listeners.append(listener)
-            return add_stop_listener(listener)
-
-        self.context.add_framework_stop_listener = add_framework_listener
+    def _waiters(self) -> tuple[list[Any], list[Any]]:
+        """
+        The service and framework stop listeners of wait_registered() known by
+        the event dispatcher
+        """
+        dispatcher = self.framework._dispatcher
+        service_listeners = list(dispatcher._EventDispatcher__listeners_data)
+        stop_listeners = list(dispatcher._EventDispatcher__fw_listeners)
+        return (
+            [listener for listener in service_listeners if isinstance(listener, _RegistrationWaiter)],
+            [listener for listener in stop_listeners if isinstance(listener, _RegistrationWaiter)],
+        )
 
     def tearDown(self):
         self.framework.stop()
@@ -73,7 +69,7 @@ class WaitRegisteredTest(unittest.TestCase):
         the service events. The result holds the references or the exception.
         """
         context = self.context
-        self.listening.clear()
+        waiting = len(self._waiters()[0])
         result: list[Any] = []
 
         def wait() -> None:
@@ -84,7 +80,10 @@ class WaitRegisteredTest(unittest.TestCase):
 
         thread = threading.Thread(target=wait, daemon=True)
         thread.start()
-        self.assertTrue(self.listening.wait(5), "wait_registered() did not listen to service events")
+        deadline = time.monotonic() + 5
+        while len(self._waiters()[0]) <= waiting and not result:
+            self.assertLess(time.monotonic(), deadline, "wait_registered() did not listen to service events")
+            time.sleep(0.01)
         return thread, result
 
     def _join(self, thread: threading.Thread, result: list[Any]) -> Any:
@@ -206,16 +205,14 @@ class WaitRegisteredTest(unittest.TestCase):
         The listeners are removed once the wait is over, whatever its result
         """
         thread, result = self._wait_in_thread(SPEC_A, timeout=5)
+        self.assertEqual((1, 1), tuple(len(listeners) for listeners in self._waiters()))
         self.context.register_service(SPEC_A, object(), {})
         self._join(thread, result)
+        self.assertEqual(([], []), self._waiters())
 
         thread, result = self._wait_in_thread(SPEC_B, timeout=0.1)
         self.assertIsInstance(self._join(thread, result), TimeoutError)
-
-        self.assertEqual(2, len(self.listeners))
-        for listener in self.listeners:
-            self.assertFalse(self.context.remove_service_listener(listener))
-            self.assertFalse(self.context.remove_framework_stop_listener(listener))
+        self.assertEqual(([], []), self._waiters())
 
     def test_invalid_arguments(self):
         """
@@ -233,8 +230,75 @@ class WaitRegisteredTest(unittest.TestCase):
         with self.assertRaises(BundleException):
             self.context.wait_registered(SPEC_A, "(invalid", timeout=0)
 
-        self.assertEqual(1, len(self.stop_listeners))
-        self.assertFalse(self.context.remove_framework_stop_listener(self.stop_listeners[0]))
+        self.assertEqual(([], []), self._waiters())
+
+    def test_one_reference_per_specification(self):
+        """
+        Returns one reference per given specification, as
+        get_service_reference() does for each of them
+        """
+        reg_a = self.context.register_service(SPEC_A, object(), {})
+        reg_b = self.context.register_service(SPEC_B, object(), {})
+        ref_a = reg_a.get_reference()
+        ref_b = reg_b.get_reference()
+
+        self.assertEqual(
+            [ref_a, ref_a, ref_b], self.context.wait_registered([SPEC_A, SPEC_A, SPEC_B], timeout=0)
+        )
+
+        # A class with several specifications needs a service providing all of them
+        self.assertIsNone(self.context.get_service_reference(SpecAB))
+        thread, result = self._wait_in_thread([SpecAB, SPEC_B], timeout=5)
+        reg_ab = self.context.register_service(SpecAB, object(), {})
+        refs = self._join(thread, result)
+        self.assertEqual([reg_ab.get_reference(), ref_b], refs)
+        self.assertEqual([self.context.get_service_reference(SpecAB), ref_b], refs)
+
+    def test_missing_names_in_timeout(self):
+        """
+        The timeout error names each missing given specification
+        """
+        with self.assertRaises(TimeoutError) as ctx:
+            self.context.wait_registered([SpecAB, SPEC_B], timeout=0)
+
+        self.assertIn(f"{SPEC_A} & {SPEC_B}, {SPEC_B}", str(ctx.exception))
+
+    def test_framework_not_running(self):
+        """
+        Raises a BundleException at once when the framework is stopped or
+        stopping, instead of waiting for the timeout
+        """
+        self.framework.stop()
+        start = time.monotonic()
+        with self.assertRaises(BundleException):
+            self.context.wait_registered(SPEC_A, timeout=5)
+        self.assertLess(time.monotonic() - start, 1)
+        self.assertEqual(([], []), self._waiters())
+
+    def test_framework_stopping(self):
+        """
+        Raises a BundleException when called while the framework stops, e.g.
+        from a bundle stopping
+        """
+        errors: list[Exception] = []
+
+        context = self.context
+        framework = self.framework
+
+        class StopListener:
+            def bundle_changed(self, event: Any) -> None:
+                if event.get_bundle() is framework and framework.get_state() == Bundle.STOPPING:
+                    try:
+                        context.wait_registered(SPEC_A, timeout=5)
+                    except BundleException as ex:
+                        errors.append(ex)
+
+        self.context.add_bundle_listener(StopListener())
+        start = time.monotonic()
+        self.framework.stop()
+        self.assertLess(time.monotonic() - start, 1)
+        self.assertEqual(1, len(errors))
+        self.assertEqual(([], []), self._waiters())
 
 
 if __name__ == "__main__":
