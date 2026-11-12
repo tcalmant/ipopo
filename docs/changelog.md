@@ -48,6 +48,10 @@ Unreleased
 * Fixed a deadlock between `ServiceRegistration.set_properties()` changing the
   service ranking and a service factory updating its properties from
   `get_service()`
+* Filtered service lookups are faster (#15): the filter is matched on the
+  properties of the service without copying them, and the references of the
+  whole registry are kept sorted instead of being sorted at each lookup without
+  a specification
 
 ### Security
 
