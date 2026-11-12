@@ -335,7 +335,7 @@ class ServiceReference(Generic[T]):
             if mandatory not in properties:
                 raise BundleException(f"A Service must at least have a '{mandatory}' entry")
 
-        # Properties lock (used by ServiceRegistration too)
+        # Serializes the property updates (readers take no lock)
         self._props_lock = threading.RLock()
 
         # Usage lock
@@ -434,8 +434,26 @@ class ServiceReference(Generic[T]):
 
         :return: A copy of the service properties
         """
-        with self._props_lock:
-            return self.__properties.copy()
+        return self.__properties.copy()
+
+    def _snapshot(self) -> dict[str, Any]:
+        """
+        Returns the current properties dictionary (internal to the registry)
+
+        :return: The published dictionary, to be read and never modified
+        """
+        return self.__properties
+
+    def _publish(self, properties: dict[str, Any]) -> None:
+        """
+        Replaces the properties dictionary (internal to the registry)
+
+        Copy on write: a published dictionary is never modified, so readers need no lock.
+        Callers must hold ``_props_lock``.
+
+        :param properties: The new dictionary, which must not be modified after this call
+        """
+        self.__properties = properties
 
     def get_property(self, name: str) -> Any:
         """
@@ -443,8 +461,7 @@ class ServiceReference(Generic[T]):
 
         :return: The property value, None if not found
         """
-        with self._props_lock:
-            return self.__properties.get(name)
+        return self.__properties.get(name)
 
     def get_property_keys(self) -> tuple[str, ...]:
         """
@@ -452,8 +469,7 @@ class ServiceReference(Generic[T]):
 
         :return: An array of property keys.
         """
-        with self._props_lock:
-            return tuple(self.__properties.keys())
+        return tuple(self.__properties.keys())
 
     def is_factory(self) -> bool:
         """
@@ -549,7 +565,6 @@ class ServiceRegistration(Generic[T]):
 
     __slots__ = (
         "__framework",
-        "__properties",
         "__reference",
         "__update_callback",
     )
@@ -558,18 +573,15 @@ class ServiceRegistration(Generic[T]):
         self,
         framework: "Framework",
         reference: ServiceReference[T],
-        properties: dict[str, Any],
         update_callback: Callable[[ServiceReference[T]], None],
     ):
         """
         :param framework: The host framework
         :param reference: A service reference
-        :param properties: A reference to the ServiceReference properties dictionary object
         :param update_callback: Method to call when the sort key is modified
         """
         self.__framework = framework
         self.__reference = reference
-        self.__properties = properties
         self.__update_callback = update_callback
 
     def __str__(self) -> str:
@@ -603,9 +615,10 @@ class ServiceRegistration(Generic[T]):
             except KeyError:
                 pass
 
+        current = self.__reference._snapshot()
         to_delete = []
         for key, value in properties.items():
-            if self.__properties.get(key) == value:
+            if current.get(key) == value:
                 # No update
                 to_delete.append(key)
 
@@ -629,8 +642,10 @@ class ServiceRegistration(Generic[T]):
 
         with self.__reference._props_lock:
             # Update the properties
-            previous = self.__properties.copy()
-            self.__properties.update(properties)
+            # Readers can still use the replaced dictionary: the event gets a copy
+            current = self.__reference._snapshot()
+            previous = current.copy()
+            self.__reference._publish({**current, **properties})
 
             if self.__reference.needs_sort_update():
                 # The sort key and the registry must be updated
@@ -1122,9 +1137,7 @@ class ServiceRegistry:
             svc_ref = ServiceReference[T](bundle, properties)
 
             # Make the service registration
-            svc_registration = ServiceRegistration(
-                self.__framework, svc_ref, properties, self.__sort_registry
-            )
+            svc_registration = ServiceRegistration(self.__framework, svc_ref, self.__sort_registry)
 
             # Store service information
             if prototype or factory:

@@ -40,6 +40,11 @@ Unreleased
   reload, the dunder ones included: a removed attribute, or a removed activator,
   no longer survives an update. The shell `update` command reports the failure
   and stops
+* Fixed a deadlock between a filtered service lookup and a change of the
+  `service.ranking` property of a service: the properties of a service are now
+  replaced as a whole when they are updated, so
+  `ServiceReference.get_properties()`, `get_property()` and
+  `get_property_keys()` no longer take a lock
 
 ### Security
 
