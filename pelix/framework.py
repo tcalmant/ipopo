@@ -1617,7 +1617,8 @@ class BundleContext:
 
         if isinstance(specification, str):
             single_specification_filter = specification
-        elif isinstance(specification, list):
+        elif specification and isinstance(specification, list):
+            # An empty list would give "(&)", refused by the parser
             single_specification_filter = None
             spec_filters = [f"({OBJECTCLASS}={escape_LDAP(spec)})" for spec in specification]
             ldap_specification_filter = f"(&{''.join(spec_filters)})"

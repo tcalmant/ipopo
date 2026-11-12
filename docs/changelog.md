@@ -240,6 +240,11 @@ Unreleased
   which removes a denial of service with patterns holding many wildcards
   (a filter given by a remote caller could take minutes to match). A wildcard
   now also matches a line break
+* The LDAP filter parser follows RFC 1960 more closely: it now rejects a
+  second filter after the first one (`(a=1)(b=2)`), text outside the
+  parentheses or between the sub-filters of an operator, an operator
+  without sub-filter (`(&)`), and an unescaped `(` in a criterion, instead of
+  ignoring them. The Pelix extensions and the tolerance to spaces are kept
 
 ### HTTP service
 

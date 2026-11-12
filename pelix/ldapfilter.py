@@ -980,7 +980,9 @@ def _parse_ldap(ldap_filter: str) -> LDAPCriteria | LDAPFilter | None:
 
     :param ldap_filter: An LDAP filter string
     :return: An LDAPFilter object, None if the filter was empty
-    :raise ValueError: The LDAP filter string is invalid
+    :raise ValueError: The LDAP filter string is invalid (RFC 1960: a single filter, no text outside
+                       the parentheses or between the sub-filters, no operator without sub-filter, no unescaped
+                       parenthesis in a criterion)
     """
     if ldap_filter is None:
         # Nothing to do
@@ -999,11 +1001,19 @@ def _parse_ldap(ldap_filter: str) -> LDAPCriteria | LDAPFilter | None:
     root: LDAPFilter | None = None
     stack: list[LDAPFilter] = []
     subfilter_stack: list[int] = []
+    operator_idx = -1
 
     idx = 0
     while idx < filter_len:
         if not escaped:
-            if ldap_filter[idx] == "(":
+            char = ldap_filter[idx]
+            if char == "(":
+                if root is not None:
+                    raise ValueError(f"Second filter:{idx}: {ldap_filter[idx:]}")
+
+                if subfilter_stack:
+                    raise ValueError(f"Unescaped parenthesis:{idx}: {ldap_filter[idx:]}")
+
                 # Opening filter : get the operator
                 idx = _skip_spaces(ldap_filter, idx + 1)
                 if idx == -1:
@@ -1013,11 +1023,14 @@ def _parse_ldap(ldap_filter: str) -> LDAPCriteria | LDAPFilter | None:
                 if operator is not None:
                     # New sub-filter
                     stack.append(LDAPFilter(operator))
+                    operator_idx = idx
+                elif ldap_filter[idx] == "(":
+                    raise ValueError(f"Unescaped parenthesis:{idx}: {ldap_filter[idx:]}")
                 else:
                     # Sub-filter content
                     subfilter_stack.append(idx)
 
-            elif ldap_filter[idx] == ")":
+            elif char == ")":
                 # Ending filter : store it in its parent
                 if subfilter_stack:
                     # criterion finished
@@ -1036,6 +1049,9 @@ def _parse_ldap(ldap_filter: str) -> LDAPCriteria | LDAPFilter | None:
                 elif stack:
                     # Sub filter finished
                     ended_filter = stack.pop()
+                    if not ended_filter.subfilters:
+                        raise ValueError(f"Operator without filter:{idx}: {ldap_filter[idx:]}")
+
                     if stack:
                         top = stack.pop()
                         top.append(ended_filter)
@@ -1045,9 +1061,12 @@ def _parse_ldap(ldap_filter: str) -> LDAPCriteria | LDAPFilter | None:
                         root = ended_filter
                 else:
                     raise ValueError(f"Too many end of parenthesis:{idx}: {ldap_filter[idx:]}")
-            elif ldap_filter[idx] == "\\":
-                # Next character must be ignored
-                escaped = True
+            elif subfilter_stack:
+                if char == "\\":
+                    # Next character must be ignored
+                    escaped = True
+            elif idx != operator_idx and not char.isspace():
+                raise ValueError(f"Unexpected text:{idx}: {ldap_filter[idx:]}")
         else:
             # Escaped character ignored
             escaped = False

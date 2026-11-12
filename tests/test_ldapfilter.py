@@ -225,6 +225,68 @@ class LDAPUtilitiesTest(unittest.TestCase):
             f"Incorrect result: {ldap_filter}",
         )
 
+    def testParseLDAPRFC1960(self) -> None:
+        """
+        Tests that the parser follows RFC 1960: a single filter, nothing outside the parentheses or between
+        the sub-filters, no operator without sub-filter
+        """
+        for invalid in (
+            # Second top-level filter
+            "(a=1)(b=2)",
+            "(a=1)  (b=2)",
+            "(&(a=1)(b=2))(c=3)",
+            # Text outside the filter
+            "xyz(a=1)",
+            "(a=1)xyz",
+            "(a=1)\\",
+            # Text between the sub-filters, repeated operator
+            "(&(a=1)junk(b=2))",
+            "(&(a=1)(b=2)junk)",
+            "(&junk(a=1))",
+            "(!x(a=1))",
+            "(&&(a=1))",
+            # Operator without sub-filter
+            "(&)",
+            "(|)",
+            "(!)",
+            "(& )",
+            "(&(&))",
+            "(&(a=1)(|))",
+            # Unescaped opening parenthesis in a criterion
+            "(a=1\\)(b=2)",
+            "(a=1(b=2)",
+            "(&(a=1(b=2))",
+            "((a=1)",
+            "((a=1))",
+            "( (a=1))",
+            "(&((a=1))",
+            "(a(b=1)",
+        ):
+            with self.subTest(invalid=invalid):
+                self.assertRaises(ValueError, pelix.ldapfilter._parse_ldap, invalid)
+                self.assertRaises(ValueError, get_ldap_filter, invalid)
+
+        for text, expected in (
+            ("(a=1)", "(a=1)"),
+            ("  (a=1)  ", "(a=1)"),
+            ("(a=1)\n", "(a=1)"),
+            ("(& (a=1) (b=2) )", "(&(a=1)(b=2))"),
+            ("( & (a=1) (b=2) )", "(&(a=1)(b=2))"),
+            ("(&\n(a=1)\n(b=2)\n)", "(&(a=1)(b=2))"),
+            ("(&(a=1)(|(b=2)(!(c=3))))", "(&(a=1)(|(b=2)(!(c=3))))"),
+            # Pelix extensions and tolerance inside a criterion
+            ("(a<1)", "(a<1)"),
+            ("(a>1)", "(a>1)"),
+            ("(a~=x*)", "(a~=x*)"),
+            ("( a = 1 )", "(a=1)"),
+            ("(a==1)", "(a=1)"),
+            ("(a=\\(x\\))", "(a=\\(x\\))"),
+            ("(a=1\\(b)", "(a=1\\(b)"),
+            ("(a=\\(1\\))", "(a=\\(1\\))"),
+        ):
+            with self.subTest(text=text):
+                self.assertEqual(str(get_ldap_filter(text)), expected)
+
     def testCombine(self) -> None:
         """
         Tests the combine_filters() method
