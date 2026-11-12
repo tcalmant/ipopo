@@ -537,14 +537,6 @@ class ServiceReference(Generic[T]):
             self.__service_id,
         )
 
-    def needs_sort_update(self) -> bool:
-        """
-        Checks if the sort key must be updated
-
-        :return: True if the sort key must be updated
-        """
-        return self.__sort_key != self.__compute_key()
-
     def update_sort_key(self) -> None:
         """
         Recomputes the sort key, based on the service ranking and ID
@@ -647,12 +639,16 @@ class ServiceRegistration(Generic[T]):
             previous = current.copy()
             self.__reference._publish({**current, **properties})
 
-            if self.__reference.needs_sort_update():
-                # The sort key and the registry must be updated
-                self.__update_callback(self.__reference)
-
             # Trigger a new computation in the framework
             event = ServiceEvent(ServiceEvent.MODIFIED, self.__reference, previous)
+
+        if SERVICE_RANKING in properties:
+            # The sort key and the registry must be updated. Not under the properties lock: the registry
+            # lock can be held by a thread calling a service factory that waits for it. The sort key
+            # is recomputed under the registry lock from the latest properties, so concurrent changes
+            # converge (the ranking test is on the given properties, a test on the sort key would
+            # race with a sort in progress)
+            self.__update_callback(self.__reference)
 
         # Notify outside the lock: a listener can wait for a lock (e.g. an
         # iPOPO instance lock) held by a thread reading the properties of this

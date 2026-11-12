@@ -8,6 +8,7 @@ handling and events.
 """
 
 import threading
+import time
 import unittest
 from typing import Any
 
@@ -634,6 +635,64 @@ class ServicesTest(unittest.TestCase):
             self.assertFalse(thread.is_alive(), "Deadlock between the properties lock and a listener")
 
         self.assertEqual(results, [2])
+
+    def test_ranking_update_with_factory_updating_properties(self):
+        """
+        A ranking change must not hold the properties lock while waiting for the
+        registry lock, which is held while calling a service factory that
+        updates its own properties
+        """
+        context = self.framework.get_bundle_context()
+        in_props_lock = threading.Event()
+        timeouts = []
+
+        class Factory:
+            def get_service(self, bundle, registration):
+                # Registry lock held here: wait for the ranking change to be
+                # in its critical section, then update the properties
+                in_props_lock.wait(5)
+                time.sleep(0.2)
+                registration.set_properties({"value": 1})
+                return object()
+
+            def unget_service(self, bundle, registration):
+                pass
+
+        registration = context.register_service("test.factory", Factory(), {}, factory=True)
+        svc_ref = registration.get_reference()
+
+        class NotifyingLock:
+            def __init__(self, lock):
+                self.__lock = lock
+
+            def __enter__(self):
+                # A timeout lets a deadlock end, so that the framework can be stopped
+                if not self.__lock.acquire(timeout=3):
+                    timeouts.append(threading.current_thread())
+                    raise RuntimeError("Properties lock timeout")
+
+                in_props_lock.set()
+
+            def __exit__(self, *args):
+                self.__lock.release()
+
+        # The ranking change is the first one to take the lock
+        svc_ref._props_lock = NotifyingLock(svc_ref._props_lock)
+
+        ranking_thread = threading.Thread(
+            target=registration.set_properties,
+            args=({pelix.constants.SERVICE_RANKING: 10},),
+            daemon=True,
+        )
+        getter_thread = threading.Thread(target=context.get_service, args=(svc_ref,), daemon=True)
+        getter_thread.start()
+        ranking_thread.start()
+
+        for thread in (ranking_thread, getter_thread):
+            thread.join(5)
+            self.assertFalse(thread.is_alive(), "Deadlock between set_properties() and a factory")
+
+        self.assertEqual(timeouts, [], "Deadlock between set_properties() and a factory")
 
 
 # ------------------------------------------------------------------------------

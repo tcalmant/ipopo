@@ -45,6 +45,9 @@ Unreleased
   replaced as a whole when they are updated, so
   `ServiceReference.get_properties()`, `get_property()` and
   `get_property_keys()` no longer take a lock
+* Fixed a deadlock between `ServiceRegistration.set_properties()` changing the
+  service ranking and a service factory updating its properties from
+  `get_service()`
 
 ### Security
 
