@@ -55,6 +55,9 @@ Unreleased
 * LDAP filters are matched faster (#15): the common types of values (strings,
   integers, lists of strings such as `objectClass`) are tested without the
   generic type checks
+* Parsing LDAP filters is faster (#15): the removal of the duplicated criteria
+  is no longer quadratic for the criteria of a filter (it still is for its
+  nested sub-filters). A filter with 200 criteria is parsed about 5 times faster
 
 ### Security
 

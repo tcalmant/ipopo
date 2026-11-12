@@ -84,6 +84,9 @@ OR = 1
 NOT = 2
 """ 'Not' LDAP operation """
 
+_DEDUP_SCAN_MAX = 3
+""" Number of children up to which duplicates are searched with a linear scan """
+
 # ------------------------------------------------------------------------------
 
 
@@ -193,12 +196,16 @@ class LDAPFilter:
             return None
 
         # New sub-filters list
-        new_filters = []
-        for subfilter in self.subfilters:
-            # Normalize the sub-filter before storing it
-            norm_filter = subfilter.normalize()
-            if norm_filter is not None and norm_filter not in new_filters:
-                new_filters.append(norm_filter)
+        if len(self.subfilters) > _DEDUP_SCAN_MAX:
+            new_filters = _normalize_unique(self.subfilters)
+        else:
+            # Few children: a linear scan is cheaper than a set
+            new_filters = []
+            for subfilter in self.subfilters:
+                # Normalize the sub-filter before storing it
+                norm_filter = subfilter.normalize()
+                if norm_filter is not None and norm_filter not in new_filters:
+                    new_filters.append(norm_filter)
 
         # Update the instance
         self.subfilters = new_filters
@@ -327,6 +334,42 @@ class LDAPCriteria:
         Returns this criterion
         """
         return self
+
+
+def _normalize_unique(subfilters: list[LDAPCriteria | LDAPFilter]) -> list[LDAPCriteria | LDAPFilter]:
+    """
+    Normalizes sub-filters and removes the duplicates, like ``LDAPFilter.normalize()`` does.
+
+    Plain criteria (exact ``str`` name and value) are compared through a set instead of
+    a scan of the result list, which made long filters quadratic. Anything else keeps the scan.
+
+    :param subfilters: The sub-filters to normalize
+    :return: The normalized sub-filters, in their order and without duplicates
+    """
+    result: list[LDAPCriteria | LDAPFilter] = []
+    plain_keys: set[tuple[str, Callable[[Any, Any], bool], str]] = set()
+    others: list[LDAPCriteria | LDAPFilter] = []
+    for subfilter in subfilters:
+        norm_filter = subfilter.normalize()
+        if norm_filter is None:
+            continue
+
+        if (
+            type(norm_filter) is LDAPCriteria
+            and type(norm_filter.name) is str
+            and type(norm_filter.value) is str
+        ):
+            key = (norm_filter.name, norm_filter.comparator, norm_filter.value)
+            if key in plain_keys or (others and norm_filter in others):
+                continue
+            plain_keys.add(key)
+        elif norm_filter in result:
+            continue
+        else:
+            others.append(norm_filter)
+        result.append(norm_filter)
+
+    return result
 
 
 # Utility type alias
@@ -807,11 +850,12 @@ def _skip_spaces(string: str, idx: int) -> int:
     :param idx: The base search index
     :return: The next non-space character index, -1 if not found
     """
-    i = idx
-    for char in string[idx:]:
-        if not char.isspace():
-            return i
-        i += 1
+    # Index loop: no slice of the tail of the string
+    length = len(string)
+    while idx < length:
+        if not string[idx].isspace():
+            return idx
+        idx += 1
 
     return -1
 

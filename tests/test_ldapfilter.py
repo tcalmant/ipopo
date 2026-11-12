@@ -9,7 +9,7 @@ LDAP filter parser tests
 import inspect
 import sys
 import unittest
-from collections.abc import Iterable
+from collections.abc import Callable, Iterable
 from typing import Any, cast
 
 import pelix.ldapfilter
@@ -929,6 +929,89 @@ class LDAPFilterTest(unittest.TestCase):
             self.assertEqual(
                 ldap_filter.normalize(), criteria, "'And' or 'Or' with 1 child must return the child"
             )
+
+    def testNormalizeDuplicates(self) -> None:
+        """
+        Tests that the removal of the duplicates of normalize() (set based above 3 children) gives the
+        same result as the linear scan
+        """
+        eq = pelix.ldapfilter._comparator_eq
+        lt = pelix.ldapfilter._comparator_lt
+        crit = LDAPCriteria
+
+        def nested(*names: str) -> pelix.ldapfilter.LDAPFilter:
+            sub = pelix.ldapfilter.LDAPFilter(pelix.ldapfilter.OR)
+            for name in names:
+                sub.append(crit(name, "x", eq))
+            return sub
+
+        cases: dict[str, Callable[[], list[Any]]] = {
+            "duplicates among plain criteria": lambda: [
+                crit("a", "1", eq),
+                crit("b", "2", eq),
+                crit("a", "1", eq),
+                crit("c", "3", eq),
+                crit("b", "2", eq),
+            ],
+            "same name, different comparators": lambda: [
+                crit("a", "1", eq),
+                crit("a", "1", lt),
+                crit("a", "1", eq),
+                crit("a", "2", eq),
+                crit("a", "1", lt),
+            ],
+            "non-str values": lambda: [
+                crit("a", 1, eq),
+                crit("a", True, eq),
+                crit("a", 1.0, eq),
+                crit("a", "1", eq),
+                crit("a", 1, eq),
+                crit("a", "1", eq),
+                crit("a", True, eq),
+            ],
+            "nested filter duplicated": lambda: [
+                crit("a", "1", eq),
+                nested("b", "c"),
+                crit("d", "4", eq),
+                nested("c", "b"),
+                nested("b", "c"),
+            ],
+            "plain and nested mixed": lambda: [
+                nested("a"),
+                crit("a", "x", eq),
+                crit("b", "2", eq),
+                nested("b", "c"),
+                crit("a", "x", eq),
+                crit("b", "2", eq),
+            ],
+            "no duplicate": lambda: [crit(name, "1", eq) for name in "abcde"],
+            "all duplicates": lambda: [crit("a", "1", eq) for _ in range(6)],
+        }
+
+        for name, make_children in cases.items():
+            for operator in (pelix.ldapfilter.AND, pelix.ldapfilter.OR):
+                with self.subTest(case=name, operator=operator):
+                    # Expected: the linear scan
+                    expected: list[Any] = []
+                    for child in make_children():
+                        norm_child = child.normalize()
+                        if norm_child is not None and norm_child not in expected:
+                            expected.append(norm_child)
+
+                    ldap_filter = pelix.ldapfilter.LDAPFilter(operator)
+                    for child in make_children():
+                        ldap_filter.append(child)
+                    self.assertGreater(len(ldap_filter.subfilters), 3)
+
+                    result = ldap_filter.normalize()
+                    self.assertEqual(ldap_filter.subfilters, expected)
+                    # Order is preserved
+                    self.assertEqual([repr(c) for c in ldap_filter.subfilters], [repr(c) for c in expected])
+                    if len(expected) == 1:
+                        # A single child replaces its parent
+                        self.assertIs(result, ldap_filter.subfilters[0])
+                    else:
+                        self.assertIs(result, ldap_filter)
 
     def testNot(self) -> None:
         """
