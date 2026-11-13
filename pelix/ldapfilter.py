@@ -27,7 +27,6 @@ Dependency-less LDAP filter parser for Python
 
 import functools
 import inspect
-import re
 from collections.abc import Callable, Iterable
 from typing import Any
 
@@ -83,6 +82,9 @@ OR = 1
 
 NOT = 2
 """ 'Not' LDAP operation """
+
+_DEDUP_SCAN_MAX = 3
+""" Number of children up to which duplicates are searched with a linear scan """
 
 # ------------------------------------------------------------------------------
 
@@ -170,20 +172,19 @@ class LDAPFilter:
         :param properties: A dictionary of properties
         :return: True if the properties matches this filter, else False
         """
-        # Use a generator, and declare it outside of the method call
-        # => seems to be quite a speed up trick
-        generator = (criterion.matches(properties) for criterion in self.subfilters)
+        # Plain loops: cheaper than a generator expression with any() / all()
+        operator = self.operator
+        if operator == OR:
+            for criterion in self.subfilters:
+                if criterion.matches(properties):
+                    return True
+            return False
 
-        # Extract "if" from loops and use built-in methods
-        if self.operator == OR:
-            result = any(generator)
-        else:
-            result = all(generator)
-            if self.operator == NOT:
-                # Revert result
-                return not result
-
-        return result
+        # AND, and NOT which reverts the "all" result
+        for criterion in self.subfilters:
+            if not criterion.matches(properties):
+                return operator == NOT
+        return operator != NOT
 
     def normalize(self) -> "LDAPCriteria | LDAPFilter | None":
         """
@@ -194,12 +195,16 @@ class LDAPFilter:
             return None
 
         # New sub-filters list
-        new_filters = []
-        for subfilter in self.subfilters:
-            # Normalize the sub-filter before storing it
-            norm_filter = subfilter.normalize()
-            if norm_filter is not None and norm_filter not in new_filters:
-                new_filters.append(norm_filter)
+        if len(self.subfilters) > _DEDUP_SCAN_MAX:
+            new_filters = _normalize_unique(self.subfilters)
+        else:
+            # Few children: a linear scan is cheaper than a set
+            new_filters = []
+            for subfilter in self.subfilters:
+                # Normalize the sub-filter before storing it
+                norm_filter = subfilter.normalize()
+                if norm_filter is not None and norm_filter not in new_filters:
+                    new_filters.append(norm_filter)
 
         # Update the instance
         self.subfilters = new_filters
@@ -262,7 +267,7 @@ class LDAPCriteria:
             # Bad type
             return False
 
-        for member in "name", "comparator":
+        for member in "name", "comparator", "untrusted":
             if getattr(self, member) != getattr(other, member):
                 # Difference found
                 return False
@@ -328,6 +333,42 @@ class LDAPCriteria:
         Returns this criterion
         """
         return self
+
+
+def _normalize_unique(subfilters: list[LDAPCriteria | LDAPFilter]) -> list[LDAPCriteria | LDAPFilter]:
+    """
+    Normalizes sub-filters and removes the duplicates, like ``LDAPFilter.normalize()`` does.
+
+    Plain criteria (exact ``str`` name and value) are compared through a set instead of
+    a scan of the result list, which made long filters quadratic. Anything else keeps the scan.
+
+    :param subfilters: The sub-filters to normalize
+    :return: The normalized sub-filters, in their order and without duplicates
+    """
+    result: list[LDAPCriteria | LDAPFilter] = []
+    plain_keys: set[tuple[str, Callable[[Any, Any], bool], str, bool]] = set()
+    others: list[LDAPCriteria | LDAPFilter] = []
+    for subfilter in subfilters:
+        norm_filter = subfilter.normalize()
+        if norm_filter is None:
+            continue
+
+        if (
+            type(norm_filter) is LDAPCriteria
+            and type(norm_filter.name) is str
+            and type(norm_filter.value) is str
+        ):
+            key = (norm_filter.name, norm_filter.comparator, norm_filter.value, norm_filter.untrusted)
+            if key in plain_keys or (others and norm_filter in others):
+                continue
+            plain_keys.add(key)
+        elif norm_filter in result:
+            continue
+        else:
+            others.append(norm_filter)
+        result.append(norm_filter)
+
+    return result
 
 
 # Utility type alias
@@ -460,15 +501,34 @@ def _split_star_pattern(pattern: str) -> tuple[str, ...]:
     return tuple(parts)
 
 
-@functools.lru_cache(maxsize=1024)
-def _star_regex(pattern: str) -> re.Pattern[str]:
+def _star_match(parts: tuple[str, ...], value: str) -> bool:
     """
-    Compiles a substring pattern into a regular expression
+    Tests a string against a substring pattern in linear time, unlike a regular expression which
+    backtracks on patterns with many wildcards
 
-    :param pattern: A pattern as stored in a substring criterion
-    :return: The compiled regular expression
+    :param parts: The literal parts of the pattern, as returned by ``_split_star_pattern``
+    :param value: The tested string
+    :return: True if the value matches the pattern
     """
-    return re.compile(".*".join(re.escape(part) for part in _split_star_pattern(pattern)) + "\\Z")
+    first = parts[0]
+    last = parts[-1]
+    if not value.startswith(first):
+        return False
+
+    pos = len(first)
+    end = len(value) - len(last)
+    if end < pos or not value.endswith(last):
+        # No suffix, or the prefix and the suffix overlap
+        return False
+
+    # The leftmost match of each inner part leaves the most room for the next ones
+    for part in parts[1:-1]:
+        pos = value.find(part, pos, end)
+        if pos < 0:
+            return False
+        pos += len(part)
+
+    return True
 
 
 # ------------------------------------------------------------------------------
@@ -485,8 +545,8 @@ def _comparator_presence(_: Any, tested_value: Any) -> bool:
     # The filter value is a joker : simple presence test
     if tested_value is None:
         return False
-    elif hasattr(tested_value, "__len__"):
-        # Refuse empty values
+    elif type(tested_value) is str or hasattr(tested_value, "__len__"):
+        # Refuse empty values (exact str first: it skips the hasattr() call)
         return len(tested_value) != 0
 
     # Presence validated
@@ -497,6 +557,32 @@ def _comparator_star(filter_value: Any, tested_value: Any) -> bool:
     """
     Tests a filter containing a joker
     """
+    if type(tested_value) is str:
+        # Common case, no type test
+        parts = _split_star_pattern(filter_value)
+        if len(parts) == 2:
+            # Single wildcard, no loop and no extra call
+            first, last = parts
+            return (
+                len(tested_value) >= len(first) + len(last)
+                and tested_value.startswith(first)
+                and tested_value.endswith(last)
+            )
+
+        if len(parts) == 3:
+            # Two wildcards, no loop and no extra call
+            first, middle, last = parts
+            if not first and not last:
+                return middle in tested_value
+
+            return (
+                tested_value.startswith(first)
+                and tested_value.endswith(last)
+                and tested_value.find(middle, len(first), len(tested_value) - len(last)) >= 0
+            )
+
+        return _star_match(parts, tested_value)
+
     if isinstance(tested_value, ITERABLES):
         for value in tested_value:
             if _star_comparison(filter_value, value):
@@ -510,34 +596,43 @@ def _star_comparison(filter_value: Any, tested_value: Any) -> bool:
     """
     Tests a filter containing a joker
     """
-    if not is_string(tested_value):
+    if not isinstance(tested_value, str):
         # Unhandled value type...
         return False
 
-    return _star_regex(filter_value).match(tested_value) is not None
+    return _star_match(_split_star_pattern(filter_value), tested_value)
 
 
 def _comparator_eq(filter_value: Any, tested_value: Any) -> bool:
     """
     Tests if the filter value is equal to the tested value
     """
-    if isinstance(tested_value, ITERABLES):
-        # Convert the list items to strings
-        for value in tested_value:
-            # Try with the string conversion
-            if not is_string(value):
-                value = repr(value)
+    # Exact types first: a str or an int is neither a str subclass nor an iterable.
+    # A list (e.g. objectClass) goes straight to the loop
+    value_type = type(tested_value)
+    if value_type is not list:
+        if value_type is str:
+            return bool(filter_value == tested_value)
+        if value_type is int:
+            return bool(filter_value == repr(tested_value))
 
-            if filter_value == value:
-                # Match !
-                return True
-    # Standard comparison
-    elif isinstance(tested_value, str):
-        # String vs string
-        return bool(filter_value == tested_value)
-    else:
-        # String vs string representation
-        return bool(filter_value == repr(tested_value))
+        if not isinstance(tested_value, ITERABLES):
+            if isinstance(tested_value, str):
+                # String vs string
+                return bool(filter_value == tested_value)
+
+            # String vs string representation
+            return bool(filter_value == repr(tested_value))
+
+    # Convert the list items to strings
+    for value in tested_value:
+        # Try with the string conversion
+        if not isinstance(value, str):
+            value = repr(value)
+
+        if filter_value == value:
+            # Match !
+            return True
 
     return False
 
@@ -551,13 +646,17 @@ def _comparator_approximate(filter_value: Any, tested_value: Any) -> bool:
     """
     lower_filter_value = filter_value.lower()
 
-    if is_string(tested_value):
+    if isinstance(tested_value, str):
         # Lower case comparison
-        return _comparator_eq(lower_filter_value, tested_value.lower())
+        lower_tested = tested_value.lower()
+        if type(lower_tested) is str:
+            # Same as _comparator_eq(), without the call
+            return bool(lower_filter_value == lower_tested)
+        return _comparator_eq(lower_filter_value, lower_tested)
 
     elif hasattr(tested_value, "__iter__"):
         # Extract a list of strings
-        new_tested = [value.lower() for value in tested_value if is_string(value)]
+        new_tested = [value.lower() for value in tested_value if isinstance(value, str)]
 
         if _comparator_eq(lower_filter_value, new_tested):
             # Value found in the strings
@@ -577,13 +676,13 @@ def _comparator_approximate_star(filter_value: Any, tested_value: Any) -> bool:
     """
     lower_filter_value = filter_value.lower()
 
-    if is_string(tested_value):
+    if isinstance(tested_value, str):
         # Lower case comparison
         return _comparator_star(lower_filter_value, tested_value.lower())
 
     elif hasattr(tested_value, "__iter__"):
         # Extract a list of strings
-        new_tested = [value.lower() for value in tested_value if is_string(value)]
+        new_tested = [value.lower() for value in tested_value if isinstance(value, str)]
 
         if _comparator_star(lower_filter_value, new_tested):
             # Value found in the strings
@@ -608,7 +707,7 @@ def _comparator_lt(filter_value: Any, tested_value: Any) -> bool:
 
     tested_value < filter_value
     """
-    if is_string(filter_value):
+    if isinstance(filter_value, str):
         value_type = type(tested_value)
         try:
             # Try a conversion
@@ -647,7 +746,7 @@ def _comparator_gt(filter_value: Any, tested_value: Any) -> bool:
 
     tested_value > filter_value
     """
-    if is_string(filter_value):
+    if isinstance(filter_value, str):
         value_type = type(tested_value)
         try:
             # Try a conversion
@@ -791,11 +890,12 @@ def _skip_spaces(string: str, idx: int) -> int:
     :param idx: The base search index
     :return: The next non-space character index, -1 if not found
     """
-    i = idx
-    for char in string[idx:]:
-        if not char.isspace():
-            return i
-        i += 1
+    # Index loop: no slice of the tail of the string
+    length = len(string)
+    while idx < length:
+        if not string[idx].isspace():
+            return idx
+        idx += 1
 
     return -1
 
@@ -880,7 +980,9 @@ def _parse_ldap(ldap_filter: str) -> LDAPCriteria | LDAPFilter | None:
 
     :param ldap_filter: An LDAP filter string
     :return: An LDAPFilter object, None if the filter was empty
-    :raise ValueError: The LDAP filter string is invalid
+    :raise ValueError: The LDAP filter string is invalid (RFC 1960: a single filter, no text outside
+                       the parentheses or between the sub-filters, no operator without sub-filter, no unescaped
+                       parenthesis in a criterion)
     """
     if ldap_filter is None:
         # Nothing to do
@@ -899,11 +1001,19 @@ def _parse_ldap(ldap_filter: str) -> LDAPCriteria | LDAPFilter | None:
     root: LDAPFilter | None = None
     stack: list[LDAPFilter] = []
     subfilter_stack: list[int] = []
+    operator_idx = -1
 
     idx = 0
     while idx < filter_len:
         if not escaped:
-            if ldap_filter[idx] == "(":
+            char = ldap_filter[idx]
+            if char == "(":
+                if root is not None:
+                    raise ValueError(f"Second filter:{idx}: {ldap_filter[idx:]}")
+
+                if subfilter_stack:
+                    raise ValueError(f"Unescaped parenthesis:{idx}: {ldap_filter[idx:]}")
+
                 # Opening filter : get the operator
                 idx = _skip_spaces(ldap_filter, idx + 1)
                 if idx == -1:
@@ -913,11 +1023,14 @@ def _parse_ldap(ldap_filter: str) -> LDAPCriteria | LDAPFilter | None:
                 if operator is not None:
                     # New sub-filter
                     stack.append(LDAPFilter(operator))
+                    operator_idx = idx
+                elif ldap_filter[idx] == "(":
+                    raise ValueError(f"Unescaped parenthesis:{idx}: {ldap_filter[idx:]}")
                 else:
                     # Sub-filter content
                     subfilter_stack.append(idx)
 
-            elif ldap_filter[idx] == ")":
+            elif char == ")":
                 # Ending filter : store it in its parent
                 if subfilter_stack:
                     # criterion finished
@@ -936,6 +1049,9 @@ def _parse_ldap(ldap_filter: str) -> LDAPCriteria | LDAPFilter | None:
                 elif stack:
                     # Sub filter finished
                     ended_filter = stack.pop()
+                    if not ended_filter.subfilters:
+                        raise ValueError(f"Operator without filter:{idx}: {ldap_filter[idx:]}")
+
                     if stack:
                         top = stack.pop()
                         top.append(ended_filter)
@@ -945,9 +1061,12 @@ def _parse_ldap(ldap_filter: str) -> LDAPCriteria | LDAPFilter | None:
                         root = ended_filter
                 else:
                     raise ValueError(f"Too many end of parenthesis:{idx}: {ldap_filter[idx:]}")
-            elif ldap_filter[idx] == "\\":
-                # Next character must be ignored
-                escaped = True
+            elif subfilter_stack:
+                if char == "\\":
+                    # Next character must be ignored
+                    escaped = True
+            elif idx != operator_idx and not char.isspace():
+                raise ValueError(f"Unexpected text:{idx}: {ldap_filter[idx:]}")
         else:
             # Escaped character ignored
             escaped = False
