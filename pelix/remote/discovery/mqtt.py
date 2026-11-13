@@ -225,7 +225,7 @@ class MqttDiscovery(pelix.remote.RemoteServiceExportEndpointListener):
         event = topic.rsplit("/", 1)[1]
 
         try:
-            payload: str | bytes = message.payload
+            payload: str | bytes | bytearray = message.payload
             if self.__signer is not None:
                 # The event is signed with the payload: it can't be replayed as another one
                 try:
