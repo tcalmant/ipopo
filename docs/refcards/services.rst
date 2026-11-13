@@ -129,6 +129,8 @@ service.ranking int  The rank/priority of the service. The lower the rank, the m
 
 .. _service_factory:
 
+.. _refcard_condition:
+
 Condition service
 -----------------
 
@@ -216,6 +218,59 @@ reconnected.
 .. autodata:: pelix.services.condition.CONDITION_ID
 .. autodata:: pelix.services.condition.CONDITION_ID_TRUE
 .. autodata:: pelix.services.condition.INSTANCE
+
+Waiting for services
+--------------------
+
+.. note:: In a component, prefer the declarative ways: a component with
+   :class:`~pelix.ipopo.decorators.Requires` on the services is validated once
+   they are all there (its ``@Validate`` callback *is* the readiness signal)
+   and invalidated when one goes away, and the
+   :ref:`Condition service <refcard_condition>` tells the whole application that
+   a state is reached.
+   Waiting for services is meant for the code outside the component model:
+   main scripts, tests, readiness probes running in their own thread.
+
+A thread can wait until services are registered, for example to start working
+once the application is ready, with
+:meth:`~BundleContext.wait_registered`.
+It returns one reference per given specification, in the given order: the one
+:meth:`~BundleContext.get_service_reference` returns for that specification
+and the filter, i.e. the best ranked service.
+It raises a :class:`TimeoutError` naming the specifications still missing.
+An LDAP filter, applied to each specification, can be given too.
+
+.. code-block:: python
+
+    db_ref, mailer_ref = context.wait_registered(
+        ["my.database", "my.mailer"], "(ready=true)", timeout=30
+    )
+
+The method waits for service events, without polling the registry.
+A service registered then unregistered while waiting doesn't count, and a
+:class:`~pelix.constants.BundleException` is raised if the framework stops
+while waiting, or isn't running when the method is called.
+As with any look up, the returned services can be unregistered right after the
+method returns: their consumer must still handle their departure.
+
+.. warning:: Don't call it from a component callback (``@Validate``,
+   ``@Bind``, ...), a bundle activator or a service listener.
+
+   Those run in the thread that registers services: waiting there can hold it
+   until the timeout, or forever without one.
+   Call it from a thread of your own, or with :func:`asyncio.to_thread` from a
+   coroutine:
+
+   .. code-block:: python
+
+      refs = await asyncio.to_thread(context.wait_registered, "my.database", timeout=30)
+
+   Cancelling the asyncio task doesn't stop the thread running the wait: it
+   holds a thread of the default executor, and its listeners, until the
+   services are registered, the timeout expires or the framework stops.
+   Always give a timeout there.
+
+.. versionadded:: 3.3.0
 
 Service Factory
 ---------------
@@ -382,7 +437,8 @@ class that can be used to handle services:
 .. autoclass:: BundleContext
    :noindex:
    :members: get_all_service_references, get_service, get_service_reference,
-             get_service_references, register_service, unget_service
+             get_service_references, register_service, unget_service,
+             wait_registered
 
 
 Listening to service events

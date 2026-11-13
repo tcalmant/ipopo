@@ -30,6 +30,13 @@ Unreleased
 * Added the bundle resources: `Bundle.get_entry()` and `Bundle.find_entries()`
   give access to the files of a package bundle, or to the `<module>.res`
   directory of a module bundle
+* Added `BundleContext.wait_registered()`, which blocks until a service is
+  registered for each of the given specifications, optionally matching an LDAP
+  filter, and returns one reference per specification, or raises a
+  `TimeoutError` naming the missing ones (issue #302). It waits for service
+  events, without polling, raises a `BundleException` if the framework isn't
+  running, and must not be called from a component callback: `@Requires` and
+  the Condition service remain the way to wait for services in components
 
 * **Breaking:** `Bundle.update()` now raises a `BundleException` (the cause is
   chained) and sends `UPDATE_FAILED` when the new code can't be loaded, instead
