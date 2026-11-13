@@ -580,6 +580,18 @@ class MiscUtilitiesTest(unittest.TestCase):
         for value in (None, "", "false", "no", "0", "whatever"):
             self.assertFalse(utilities.str2bool(value), f"{value!r} should be False")
 
+    def testToBytes(self) -> None:
+        """
+        Tests the to_bytes() method
+        """
+        data = b"\xc3\xa9t\xc3\xa9"
+        self.assertIs(utilities.to_bytes(data), data)
+        for value in ("\u00e9t\u00e9", bytearray(data)):
+            with self.subTest(value=value):
+                result = utilities.to_bytes(value)
+                self.assertIs(type(result), bytes)
+                self.assertEqual(result, data)
+
     def testGetLogLevel(self) -> None:
         """
         Tests the get_log_level() method
