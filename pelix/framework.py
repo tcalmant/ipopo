@@ -72,7 +72,7 @@ from pelix.internals.registry import (
     ServiceRegistration,
     ServiceRegistry,
 )
-from pelix.ldapfilter import LDAPCriteria, LDAPFilter, combine_filters, escape_LDAP
+from pelix.ldapfilter import OR, LDAPCriteria, LDAPFilter, combine_filters, escape_LDAP
 from pelix.services.condition import CONDITION_ID, CONDITION_ID_TRUE, SERVICE_CONDITION
 from pelix.services.condition import INSTANCE as CONDITION_INSTANCE
 
@@ -1974,9 +1974,13 @@ class BundleContext:
             labels.append(" & ".join(item_names))
             names.extend(name for name in item_names if name not in names)
 
-        listener_filter = f"(|{''.join(f'({OBJECTCLASS}={escape_LDAP(name)})' for name in names)})"
-        if ldap_filter is not None:
-            listener_filter = f"(&{listener_filter}{ldap_filter})"
+        try:
+            # Combine objects: a string would be parsed again, without the untrusted mode
+            listener_filter = combine_filters(
+                (combine_filters((f"({OBJECTCLASS}={escape_LDAP(name)})" for name in names), OR), ldap_filter)
+            )
+        except (TypeError, ValueError) as ex:
+            raise BundleException(f"Invalid service filter: {ex}") from ex
 
         def check_running() -> None:
             if self.__framework.get_state() not in (Bundle.STARTING, Bundle.ACTIVE):

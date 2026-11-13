@@ -11,8 +11,10 @@ import time
 import unittest
 from typing import Any
 
-from pelix.constants import BundleException, Specification
+from pelix.constants import OBJECTCLASS, BundleException, Specification
 from pelix.framework import Bundle, FrameworkFactory, _RegistrationWaiter
+from pelix.ldapfilter import get_ldap_filter
+from pelix.security import Secret
 
 # ------------------------------------------------------------------------------
 
@@ -165,6 +167,20 @@ class WaitRegisteredTest(unittest.TestCase):
 
         reg.set_properties({"answer": 42})
         self.assertEqual([reg.get_reference()], self._join(thread, result))
+
+    def test_untrusted_filter(self):
+        """
+        An untrusted filter keeps its mode in the listener: a secret value is not compared
+        """
+        ldap_filter = get_ldap_filter("(api.token=value)", untrusted=True)
+        thread, result = self._wait_in_thread([SPEC_A, SPEC_B], ldap_filter, timeout=5)
+        dispatcher = self.framework._dispatcher
+        info = dispatcher._EventDispatcher__listeners_data[self._waiters()[0][0]]
+        self.assertFalse(info.ldap_filter.matches({OBJECTCLASS: [SPEC_A], "api.token": Secret("value")}))
+
+        reg_a = self.context.register_service(SPEC_A, object(), {"api.token": "value"})
+        reg_b = self.context.register_service(SPEC_B, object(), {"api.token": "value"})
+        self.assertEqual([reg_a.get_reference(), reg_b.get_reference()], self._join(thread, result))
 
     def test_timeout(self):
         """
