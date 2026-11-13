@@ -2005,7 +2005,8 @@ class BundleContext:
                     return cast(list[ServiceReference[Any]], references)
 
                 remaining = None if deadline is None else deadline - time.monotonic()
-                if remaining is not None and remaining <= 0:
+                # NaN included: it would make a busy loop
+                if remaining is not None and not remaining > 0:
                     missing = [label for label, reference in zip(labels, references) if reference is None]
                     raise TimeoutError(f"Services not registered after {timeout}s: {', '.join(missing)}")
 

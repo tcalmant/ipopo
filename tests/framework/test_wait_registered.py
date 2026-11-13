@@ -195,6 +195,9 @@ class WaitRegisteredTest(unittest.TestCase):
         self.assertIn(SPEC_B, str(ctx.exception))
         self.assertNotIn(SPEC_A, str(ctx.exception))
 
+        with self.assertRaises(TimeoutError):
+            self.context.wait_registered(SPEC_B, timeout=float("nan"))
+
     def test_unregistered_before_match(self):
         """
         A service unregistered before the others arrive no longer counts
