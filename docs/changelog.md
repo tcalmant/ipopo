@@ -365,6 +365,21 @@ Unreleased
 
 ### iPOPO
 
+* The callbacks of components can be coroutine functions (`async def`):
+  `@Validate`, `@Invalidate`, `@Bind`, `@Unbind`, `@Update`, the field
+  callbacks, `@PostRegistration`, `@PostUnregistration`, `@Modified` and
+  `@ErrorHandler` (first part of #301). iPOPO runs them until they end with the
+  best `pelix.services.IAsyncRunner` service. The default one, a plain service
+  registered by iPOPO (ranking -1), runs them on an event loop in a daemon
+  thread, started on first use only. The new
+  `pelix.ipopo.async.callback_timeout` framework property (5 seconds by
+  default, `<= 0` or `None` to disable, read when iPOPO starts) cancels a
+  coroutine which runs too long, in the event loop: iPOPO goes on once the
+  coroutine has really ended. A `@Validate` timing out makes the component
+  `ERRONEOUS`, while an `@Invalidate` or `@Unbind` timing out doesn't prevent
+  the invalidation. Without a runner service, a coroutine callback fails with
+  a `RuntimeError`. A coroutine callback calling the iPOPO service gets a
+  `RuntimeError` instead of a deadlock
 * Inherited `@Requires` (parent class declaring requirements, with or without
   `@ComponentFactory`) are covered by a test (#99)
 * A failing `@Instantiate` constructor no longer prevents the instantiation of

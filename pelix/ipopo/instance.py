@@ -25,8 +25,8 @@ Instance manager class definition
     limitations under the License.
 """
 
+import inspect
 import logging
-import threading
 import traceback
 from collections.abc import Callable, Iterable
 from typing import (
@@ -44,6 +44,7 @@ from pelix.framework import BundleContext
 from pelix.internals.events import ServiceEvent
 from pelix.internals.registry import ServiceReference
 from pelix.ipopo import constants
+from pelix.ipopo.awaiting import CallbackLock
 from pelix.ipopo.contexts import ComponentContext
 from pelix.security import to_secret
 
@@ -124,8 +125,8 @@ class StoredInstance:
         # The logger
         self._logger = logging.getLogger(f"InstanceManager-{context.name}")
 
-        # The lock
-        self._lock = threading.RLock()
+        # The lock, held while the callbacks run
+        self._lock = CallbackLock(f"component '{context.name}'")
 
         # The iPOPO service
         self._ipopo_service: _IPopoService | None = ipopo_service
@@ -645,6 +646,24 @@ class StoredInstance:
                 )
         return True
 
+    def __await(self, result: Any) -> Any:
+        """
+        Runs the coroutine returned by an ``async def`` callback until it ends,
+        on the event loop of iPOPO. Other results are returned as is.
+
+        :param result: The value returned by a component callback
+        :return: The result of the callback
+        :raise TimeoutError: The coroutine didn't end in time and has been cancelled
+        """
+        if not inspect.iscoroutine(result):
+            return result
+
+        if self._ipopo_service is None:
+            result.close()
+            raise ValueError("iPOPO service is missing")
+
+        return self._ipopo_service._run_coroutine(result)
+
     def __callback(self, event: str, *args: Any, **kwargs: Any) -> Any:
         """
         Calls the registered method in the component for the given event
@@ -662,7 +681,7 @@ class StoredInstance:
             return True
 
         # Call it
-        result = comp_callback(self.instance, *args, **kwargs)
+        result = self.__await(comp_callback(self.instance, *args, **kwargs))
         if result is None:
             # Special case, if the call back returns nothing
             return True
@@ -702,7 +721,7 @@ class StoredInstance:
         mapped_args = [mapping[arg] for arg in args]
 
         # Call it
-        result = comp_callback(self.instance, *mapped_args)
+        result = self.__await(comp_callback(self.instance, *mapped_args))
         if result is None:
             # Special case, if the call back returns nothing
             return True
@@ -735,7 +754,7 @@ class StoredInstance:
             return True
 
         # Call it
-        result = callback(self.instance, field, *args, **kwargs)
+        result = self.__await(callback(self.instance, field, *args, **kwargs))
         if result is None:
             # Special case, if the call back returns nothing
             return True
@@ -796,7 +815,7 @@ class StoredInstance:
 
         try:
             # safe_callback() can't be used: it turns None into True
-            return handler(self.instance, error, event) is True
+            return self.__await(handler(self.instance, error, event)) is True
         except Exception:
             self._logger.exception("Component '%s': error in the @ErrorHandler callback", self.name)
             return False
