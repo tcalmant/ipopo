@@ -527,7 +527,7 @@ def is_string(string: Any) -> bool:
     return isinstance(string, str)
 
 
-def to_bytes(data: bytes | str, encoding: str = "UTF-8") -> bytes:
+def to_bytes(data: bytes | bytearray | str, encoding: str = "UTF-8") -> bytes:
     """
     Converts the given string to an array of bytes.
     Returns the first parameter if it is already an array of bytes.
@@ -536,9 +536,9 @@ def to_bytes(data: bytes | str, encoding: str = "UTF-8") -> bytes:
     :param encoding: The encoding of data
     :return: The corresponding array of bytes
     """
-    if isinstance(data, bytes):
-        # Nothing to do
-        return data
+    if isinstance(data, (bytes, bytearray)):
+        # No copy for bytes
+        return bytes(data)
 
     return data.encode(encoding)
 

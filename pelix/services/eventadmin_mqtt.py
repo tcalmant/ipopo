@@ -239,7 +239,7 @@ class MqttEventAdminBridge(services.ServiceEventHandler):
         else:
             _logger.error("MQTT client not available")
 
-    def handle_mqtt_message(self, mqtt_topic: str, payload: bytes) -> None:
+    def handle_mqtt_message(self, mqtt_topic: str, payload: bytes | bytearray) -> None:
         """
         An MQTT message has been received
 
