@@ -383,12 +383,17 @@ pelix.http.static.root          (none)     Folder to serve. The component is not
 pelix.http.static.index         index.html File served for a request on a folder.
                                            An empty value answers those requests
                                            with a 404 error code
+pelix.http.static.headers       (none)     Headers added to the responses of the
+                                           served files (dictionary), e.g. a
+                                           ``Content-Security-Policy`` for files
+                                           written by third parties
 =============================== ========== ======================================
 
 Only the regular files inside the folder are served: a path with a hidden
-segment (starting with a dot), a link leading out of the folder or a folder
-without its index file is answered with a 404 error code, and folders are
-never listed. A request on a folder without its trailing slash is redirected
+segment (starting with a dot), before or after following the links, a link
+leading out of the folder or a folder without its index file is answered with
+a 404 error code, and folders are never listed. Files are read whole in
+memory: the servlet suits assets, not large downloads. A request on a folder without its trailing slash is redirected
 to it, so that the relative links of its index file work.
 
 The responses carry the ``Last-Modified`` header and a request with an older

@@ -91,6 +91,7 @@ __all__ = [
     "HTTP_SESSION_ENABLED",
     "HTTP_SESSION_MAX_INACTIVE_INTERVAL",
     "HTTP_SOCKET_TIMEOUT",
+    "HTTP_STATIC_HEADERS",
     "HTTP_STATIC_INDEX",
     "HTTP_STATIC_ROOT",
     "HTTP_USES_SSL",
@@ -377,6 +378,12 @@ HTTP_STATIC_INDEX = "pelix.http.static.index"
 """
 File served for a request on a folder (string, ``index.html`` by default).
 An empty value answers such a request with a 404 error code.
+"""
+
+HTTP_STATIC_HEADERS = "pelix.http.static.headers"
+"""
+Headers added to the responses of the served files (dictionary), e.g. a
+``Content-Security-Policy`` for files written by third parties.
 """
 
 # Authentication

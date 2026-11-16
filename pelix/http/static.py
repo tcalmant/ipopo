@@ -28,10 +28,16 @@ documents...) and a component factory to configure it with properties.
     limitations under the License.
 """
 
+import datetime
 import email.utils
+import http.client as http_client
 import mimetypes
 import os
+import stat
+import urllib.parse
+from collections.abc import Mapping
 from pathlib import Path
+from typing import Any
 
 from pelix import http
 from pelix.framework import BundleContext
@@ -62,16 +68,22 @@ class StaticFilesServlet:
     Serves the files of a folder, for the GET and HEAD methods.
 
     Only regular files inside the folder are served: a path with a hidden
-    segment (starting with a dot), a link leading out of the folder or a
-    folder without its index file is answered with a 404 error code. Folders
-    are never listed.
+    segment (starting with a dot), before or after following the links, a link
+    leading out of the folder or a folder without its index file is answered
+    with a 404 error code. Folders are never listed.
     """
 
-    def __init__(self, root: str | os.PathLike[str], index: str | None = DEFAULT_INDEX) -> None:
+    def __init__(
+        self,
+        root: str | os.PathLike[str],
+        index: str | None = DEFAULT_INDEX,
+        headers: Mapping[str, str] | None = None,
+    ) -> None:
         """
         :param root: Folder to serve
         :param index: File served for a request on a folder, None to refuse
                       those requests
+        :param headers: Headers added to the responses of the served files
         :raise ValueError: The root is not a folder
         """
         self._root = Path(root).resolve()
@@ -79,6 +91,7 @@ class StaticFilesServlet:
             raise ValueError(f"Not a folder: {root}")
 
         self._index = index or None
+        self._headers = dict(headers or {})
 
     def do_GET(
         self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse
@@ -105,13 +118,21 @@ class StaticFilesServlet:
         :return: The resolved path, or None if it must not be served
         """
         segments = [segment for segment in sub_path.split("/") if segment]
-        if any(segment.startswith(".") or "\0" in segment for segment in segments):
+        if any(segment.startswith(".") for segment in segments):
             # Hidden files (.git, .env...) are never public
             return None
 
-        # The HTTP service resolves "..", but a link can still lead out of the root
-        target = self._root.joinpath(*segments).resolve()
+        try:
+            # The HTTP service resolves "..", but a link can still lead out of the root
+            target = self._root.joinpath(*segments).resolve()
+        except (OSError, RuntimeError):
+            # Loop of links (RuntimeError before Python 3.13)
+            return None
+
         if not target.is_relative_to(self._root):
+            return None
+        if any(part.startswith(".") for part in target.relative_to(self._root).parts):
+            # A link inside the root must not expose a hidden file either
             return None
         return target
 
@@ -128,42 +149,52 @@ class StaticFilesServlet:
         :param response: The response
         :param with_body: If False, only the headers are sent
         """
+        path = request.get_path()
         sub_path = request.get_sub_path()
         target = self._resolve(sub_path)
         if target is not None and target.is_dir():
-            if not sub_path.endswith("/"):
+            if not path.endswith("/"):
                 # Relative links of the index page must resolve inside the folder
                 response.set_response(301)
-                response.set_header("Location", request.get_path() + "/")
+                response.set_header("Location", urllib.parse.quote(path + "/"))
                 response.set_header("Content-Length", 0)
                 response.end_headers()
                 return
 
-            target = target / self._index if self._index else None
+            target = self._resolve(f"{sub_path}/{self._index}") if self._index else None
+        elif path.endswith("/"):
+            # A file is not a folder
+            target = None
 
-        if target is None or not target.is_file():
+        if target is None:
             self._send_status(response, 404, with_body)
             return
 
         try:
-            stat = target.stat()
-            content = target.read_bytes() if with_body else b""
+            # Opened once, without following a link swapped in meanwhile nor
+            # blocking on a FIFO: the checks apply to what is actually read
+            descriptor = os.open(target, os.O_RDONLY | os.O_NONBLOCK | os.O_NOFOLLOW | os.O_CLOEXEC)
         except OSError:
-            # Unreadable (rights) or removed meanwhile
             self._send_status(response, 404, with_body)
             return
 
-        modified = int(stat.st_mtime)
-        since = request.get_header("If-Modified-Since")
-        if since:
+        with os.fdopen(descriptor, "rb") as file:
+            info = os.fstat(file.fileno())
+            if not stat.S_ISREG(info.st_mode):
+                self._send_status(response, 404, with_body)
+                return
+
+            modified = int(info.st_mtime)
+            if self._not_modified(request, modified):
+                response.set_response(304)
+                response.end_headers()
+                return
+
             try:
-                if modified <= email.utils.parsedate_to_datetime(since).timestamp():
-                    response.set_response(304)
-                    response.end_headers()
-                    return
-            except (TypeError, ValueError):
-                # Invalid date: the header is ignored, as RFC 9110 requires
-                pass
+                content = file.read() if with_body else b""
+            except OSError:
+                self._send_status(response, 404, with_body)
+                return
 
         mime_type, _ = mimetypes.guess_type(target.name)
         if mime_type is None:
@@ -173,12 +204,34 @@ class StaticFilesServlet:
 
         response.set_response(200)
         response.set_header("Content-Type", mime_type)
-        response.set_header("Content-Length", stat.st_size)
+        response.set_header("Content-Length", len(content) if with_body else info.st_size)
         response.set_header("Last-Modified", email.utils.formatdate(modified, usegmt=True))
         response.set_header("X-Content-Type-Options", "nosniff")
+        for name, value in self._headers.items():
+            response.set_header(name, value)
         response.end_headers()
         if with_body:
             response.write(content)
+
+    @staticmethod
+    def _not_modified(request: http.AbstractHTTPServletRequest, modified: int) -> bool:
+        """
+        Tells if the client copy is up to date, according to If-Modified-Since
+        """
+        since = request.get_header("If-Modified-Since")
+        if not since:
+            return False
+
+        try:
+            date = email.utils.parsedate_to_datetime(since)
+        except (TypeError, ValueError):
+            # Invalid date: the header is ignored, as RFC 9110 requires
+            return False
+
+        if date.tzinfo is None:
+            # The obsolete asctime format has no zone: it is assumed to be in UTC (RFC 9110, 5.6.7)
+            date = date.replace(tzinfo=datetime.UTC)
+        return modified <= date.timestamp()
 
     @staticmethod
     def _send_status(response: http.AbstractHTTPServletResponse, code: int, with_body: bool) -> None:
@@ -186,7 +239,7 @@ class StaticFilesServlet:
         Sends an error code, with a short text body for a GET request
         """
         if with_body:
-            response.send_content(code, "Not found", "text/plain")
+            response.send_content(code, http_client.responses.get(code, "Error"), "text/plain")
         else:
             response.set_response(code)
             response.set_header("Content-Length", 0)
@@ -201,6 +254,7 @@ class StaticFilesServlet:
 @Property("_path", http.HTTP_SERVLET_PATH, None)
 @Property("_root", http.HTTP_STATIC_ROOT, None)
 @Property("_index", http.HTTP_STATIC_INDEX, DEFAULT_INDEX)
+@Property("_headers", http.HTTP_STATIC_HEADERS, None)
 class StaticFilesComponent:
     """
     Static files servlet configured with the ``pelix.http.static.*``
@@ -211,6 +265,7 @@ class StaticFilesComponent:
         self._path: str | None = None
         self._root: str | None = None
         self._index: str | None = DEFAULT_INDEX
+        self._headers: Mapping[str, Any] | None = None
         self.__servlet: StaticFilesServlet | None = None
 
     @Validate
@@ -222,7 +277,8 @@ class StaticFilesComponent:
         """
         if not self._root:
             raise ValueError(f"Missing the {http.HTTP_STATIC_ROOT} property")
-        self.__servlet = StaticFilesServlet(self._root, self._index)
+        headers = {str(name): str(value) for name, value in (self._headers or {}).items()}
+        self.__servlet = StaticFilesServlet(self._root, self._index, headers)
 
     @Invalidate
     def _invalidate(self, _: BundleContext) -> None:
@@ -234,11 +290,18 @@ class StaticFilesComponent:
     def do_GET(
         self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse
     ) -> None:
-        if self.__servlet is not None:
-            self.__servlet.do_GET(request, response)
+        servlet = self.__servlet
+        if servlet is None:
+            # Invalidated while the request was waiting
+            StaticFilesServlet._send_status(response, 503, True)
+        else:
+            servlet.do_GET(request, response)
 
     def do_HEAD(
         self, request: http.AbstractHTTPServletRequest, response: http.AbstractHTTPServletResponse
     ) -> None:
-        if self.__servlet is not None:
-            self.__servlet.do_HEAD(request, response)
+        servlet = self.__servlet
+        if servlet is None:
+            StaticFilesServlet._send_status(response, 503, False)
+        else:
+            servlet.do_HEAD(request, response)

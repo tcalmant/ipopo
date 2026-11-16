@@ -13,6 +13,7 @@ import os
 import pathlib
 import shutil
 import tempfile
+import time
 import unittest
 from email.message import Message
 from typing import Any
@@ -82,6 +83,14 @@ class _StaticServerTests:
         (self.root / "sub" / "index.html").write_text("<p>sub</p>", encoding="utf-8")
         (self.outside / "private.txt").write_text("private", encoding="utf-8")
         os.symlink(self.outside / "private.txt", self.root / "escape.txt")
+        (self.root / "leak").mkdir()
+        os.symlink(self.outside / "private.txt", self.root / "leak" / "index.html")
+        (self.root / ".git").mkdir()
+        (self.root / ".git" / "config").write_text("hidden", encoding="utf-8")
+        os.symlink(self.root / ".git" / "config", self.root / "public.txt")
+        os.symlink(self.root / ".git", self.root / "gitdir")
+        os.symlink(self.root / "loop", self.root / "loop")
+        (self.root / "a b été").mkdir()
 
         self.framework = FrameworkFactory.get_framework()
         self.framework.start()
@@ -139,6 +148,12 @@ class _StaticServerTests:
             ("/static/.secret", 404, None, None),
             ("/static/escape.txt", 404, None, None),
             ("/static/empty/", 404, None, None),
+            ("/static/leak/", 404, None, None),
+            ("/static/.git/config", 404, None, None),
+            ("/static/public.txt", 404, None, None),
+            ("/static/gitdir/config", 404, None, None),
+            ("/static/loop", 404, None, None),
+            ("/static/style.css/", 404, None, None),
         ]
         for uri, status, mime_type, content in cases:
             with self.subTest(uri=uri):
@@ -154,9 +169,16 @@ class _StaticServerTests:
         A folder without its trailing slash is redirected, so that relative links work
         """
         self.serve()
-        code, headers, _ = self.request("/static/sub")
-        self.assertEqual(code, 301)
-        self.assertEqual(headers["Location"], "/static/sub/")
+        cases = [
+            ("/static/sub", "/static/sub/"),
+            ("/static", "/static/"),
+            ("/static/a%20b%20%C3%A9t%C3%A9", "/static/a%20b%20%C3%A9t%C3%A9/"),
+        ]
+        for uri, location in cases:
+            with self.subTest(uri=uri):
+                code, headers, _ = self.request(uri)
+                self.assertEqual(code, 301)
+                self.assertEqual(headers["Location"], location)
 
     def test_no_index(self) -> None:
         """
@@ -194,6 +216,34 @@ class _StaticServerTests:
                 self.assertEqual(
                     self.request("/static/style.css", headers={"If-Modified-Since": since})[0], status
                 )
+
+    def test_if_modified_since_asctime(self) -> None:
+        """
+        A date in the obsolete asctime format is in GMT, whatever the local time zone
+        """
+        self.serve()
+        now = time.time()
+        os.utime(self.root / "style.css", (now - 3600, now - 3600))
+        since = time.strftime("%a %b %d %H:%M:%S %Y", time.gmtime(now - 7200))
+        old_tz = os.environ.get("TZ")
+        os.environ["TZ"] = "America/Los_Angeles"
+        time.tzset()
+        try:
+            self.assertEqual(self.request("/static/style.css", headers={"If-Modified-Since": since})[0], 200)
+        finally:
+            if old_tz is None:
+                del os.environ["TZ"]
+            else:
+                os.environ["TZ"] = old_tz
+            time.tzset()
+
+    def test_extra_headers(self) -> None:
+        """
+        Configured headers are added to the served files
+        """
+        self.serve(**{http.HTTP_STATIC_HEADERS: {"Content-Security-Policy": "sandbox"}})
+        _, headers, _ = self.request("/static/style.css")
+        self.assertEqual(headers["Content-Security-Policy"], "sandbox")
 
     def test_missing_root(self) -> None:
         """
