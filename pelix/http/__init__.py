@@ -58,6 +58,7 @@ __all__ = [
     "FACTORY_HTTP_AUTH_BASIC",
     "FACTORY_HTTP_BASIC",
     "FACTORY_HTTP_CORS",
+    "FACTORY_HTTP_STATIC",
     "HTTPS_CERT_FILE",
     "HTTPS_KEY_FILE",
     "HTTPS_KEY_PASSWORD",
@@ -90,6 +91,8 @@ __all__ = [
     "HTTP_SESSION_ENABLED",
     "HTTP_SESSION_MAX_INACTIVE_INTERVAL",
     "HTTP_SOCKET_TIMEOUT",
+    "HTTP_STATIC_INDEX",
+    "HTTP_STATIC_ROOT",
     "HTTP_USES_SSL",
     "HTTP_WEBSOCKET_HANDLER",
     "HTTP_WEBSOCKET_PATH",
@@ -363,6 +366,19 @@ Time, in seconds, a client can cache the result of a preflight request
 (integer). If not set, the client decides.
 """
 
+# Static files
+HTTP_STATIC_ROOT = "pelix.http.static.root"
+"""
+Folder served by a static files servlet (string). The servlet refuses to
+start without it.
+"""
+
+HTTP_STATIC_INDEX = "pelix.http.static.index"
+"""
+File served for a request on a folder (string, ``index.html`` by default).
+An empty value answers such a request with a 404 error code.
+"""
+
 # Authentication
 HTTP_AUTHENTICATOR = "pelix.http.auth.authenticator"
 """
@@ -405,6 +421,13 @@ FACTORY_HTTP_CORS = "pelix.http.cors.factory"
 """
 Name of the component factory of a CORS handler service, configured with the
 ``pelix.http.cors.*`` properties (see :mod:`pelix.http.cors`)
+"""
+
+FACTORY_HTTP_STATIC = "pelix.http.static.factory"
+"""
+Name of the component factory of a servlet serving the files of a folder,
+configured with the ``pelix.http.static.*`` properties (see
+:mod:`pelix.http.static`)
 """
 
 # ------------------------------------------------------------------------------

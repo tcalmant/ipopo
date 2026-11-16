@@ -363,6 +363,55 @@ to different paths, as each of its methods is given the path of the request:
 
 .. versionadded:: 3.2.3
 
+.. _http_static:
+
+Static files
+------------
+
+The ``pelix.http.static`` bundle provides the ``pelix.http.static.factory``
+component factory (:data:`FACTORY_HTTP_STATIC`): a servlet serving the files
+of a folder, like the assets of a web interface. It answers the ``GET`` and
+``HEAD`` methods and is configured with the properties below, read when the
+component is validated.
+
+=============================== ========== ======================================
+Property                        Default    Description
+=============================== ========== ======================================
+pelix.http.path                 (none)     Path of the servlet
+pelix.http.static.root          (none)     Folder to serve. The component is not
+                                           valid without it
+pelix.http.static.index         index.html File served for a request on a folder.
+                                           An empty value answers those requests
+                                           with a 404 error code
+=============================== ========== ======================================
+
+Only the regular files inside the folder are served: a path with a hidden
+segment (starting with a dot), a link leading out of the folder or a folder
+without its index file is answered with a 404 error code, and folders are
+never listed. A request on a folder without its trailing slash is redirected
+to it, so that the relative links of its index file work.
+
+The responses carry the ``Last-Modified`` header and a request with an older
+or equal ``If-Modified-Since`` date is answered with a 304 code. Text files are
+sent as UTF-8.
+
+.. code-block:: python
+
+    context.install_bundle("pelix.http.static").start()
+
+    with use_ipopo(context) as ipopo:
+        ipopo.instantiate(
+            "pelix.http.static.factory",
+            "web-assets",
+            {"pelix.http.path": "/static", "pelix.http.static.root": "/srv/app/static"},
+        )
+
+The servlet can also be registered without iPOPO:
+
+.. autoclass:: pelix.http.static.StaticFilesServlet
+
+.. versionadded:: 3.3.0
+
 .. _http_auth:
 
 Authentication
