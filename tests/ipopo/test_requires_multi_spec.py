@@ -545,8 +545,12 @@ class RequiresMultiSpecTest(unittest.TestCase):
         for match_any in (False, True):
             with self.subTest(match_any=match_any):
                 consumer = self.instantiate(
-                    Property("_lang", "lang", "fr"),
-                    RequiresVarFilter("_svc", SPECS, spec_filter="(lang={lang})", match_any=match_any),
+                    # Not "lang": properties fall back to the environment, where
+                    # Windows would find LANG (names are case-insensitive there)
+                    Property("_lang", "consumer_lang", "fr"),
+                    RequiresVarFilter(
+                        "_svc", SPECS, spec_filter="(lang={consumer_lang})", match_any=match_any
+                    ),
                 )
                 svc_a_fr, reg_a_fr = self.register("a_fr", SPEC_A, lang="fr")
                 svc_ab_fr, reg_ab_fr = self.register("ab_fr", SPEC_A, SPEC_B, lang="fr")
