@@ -34,7 +34,6 @@ import functools
 import io
 import logging
 import ssl
-import sys
 import threading
 import traceback
 import urllib.parse
@@ -851,7 +850,11 @@ class AsyncHttpServiceImpl(AbstractHttpService):
             async def async_stop_caller():
                 self._stop_event.set()
 
-            asyncio.run_coroutine_threadsafe(async_stop_caller(), self._loop).result()
+            try:
+                # The loop may have died with the server: don't wait for it forever
+                asyncio.run_coroutine_threadsafe(async_stop_caller(), self._loop).result(5)
+            except TimeoutError:
+                self.log(logging.WARNING, "The event loop didn't handle the stop request")
 
         # Wait for the stop done event to be set
         self._logger.debug("Waiting for the stop done event to be set...")
@@ -906,13 +909,7 @@ class AsyncHttpServiceImpl(AbstractHttpService):
         Runs the HTTP server in a separate thread.
         """
         try:
-            # Set the event loop for this thread
-            if sys.platform.startswith("win"):
-                # aiodns requires a specific event loop on Windows
-                self._loop = asyncio.SelectorEventLoop()
-            else:
-                self._loop = asyncio.new_event_loop()
-
+            self._loop = asyncio.new_event_loop()
             asyncio.set_event_loop(self._loop)
 
             # Setup the server
