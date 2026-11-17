@@ -91,9 +91,14 @@ __all__ = [
     "HTTP_SESSION_ENABLED",
     "HTTP_SESSION_MAX_INACTIVE_INTERVAL",
     "HTTP_SOCKET_TIMEOUT",
+    "HTTP_STATIC_CHARSET",
+    "HTTP_STATIC_FOLLOW_LINKS",
     "HTTP_STATIC_HEADERS",
     "HTTP_STATIC_INDEX",
+    "HTTP_STATIC_LINKS_OUTSIDE",
+    "HTTP_STATIC_MIME_TYPES",
     "HTTP_STATIC_ROOT",
+    "HTTP_STATIC_TYPES",
     "HTTP_USES_SSL",
     "HTTP_WEBSOCKET_HANDLER",
     "HTTP_WEBSOCKET_PATH",
@@ -384,6 +389,36 @@ HTTP_STATIC_HEADERS = "pelix.http.static.headers"
 """
 Headers added to the responses of the served files (dictionary), e.g. a
 ``Content-Security-Policy`` for files written by third parties.
+"""
+
+HTTP_STATIC_CHARSET = "pelix.http.static.charset"
+"""
+Charset declared for the ``text/*`` files (string, ``utf-8`` by default). An
+empty value declares none.
+"""
+
+HTTP_STATIC_FOLLOW_LINKS = "pelix.http.static.follow_links"
+"""
+Follow the symbolic links and Windows junctions (boolean, False by default).
+If False, a path holding one is answered with a 404 error code.
+"""
+
+HTTP_STATIC_LINKS_OUTSIDE = "pelix.http.static.links_outside"
+"""
+Followed links can lead out of the served folder, e.g. to a disk mounted
+elsewhere (boolean, False by default). Requires ``pelix.http.static.follow_links``.
+"""
+
+HTTP_STATIC_MIME_TYPES = "pelix.http.static.mime_types"
+"""
+Files mapping extensions to MIME types, in the ``mime.types`` format of Apache
+(string or list of strings)
+"""
+
+HTTP_STATIC_TYPES = "pelix.http.static.types"
+"""
+Extension (with or without its dot) to MIME type (dictionary), over the
+default types and those of ``pelix.http.static.mime_types``
 """
 
 # Authentication
