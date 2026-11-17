@@ -38,7 +38,7 @@ from . import DUMMY, PROP_COMPLETER_ID, Completer
 try:
     import readline
 except ImportError:
-    pass
+    readline = None
 
 if TYPE_CHECKING:
     from pelix.framework import BundleContext
@@ -79,7 +79,7 @@ class AbstractCompleter(abc.ABC, Completer):
         Sets up the readline completion hook, if available
         """
         try:
-            readline.set_completion_display_matches_hook(
+            readline.set_completion_display_matches_hook(  # type: ignore
                 lambda sub, matches, longest: display_hook(prompt, session, context, matches, longest)
             )
         except AttributeError:

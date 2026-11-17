@@ -217,7 +217,7 @@ class RemoteShellStandaloneTest(unittest.TestCase):
         # Wait for the interactive console banner to report the bound port
         # (see pelix.shell.remote.main(): interact() writes it to stderr)
         # The trailing "\n" ensures the whole number was read, not just its first digit
-        port_re = re.compile(r"Remote shell bound to: [^:\n]+:(\d+)\n")
+        port_re = re.compile(r"Remote shell bound to: [^:\n]+:(\d+)\r?\n")
         port = None
         got = ""
         banner_timer = threading.Timer(10, process.terminate)

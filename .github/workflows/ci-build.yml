@@ -91,6 +91,31 @@ jobs:
           file: coverage.xml
           format: cobertura
 
+  test-windows:
+    # Run the latest Python only: this job checks the differences between
+    # Linux and Windows. Versions coverage is Linux-only.
+    timeout-minutes: 20
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          python-version: "3.15"
+
+      - name: Install dependencies
+        # grpcio has no working wheel for Python 3.15 yet: the RSA tests it
+        # needs are skipped
+        run: uv sync --python "3.15" --all-extras --no-extra RSA --locked
+
+      # No test infrastructure: GitHub only runs containers on Linux runners.
+      # The tests needing it are skipped
+      - name: Run unit tests
+        run: uv run --no-sync python -m pytest tests
+
   finish:
     needs: test
     if: ${{ always() }}

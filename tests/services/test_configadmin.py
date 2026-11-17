@@ -1612,6 +1612,9 @@ class JsonPersistenceAtomicTest(unittest.TestCase):
         """
         Replacing a configuration file keeps its permissions
         """
+        if os.name != "posix":
+            self.skipTest("POSIX file modes only")
+
         self.persistence.store(self.PID, {"answer": 42})
         os.chmod(self.path, 0o600)
 
@@ -1693,6 +1696,9 @@ class PersistenceDefaultsTest(unittest.TestCase):
         The folder is created with mode 0700 and the files with mode 0600,
         whatever the umask
         """
+        if os.name != "posix":
+            self.skipTest("POSIX file modes only")
+
         folder = os.path.join(self.temp_dir, "new", "conf")
         persistence = JsonPersistence()
         persistence._conf_folder = folder
@@ -1715,6 +1721,9 @@ class PersistenceDefaultsTest(unittest.TestCase):
         """
         A folder or a file accessible to other users is reported
         """
+        if os.name != "posix":
+            self.skipTest("POSIX file modes only")
+
         persistence = JsonPersistence()
         persistence._conf_folder = self.temp_dir
         persistence.store(self.PID, {"answer": 42})
@@ -1819,7 +1828,8 @@ class SecretKeysTest(unittest.TestCase):
         with open(path) as filep:
             stored = json.load(filep)
         self.assertEqual(stored["password"], {"$secret": "hunter2"})
-        self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o600)
+        if os.name == "posix":
+            self.assertEqual(stat.S_IMODE(os.stat(path).st_mode), 0o600)
         pelix.framework.FrameworkFactory.delete_framework()
 
         # A hand-written "$secret" which is not text stays an object
