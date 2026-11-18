@@ -169,10 +169,9 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         # Prepare Zeroconf
         self._zeroconf = zeroconf.Zeroconf()
 
-        # Register the dispatcher servlet as a service
-        self.__register_servlet()
-
-        # Listen to our types
+        # Browse before registering the dispatcher, whose probing takes more
+        # than a second: peers that announced themselves earlier, and could
+        # be gone by then, are only found by browsing
         # Our Protocol is structurally a zeroconf listener, not a subclass of it
         listener = cast(zeroconf.ServiceListener, self)
         # Windows gives a unicast answer to a single one of the sockets sharing
@@ -185,6 +184,9 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
                 zeroconf.ServiceBrowser(self._zeroconf, svc_type, listener, question_type=question_type)
             )
 
+        # Register the dispatcher servlet as a service
+        self.__register_servlet()
+
         _logger.debug("Zeroconf discovery validated")
 
     @Invalidate
@@ -195,6 +197,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         # Stop listeners
         for browser in self._browsers:
             browser.cancel()
+        self._browsers.clear()
 
         # Close Zeroconf
         if self._zeroconf is not None:
@@ -483,17 +486,17 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
             _logger.warning("Not a Pelix record: %s", properties)
             return
 
+        addresses: list[str] | None = None
+        if info.addresses:
+            addresses = [socket.inet_ntoa(addr) for addr in info.addresses]
+        elif info.server:
+            addresses = [info.server]
+
         if type_ == ZeroconfDiscovery.DNS_DISPATCHER_TYPE:
             # Dispatcher servlet found, get source info
             if info.port is None:
                 _logger.warning("Ignore discovered service with no port information: %s", info)
                 return
-
-            addresses: list[str] | None = None
-            if info.addresses:
-                addresses = [socket.inet_ntoa(addr) for addr in info.addresses]
-            elif info.server:
-                addresses = [info.server]
 
             if not addresses:
                 _logger.warning("Ignore discovered service with no server information: %s", info)
@@ -519,10 +522,12 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
                     properties[pelix.remote.PROP_ENDPOINT_ID],
                     properties[pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID],
                     [configuration],
-                    None,
+                    properties.get(pelix.remote.PROP_ENDPOINT_NAME),
                     specs,
                     properties,
                 )
+                # As the dispatcher servlet does for the endpoints it receives
+                endpoint.server = addresses[0] if addresses else None
             except KeyError as ex:
                 # Log a warning on incomplete endpoints
                 _logger.warning(
