@@ -100,6 +100,13 @@ jobs:
     steps:
       - uses: actions/checkout@v7
 
+      # Same JDK as the Linux jobs, for the py4j tutorial test
+      - name: Use JDK 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
       - name: Install uv and Python
         uses: astral-sh/setup-uv@v10.3.3
         with:
@@ -107,9 +114,7 @@ jobs:
           python-version: "3.15"
 
       - name: Install dependencies
-        # grpcio has no working wheel for Python 3.15 yet: the RSA tests it
-        # needs are skipped
-        run: uv sync --python "3.15" --all-extras --no-extra RSA --locked
+        run: uv sync --python "3.15" --all-extras --locked
 
       # No test infrastructure: GitHub only runs containers on Linux runners.
       # The tests needing it are skipped
