@@ -309,6 +309,13 @@ Unreleased
 * The `path` type of the routes accepts any character, as the default type
   does, plus slashes: dots and dashes were refused, so a route like
   `/upload/<filename:path>` didn't match `file.txt`. It can contain `..`
+* New `pelix.http.static` bundle: the `pelix.http.static.factory` component
+  factory serves the files of a folder (`pelix.http.static.root`) by blocks,
+  with `GET`, `HEAD`, single byte ranges, a strong `ETag` and the conditional
+  headers of RFC 9110. Compressed files are sent with their `Content-Encoding`,
+  the charset of the text files and the MIME types (files in the `mime.types`
+  format of Apache, or a table) can be configured, as extra headers. Hidden
+  files, symbolic links (unless followed) and folder listings are refused
 
 ### Services
 
