@@ -550,7 +550,9 @@ class ZeroconfRecordsTest(unittest.TestCase):
         """
         A remote service record is converted to an import endpoint
         """
-        self.zeroconf.infos[RS_NAME] = make_info(endpoint_props())
+        self.zeroconf.infos[RS_NAME] = make_info(
+            endpoint_props(**{pelix.remote.PROP_ENDPOINT_NAME: "sample"})
+        )
         self.add_service()
 
         self.assertEqual(1, len(self.registry.added))
@@ -559,6 +561,9 @@ class ZeroconfRecordsTest(unittest.TestCase):
         self.assertEqual(REMOTE_FW, endpoint.framework)
         self.assertEqual(["jsonrpc"], list(endpoint.configurations))
         self.assertEqual(["sample.spec"], list(endpoint.specifications))
+        # The transports need the name and the server of the endpoint
+        self.assertEqual("sample", endpoint.name)
+        self.assertEqual("192.168.1.2", endpoint.server)
 
         # Removal of unknown services is ignored
         self.discovery.remove_service(self.zc, DEFAULT_ZEROCONF_TYPE, "unknown")

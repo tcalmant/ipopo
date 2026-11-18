@@ -91,6 +91,36 @@ jobs:
           file: coverage.xml
           format: cobertura
 
+  test-windows:
+    # Run the latest Python only: this job checks the differences between
+    # Linux and Windows. Versions coverage is Linux-only.
+    timeout-minutes: 20
+    runs-on: windows-latest
+
+    steps:
+      - uses: actions/checkout@v7
+
+      # Same JDK as the Linux jobs, for the py4j tutorial test
+      - name: Use JDK 25
+        uses: actions/setup-java@v6
+        with:
+          distribution: 'temurin'
+          java-version: '25'
+
+      - name: Install uv and Python
+        uses: astral-sh/setup-uv@v10.3.3
+        with:
+          enable-cache: true
+          python-version: "3.15"
+
+      - name: Install dependencies
+        run: uv sync --python "3.15" --all-extras --locked
+
+      # No test infrastructure: GitHub only runs containers on Linux runners.
+      # The tests needing it are skipped
+      - name: Run unit tests
+        run: uv run --no-sync python -m pytest tests
+
   finish:
     needs: test
     if: ${{ always() }}

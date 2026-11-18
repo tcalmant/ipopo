@@ -30,6 +30,7 @@ This module depends on the zeroconf package
 import json
 import logging
 import socket
+import sys
 from collections.abc import Callable
 from typing import Any, Protocol, cast
 
@@ -168,17 +169,23 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         # Prepare Zeroconf
         self._zeroconf = zeroconf.Zeroconf()
 
-        # Register the dispatcher servlet as a service
-        self.__register_servlet()
-
-        # Listen to our types
+        # Browse before registering the dispatcher, whose probing takes more
+        # than a second: peers that announced themselves earlier, and could
+        # be gone by then, are only found by browsing
         # Our Protocol is structurally a zeroconf listener, not a subclass of it
         listener = cast(zeroconf.ServiceListener, self)
-        self._browsers.append(
-            zeroconf.ServiceBrowser(self._zeroconf, ZeroconfDiscovery.DNS_DISPATCHER_TYPE, listener)
-        )
+        # Windows gives a unicast answer to a single one of the sockets sharing
+        # the mDNS port: ask for multicast answers so that all frameworks of the
+        # host get them
+        question_type = zeroconf.DNSQuestionType.QM if sys.platform == "win32" else None
         self._rs_type = self._rs_type or DEFAULT_ZEROCONF_TYPE
-        self._browsers.append(zeroconf.ServiceBrowser(self._zeroconf, self._rs_type, listener))
+        for svc_type in (ZeroconfDiscovery.DNS_DISPATCHER_TYPE, self._rs_type):
+            self._browsers.append(
+                zeroconf.ServiceBrowser(self._zeroconf, svc_type, listener, question_type=question_type)
+            )
+
+        # Register the dispatcher servlet as a service
+        self.__register_servlet()
 
         _logger.debug("Zeroconf discovery validated")
 
@@ -190,6 +197,7 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         # Stop listeners
         for browser in self._browsers:
             browser.cancel()
+        self._browsers.clear()
 
         # Close Zeroconf
         if self._zeroconf is not None:
@@ -397,8 +405,9 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
 
         self._export_infos[exp_endpoint.uid] = info
 
-        # Register the service
-        self._zeroconf.register_service(info, self._ttl)
+        # Register the service, without probing (more than a second): the name
+        # comes from a UUID, unlike the dispatcher's which can be configured
+        self._zeroconf.register_service(info, self._ttl, cooperating_responders=True)
 
     def endpoint_updated(self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None) -> None:
         """
@@ -478,17 +487,17 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
             _logger.warning("Not a Pelix record: %s", properties)
             return
 
+        addresses: list[str] | None = None
+        if info.addresses:
+            addresses = [socket.inet_ntoa(addr) for addr in info.addresses]
+        elif info.server:
+            addresses = [info.server]
+
         if type_ == ZeroconfDiscovery.DNS_DISPATCHER_TYPE:
             # Dispatcher servlet found, get source info
             if info.port is None:
                 _logger.warning("Ignore discovered service with no port information: %s", info)
                 return
-
-            addresses: list[str] | None = None
-            if info.addresses:
-                addresses = [socket.inet_ntoa(addr) for addr in info.addresses]
-            elif info.server:
-                addresses = [info.server]
 
             if not addresses:
                 _logger.warning("Ignore discovered service with no server information: %s", info)
@@ -514,10 +523,12 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
                     properties[pelix.remote.PROP_ENDPOINT_ID],
                     properties[pelix.remote.PROP_ENDPOINT_FRAMEWORK_UUID],
                     [configuration],
-                    None,
+                    properties.get(pelix.remote.PROP_ENDPOINT_NAME),
                     specs,
                     properties,
                 )
+                # As the dispatcher servlet does for the endpoints it receives
+                endpoint.server = addresses[0] if addresses else None
             except KeyError as ex:
                 # Log a warning on incomplete endpoints
                 _logger.warning(

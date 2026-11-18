@@ -9,6 +9,7 @@ except local multicast sockets)
 
 import json
 import socket
+import sys
 import unittest
 from typing import Any
 
@@ -53,7 +54,13 @@ class MreqTest(unittest.TestCase):
 
     def test_errors(self) -> None:
         self.assertRaises(ValueError, make_mreq, socket.AF_INET, "")
-        self.assertRaises((ValueError, OSError), make_mreq, socket.AF_UNIX, "/some/path")
+        families = [socket.AF_UNSPEC]
+        if hasattr(socket, "AF_UNIX"):
+            # Not available on Windows
+            families.append(socket.AF_UNIX)
+        for family in families:
+            with self.subTest(family=family):
+                self.assertRaises((ValueError, OSError), make_mreq, family, "/some/path")
 
 
 class MulticastSocketTest(unittest.TestCase):
@@ -89,6 +96,9 @@ class MulticastSocketTest(unittest.TestCase):
         """
         Tests that the socket only receives the packets sent to the group
         """
+        if sys.platform == "win32":
+            self.skipTest("Windows can't bind to a group: the socket receives unicast packets too")
+
         for group, unicast in ((IPV4_GROUP, "127.0.0.1"), ("ff05::1", "::1")):
             with self.subTest(group=group):
                 try:

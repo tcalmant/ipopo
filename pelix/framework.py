@@ -969,8 +969,8 @@ class Framework(Bundle):
                     #  __import__(name) -> package level
                     # import_module -> module level
                     module_ = importlib.import_module(name)
-            except (OSError, ImportError) as ex:
-                # Error importing the module
+            except (OSError, ImportError, ValueError) as ex:
+                # Error importing the module (find_spec raises ValueError too)
                 raise BundleException(f"Error installing bundle {name}: {ex}")
             finally:
                 if path:

@@ -125,14 +125,15 @@ class CommonArgumentsTest(unittest.TestCase):
         """
         Tests that the working folder is only used when given as --trusted-folder
         """
-        old_cwd = os.getcwd()
-        self.addCleanup(os.chdir, old_cwd)
-
-        with tempfile.TemporaryDirectory() as cwd, tempfile.TemporaryDirectory() as other:
+        # Windows can't delete the working folder: leave it before the cleanup
+        with (
+            tempfile.TemporaryDirectory() as cwd,
+            tempfile.TemporaryDirectory() as other,
+            contextlib.chdir(cwd),
+        ):
             for folder in (cwd, other):
                 with open(os.path.join(folder, ".pelix.conf"), "w") as conf_file:
                     conf_file.write(f'{{"properties": {{"test.trusted.{os.path.basename(folder)}": 1}}}}')
-            os.chdir(cwd)
 
             for arguments, trusted in (
                 ([], []),
@@ -325,6 +326,8 @@ class InteractiveLoopTest(unittest.TestCase):
         quit_flag: list[bool] = []
         with (
             mock.patch.object(console, "HAS_READLINE", use_readline),
+            # Windows has no readline module
+            mock.patch.object(console, "readline", FakeReadline()),
             mock.patch("builtins.input", side_effect=inputs) as fake_input,
             contextlib.redirect_stdout(self.output),
         ):
@@ -408,6 +411,11 @@ class CompleterTest(unittest.TestCase):
             patcher.start()
             self.addCleanup(patcher.stop)
 
+        # Windows has no readline module
+        patcher = mock.patch.object(console, "HAS_READLINE", True)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def complete(self, line: str, begidx: int = 0) -> list[str]:
         """
         Returns all the completions readline would get for the given line
@@ -448,6 +456,11 @@ class CompleterTest(unittest.TestCase):
         """
         Completes arguments with the completer associated to the command
         """
+        try:
+            import readline  # noqa: F401
+        except ImportError:
+            self.skipTest("readline is missing: commands have no completer")
+
         bundle_ids = [
             f"{bundle.get_bundle_id()} " for bundle in self.framework.get_bundle_context().get_bundles()
         ]
