@@ -316,6 +316,11 @@ Unreleased
   the charset of the text files and the MIME types (files in the `mime.types`
   format of Apache, or a table) can be configured, as extra headers. Hidden
   files, symbolic links (unless followed) and folder listings are refused
+* Async HTTP service: the body written by a synchronous servlet is no longer
+  kept whole in memory. It is buffered up to 64 KiB, so that small answers keep
+  their computed `Content-Length` and the error pages, then streamed to the
+  client, also as soon as the servlet calls `get_wfile().flush()`. A servlet
+  failing after that point gets its connection closed instead of an error page
 
 ### Services
 
