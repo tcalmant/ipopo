@@ -363,6 +363,92 @@ to different paths, as each of its methods is given the path of the request:
 
 .. versionadded:: 3.2.3
 
+.. _http_static:
+
+Static files
+------------
+
+The ``pelix.http.static`` bundle provides the ``pelix.http.static.factory``
+component factory (:data:`FACTORY_HTTP_STATIC`): a servlet serving the files
+of a folder, like the assets of a web interface. It answers the ``GET`` and
+``HEAD`` methods and is configured with the properties below, read when the
+component is validated.
+
+=============================== ========== ======================================
+Property                        Default    Description
+=============================== ========== ======================================
+pelix.http.path                 (none)     Path of the servlet
+pelix.http.static.root          (none)     Folder to serve. The component is not
+                                           valid without it
+pelix.http.static.index         index.html File served for a request on a folder.
+                                           An empty value answers those requests
+                                           with a 404 error code
+pelix.http.static.headers       (none)     Headers added to the responses of the
+                                           served files (dictionary), e.g. a
+                                           ``Content-Security-Policy`` for files
+                                           written by third parties
+pelix.http.static.charset       utf-8      Charset declared for the ``text/*``
+                                           files. An empty value declares none
+pelix.http.static.follow_links  False      Follow the symbolic links and Windows
+                                           junctions instead of hiding them
+pelix.http.static.links_outside False      Followed links can lead out of the
+                                           folder, e.g. to a disk mounted
+                                           elsewhere
+pelix.http.static.mime_types    (none)     Files mapping extensions to MIME
+                                           types, in the ``mime.types`` format of
+                                           Apache (string or list)
+pelix.http.static.types         (none)     Extension to MIME type (dictionary),
+                                           over the other tables
+=============================== ========== ======================================
+
+Only the regular files inside the folder are served: a path with a hidden
+segment (starting with a dot) or a folder without its index file is answered
+with a 404 error code, and folders are never listed. A request on a folder
+without its trailing slash is redirected to it, so that the relative links of
+its index file work.
+
+By default, a path holding a symbolic link (or a Windows junction) is answered
+with a 404 error code, wherever the link is in the path. When links are
+followed, their target must still be inside the folder, unless
+``pelix.http.static.links_outside`` is set, and must not hold a hidden segment.
+On POSIX systems, each segment of the path is opened relatively to its parent,
+so a link can't be swapped in while the path is checked. Windows can't do
+that: the path is checked before and after the file is opened.
+
+The MIME type and the content encoding come from the extension of the file,
+with the table of the :mod:`mimetypes` module of Python (not the files of the
+host, like ``/etc/mime.types``), then the ``pelix.http.static.mime_types``
+files and the ``pelix.http.static.types`` table. A file without a known type
+is sent as ``application/octet-stream``. A compressed file, like
+``app.js.gz``, is sent with the type of its content and its encoding in the
+``Content-Encoding`` header.
+
+Files are sent by blocks, as they are stored. The responses carry a strong
+``ETag``, built from the modification time in nanoseconds and the size of the
+file, and the ``Last-Modified`` header. The conditional headers
+``If-Match``, ``If-None-Match``, ``If-Modified-Since`` and
+``If-Unmodified-Since`` are evaluated as RFC 9110 requires. A ``GET`` request
+for a single range of bytes is answered with a 206 code; requests for several
+ranges get the whole file. ``If-Range`` only accepts the entity tag: a date at
+the second is a weak validator.
+
+.. code-block:: python
+
+    context.install_bundle("pelix.http.static").start()
+
+    with use_ipopo(context) as ipopo:
+        ipopo.instantiate(
+            "pelix.http.static.factory",
+            "web-assets",
+            {"pelix.http.path": "/static", "pelix.http.static.root": "/srv/app/static"},
+        )
+
+The servlet can also be registered without iPOPO:
+
+.. autoclass:: pelix.http.static.StaticFilesServlet
+
+.. versionadded:: 3.3.0
+
 .. _http_auth:
 
 Authentication
