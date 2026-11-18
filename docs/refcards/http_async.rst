@@ -122,6 +122,19 @@ the next request handled by the same thread.
    The context variables of the request used to be dropped, the servlet running
    in whatever context the worker thread of the pool happened to hold.
 
+The body written by a synchronous servlet is buffered up to 64 KiB: a small
+answer gets a computed ``Content-Length`` header, and an error page can still
+replace it if the servlet fails. From that size, or as soon as the servlet calls
+``get_wfile().flush()``, the headers and the body written so far are sent, then
+each write is sent to the client before the servlet goes on (waiting for the
+client to read it if needed). If the servlet
+fails after that point, the connection is closed: the client gets an incomplete
+answer instead of an error page.
+
+.. versionchanged:: 3.3.0
+   The whole body of a synchronous servlet used to be kept in memory and sent
+   once the servlet returned.
+
 Asynchronous Servlet service
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 

@@ -218,34 +218,49 @@ class _SyncHTTPServletRequest(http.AbstractHTTPServletRequest):
 
 class _WriteWrapper(utilities.StreamBase[bytes]):
     """
-    Write-only stream buffering the body of a synchronous servlet response
+    Write-only stream handing the writes of a synchronous servlet to its response
     """
 
     _MODE = "wb"
     _WRITABLE = True
 
-    def __init__(self) -> None:
+    def __init__(self, response: "_SyncHTTPServletResponse") -> None:
         super().__init__()
-        self._buffer = io.BytesIO()
-
-    def get(self) -> bytes:
-        """
-        Retrieves the written data as bytes.
-        This method should be called after the response has been sent.
-
-        :return: The written data
-        """
-        return self._buffer.getvalue()
+        self._response = response
 
     def write(self, data: bytes) -> int:
         self._check_open()
-        return self._buffer.write(data)
+        self._response.write(data)
+        return len(data)
+
+    def flush(self) -> None:
+        self._check_open()
+        self._response.flush()
+
+
+class _ResponseStartedError(ConnectionError):
+    """
+    A synchronous servlet failed after its response started: aiohttp can only
+    cut the connection, as it does when a handler fails after writing
+    (``RequestHandler.handle_error()``)
+    """
 
 
 class _SyncHTTPServletResponse(http.AbstractHTTPServletResponse):
     """
     HTTP Servlet response helper
+
+    The body is buffered up to ``_STREAM_THRESHOLD`` bytes, so that small
+    answers keep their computed Content-Length and an error page can still
+    replace them. From that size, or on ``flush()``, the response is streamed from
+    the servlet thread through the event loop.
     """
+
+    _STREAM_THRESHOLD = 64 * 1024
+    """ Size of the buffered body before streaming it: the size aiohttp itself buffers before draining """
+
+    _WAIT_STEP = 0.5
+    """ Seconds between two checks of the end of the request while waiting for the event loop """
 
     def __init__(self, request: aiohttp.web.Request, loop: asyncio.AbstractEventLoop) -> None:
         """
@@ -260,7 +275,23 @@ class _SyncHTTPServletResponse(http.AbstractHTTPServletResponse):
         self._headers_set: bool = False
         self._code: int = 200
         self._message: str | None = None
-        self._writer = _WriteWrapper()
+        self._buffer = io.BytesIO()
+        self._stream: aiohttp.web.StreamResponse | None = None
+        self._ended = threading.Event()
+        self._writer = _WriteWrapper(self)
+
+    @property
+    def streamed(self) -> bool:
+        """
+        Flag indicating if the response started to be sent
+        """
+        return self._stream is not None
+
+    def end(self) -> None:
+        """
+        Marks the end of the request handling: the servlet can't write anymore
+        """
+        self._ended.set()
 
     def to_aiohttp_response(self) -> aiohttp.web.StreamResponse:
         """
@@ -269,8 +300,12 @@ class _SyncHTTPServletResponse(http.AbstractHTTPServletResponse):
 
         :return: The aiohttp StreamResponse object
         """
+        if self._stream is not None:
+            # aiohttp ends it (finish_response() calls write_eof())
+            return self._stream
+
         return aiohttp.web.Response(
-            body=self._writer.get(), status=self._code, reason=self._message, headers=self._headers
+            body=self._buffer.getvalue(), status=self._code, reason=self._message, headers=self._headers
         )
 
     def set_response(self, code: int, message: str | None = None) -> None:
@@ -348,8 +383,82 @@ class _SyncHTTPServletResponse(http.AbstractHTTPServletResponse):
 
         :param data: Data to be written
         """
-        # Don't close the stream: the servlet can write its body in several calls
-        self.get_wfile().write(data)
+        if not self._headers_set:
+            self.end_headers()
+
+        if self._stream is None:
+            self._buffer.write(data)
+            if self._buffer.tell() >= self._STREAM_THRESHOLD:
+                self.flush()
+        elif not self._empty_body():
+            # The transport keeps a view on the data it couldn't send yet (asyncio's
+            # _SelectorSocketTransport.write()): the servlet could reuse a mutable buffer
+            self._run(self._stream.write(bytes(data)))
+
+    def flush(self) -> None:
+        """
+        Sends the headers and the buffered body, then streams the next writes
+        """
+        if not self._headers_set:
+            self.end_headers()
+
+        if self._stream is None:
+            self._stream = aiohttp.web.StreamResponse(
+                status=self._code, reason=self._message, headers=self._headers
+            )
+            data = self._buffer.getvalue()
+            self._buffer = io.BytesIO()
+            self._run(self._start_stream(self._stream, b"" if self._empty_body() else data))
+
+    def _empty_body(self) -> bool:
+        """
+        Checks if the response must not have a body (RFC 9110, 6.4.1).
+        aiohttp skips it for a Response, but StreamResponse.write() sends it anyway.
+        """
+        return self._request.method == "HEAD" or self._code < 200 or self._code in (204, 304)
+
+    async def _start_stream(self, stream: aiohttp.web.StreamResponse, data: bytes) -> None:
+        """
+        Sends the headers then the body buffered so far
+
+        :param stream: The response to start
+        :param data: The buffered body
+        """
+        await stream.prepare(self._request)
+        if data:
+            await stream.write(data)
+
+    def _run(self, coroutine: Coroutine[Any, Any, None]) -> None:
+        """
+        Runs a coroutine in the event loop, from the servlet thread, and waits
+        for it: aiohttp objects aren't thread-safe, and StreamResponse.write()
+        waits for the client to read once aiohttp buffered 64 KiB (backpressure)
+
+        :param coroutine: The coroutine to run
+        :raise OSError: The request has been handled or the server is stopped
+        """
+        if self._ended.is_set():
+            coroutine.close()
+            raise OSError("The response has already been sent")
+
+        try:
+            future = asyncio.run_coroutine_threadsafe(coroutine, self._loop)
+        except RuntimeError as ex:
+            # The loop is closed: the coroutine was never scheduled
+            coroutine.close()
+            raise OSError("The HTTP server is stopped") from ex
+
+        # The loop thread waits for the executor threads when the server stops:
+        # don't wait for a coroutine it would never run once the request is over
+        while not concurrent.futures.wait((future,), self._WAIT_STEP).done:
+            if self._ended.is_set():
+                future.cancel()
+                raise OSError("The request handling has ended")
+
+        try:
+            future.result()
+        except concurrent.futures.CancelledError as ex:
+            raise OSError("The response has been cancelled") from ex
 
 
 # ------------------------------------------------------------------------------
@@ -1115,12 +1224,22 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                             # Copy the context here: unlike asyncio.to_thread, run_in_executor does not carry it
                             handler_method = getattr(servlet, sync_name)
                             context = contextvars.copy_context()
-                            await self._loop.run_in_executor(
-                                self._executor,
-                                functools.partial(
-                                    context.run, handler_method, servlet_request, servlet_response
-                                ),
-                            )
+                            try:
+                                await self._loop.run_in_executor(
+                                    self._executor,
+                                    functools.partial(
+                                        context.run, handler_method, servlet_request, servlet_response
+                                    ),
+                                )
+                            except Exception as ex:
+                                if servlet_response.streamed:
+                                    raise _ResponseStartedError(
+                                        f"Error handling {request.method} request to {path} "
+                                        "after its response started"
+                                    ) from ex
+                                raise
+                            finally:
+                                servlet_response.end()
                             return servlet_response.to_aiohttp_response()
 
                         case http.ServletType.WEBSOCKET if isinstance(servlet, http.WebSocketHandler):
@@ -1189,8 +1308,9 @@ class AsyncHttpServiceImpl(AbstractHttpService):
                                     await ws_response.close()
 
                             return ws_response
-            except aiohttp.web.HTTPException:
-                # Let aiohttp answer the errors it detects itself
+            except (aiohttp.web.HTTPException, _ResponseStartedError):
+                # Let aiohttp answer the errors it detects itself, or cut the
+                # connection of a response already started
                 raise
             except (AuthenticationRequired, AuthenticationFailed):
                 # The servlet requires an identity: the client can retry with credentials
