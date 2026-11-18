@@ -30,6 +30,7 @@ This module depends on the zeroconf package
 import json
 import logging
 import socket
+import sys
 from collections.abc import Callable
 from typing import Any, Protocol, cast
 
@@ -174,11 +175,15 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
         # Listen to our types
         # Our Protocol is structurally a zeroconf listener, not a subclass of it
         listener = cast(zeroconf.ServiceListener, self)
-        self._browsers.append(
-            zeroconf.ServiceBrowser(self._zeroconf, ZeroconfDiscovery.DNS_DISPATCHER_TYPE, listener)
-        )
+        # Windows gives a unicast answer to a single one of the sockets sharing
+        # the mDNS port: ask for multicast answers so that all frameworks of the
+        # host get them
+        question_type = zeroconf.DNSQuestionType.QM if sys.platform == "win32" else None
         self._rs_type = self._rs_type or DEFAULT_ZEROCONF_TYPE
-        self._browsers.append(zeroconf.ServiceBrowser(self._zeroconf, self._rs_type, listener))
+        for svc_type in (ZeroconfDiscovery.DNS_DISPATCHER_TYPE, self._rs_type):
+            self._browsers.append(
+                zeroconf.ServiceBrowser(self._zeroconf, svc_type, listener, question_type=question_type)
+            )
 
         _logger.debug("Zeroconf discovery validated")
 
