@@ -405,8 +405,9 @@ class ZeroconfDiscovery(pelix.remote.RemoteServiceExportEndpointListener, _ZeroC
 
         self._export_infos[exp_endpoint.uid] = info
 
-        # Register the service
-        self._zeroconf.register_service(info, self._ttl)
+        # Register the service, without probing (more than a second): the name
+        # comes from a UUID, unlike the dispatcher's which can be configured
+        self._zeroconf.register_service(info, self._ttl, cooperating_responders=True)
 
     def endpoint_updated(self, endpoint: beans.ExportEndpoint, old_properties: dict[str, Any] | None) -> None:
         """
