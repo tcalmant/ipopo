@@ -107,6 +107,8 @@ class _StaticServerTests:
         (self.root / "data.unknownext").write_bytes(b"\x00\x01\x02")
         (self.root / ".secret").write_text("hidden", encoding="utf-8")
         (self.root / "empty").mkdir()
+        (self.root / "noindex").mkdir()
+        (self.root / "noindex" / "file.txt").write_bytes(b"no index")
         (self.root / "sub").mkdir()
         (self.root / "sub" / "index.html").write_text("<p>sub</p>", encoding="utf-8")
         (self.outside / "private.txt").write_text("private", encoding="utf-8")
@@ -185,6 +187,9 @@ class _StaticServerTests:
             ("/static/.secret", 404, None, None),
             ("/static/escape.txt", 404, None, None),
             ("/static/empty/", 404, None, None),
+            # The files of a folder without index are still served
+            ("/static/noindex/", 404, None, None),
+            ("/static/noindex/file.txt", 200, "text/plain; charset=utf-8", b"no index"),
             ("/static/leak/", 404, None, None),
             ("/static/.git/config", 404, None, None),
             ("/static/public.txt", 404, None, None),
