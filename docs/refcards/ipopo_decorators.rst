@@ -155,6 +155,8 @@ Life-cycle events
 
 Those decorators store behavioural information on component methods.
 They must decorate methods in the component class.
+The decorated methods can be coroutine functions (``async def``): see
+:ref:`refcard_ipopo_async`.
 
 Component state
 ^^^^^^^^^^^^^^^

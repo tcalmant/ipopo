@@ -25,9 +25,10 @@ Pelix OSGi-like services packages
     limitations under the License.
 """
 
+import concurrent.futures
 import dataclasses
-from collections.abc import Iterable, Mapping
-from typing import TYPE_CHECKING, Any, Protocol
+from collections.abc import Coroutine, Iterable, Mapping
+from typing import TYPE_CHECKING, Any, Protocol, TypeVar
 
 from pelix.constants import Specification
 
@@ -68,6 +69,7 @@ __all__ = [
     "PROP_FILEINSTALL_FOLDER",
     "PROP_MQTT_TOPICS",
     "PROP_TYPED_EVENT_HISTORY_SIZE",
+    "SERVICE_ASYNC_RUNNER",
     "SERVICE_CONFIGADMIN_LISTENER",
     "SERVICE_CONFIGADMIN_MANAGED",
     "SERVICE_CONFIGADMIN_MANAGED_FACTORY",
@@ -91,6 +93,7 @@ __all__ = [
     "EventAdmin",
     "FileInstall",
     "FileInstallListener",
+    "IAsyncRunner",
     "IConfigurationAdmin",
     "IConfigurationAdminPersistence",
     "IConfigurationListener",
@@ -107,6 +110,7 @@ __all__ = [
     "UntypedEventHandler",
 ]
 
+T = TypeVar("T")
 
 SERVICE_EVENT_LISTENER_HOOK = "pelix.internal.hooks.EventListenerHook"
 
@@ -356,6 +360,47 @@ class UnhandledEventHandler(Protocol):
 
         :param topic: Topic of the event
         :param data: Immutable event data
+        """
+        ...
+
+
+# ------------------------------------------------------------------------------
+
+SERVICE_ASYNC_RUNNER = "pelix.services.async_runner"
+""" Specification of the service running coroutines on the event loop of iPOPO """
+
+
+@Specification(SERVICE_ASYNC_RUNNER)
+class IAsyncRunner(Protocol):
+    """
+    Runs coroutines on an event loop, from synchronous code.
+
+    iPOPO registers one, which runs the coroutine callbacks of the components
+    (``async def`` methods decorated with ``@Validate``, ``@Bind``, ...). Its
+    event loop is only started when a coroutine is run or submitted.
+    """
+
+    def run(self, coroutine: Coroutine[Any, Any, T], timeout: float | None = None) -> T:
+        """
+        Runs a coroutine on the event loop and waits for its result
+
+        :param coroutine: The coroutine to run
+        :param timeout: Maximum duration of the coroutine, in seconds. None or
+                        a value <= 0 waits as long as needed
+        :return: The result of the coroutine
+        :raise TimeoutError: The coroutine didn't end in time: it has been cancelled
+        :raise RuntimeError: The runner has been closed
+        :raise Exception: The exception raised by the coroutine
+        """
+        ...
+
+    def submit(self, coroutine: Coroutine[Any, Any, T]) -> concurrent.futures.Future[T]:
+        """
+        Schedules a coroutine on the event loop, without waiting for it
+
+        :param coroutine: The coroutine to run
+        :return: A future of its result. Cancelling it cancels the coroutine
+        :raise RuntimeError: The runner has been closed
         """
         ...
 

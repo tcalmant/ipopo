@@ -55,6 +55,8 @@ __all__ = [
     "HANDLER_REQUIRES_MAP",
     "HANDLER_REQUIRES_VARIABLE_FILTER",
     "HANDLER_TEMPORAL",
+    "IPOPO_ASYNC_CALLBACK_TIMEOUT",
+    "IPOPO_ASYNC_CALLBACK_TIMEOUT_DEFAULT",
     "IPOPO_AUTO_RESTART",
     "IPOPO_CALLBACK_BIND",
     "IPOPO_CALLBACK_BIND_FIELD",
@@ -248,6 +250,16 @@ IPOPO_AUTO_RESTART = "pelix.ipopo.auto_restart"
 If True, the component will be re-instantiated after its bundle has been
 updated
 """
+
+IPOPO_ASYNC_CALLBACK_TIMEOUT = "pelix.ipopo.async.callback_timeout"
+"""
+Framework property: maximum duration, in seconds, of a coroutine callback
+(``async def`` method decorated with ``@Validate``, ``@Bind``, ...).
+A value <= 0 or None disables the timeout.
+"""
+
+IPOPO_ASYNC_CALLBACK_TIMEOUT_DEFAULT = 5.0
+""" Default maximum duration of a coroutine callback, in seconds """
 
 # ------------------------------------------------------------------------------
 
