@@ -13,6 +13,7 @@ Unreleased
 * Dropped support for Python 3.10, which reached its end of life: iPOPO now
   requires Python 3.11 or newer. Use iPOPO 3.2.x with Python 3.10
 * Removed the `tomli` dependency, replaced by the standard `tomllib`
+* The tests also run on Windows in the CI, with the latest supported Python
 
 ### Framework
 
@@ -65,6 +66,8 @@ Unreleased
 * Parsing LDAP filters is faster (#15): the removal of the duplicated criteria
   is no longer quadratic for the criteria of a filter (it still is for its
   nested sub-filters). A filter with 200 criteria is parsed about 5 times faster
+* `BundleContext.install_bundle()` raises a `BundleException` instead of a
+  `ValueError` for an invalid module name
 
 ### Security
 
@@ -259,6 +262,9 @@ Unreleased
 
 ### HTTP service
 
+* Fixed the async HTTP service on Windows: it used a selector event loop,
+  limited to 512 sockets, and its stop blocked forever once that loop had
+  failed. It now uses the default event loop of the platform
 * HTTP sessions and login, for browsers: with `pelix.http.session.enabled`, a
   servlet gets the `HttpSession` of its request with `get_session(create)`, and
   calls `login(user, password)` and `logout()`. The password goes through
@@ -451,6 +457,8 @@ Unreleased
   without its closing message
 * The `exit` and `quit` commands print "Closing the shell session" instead of
   "Raising KeyboardInterrupt to stop main thread", in every front-end
+* Fixed the shell completion without the `readline` module (Windows): it
+  raised a `NameError`
 
 ### Remote
 
@@ -507,6 +515,13 @@ Unreleased
   deprecated since iPOPO 3.1.0: use the etcd3 one
   (`pelix.rsa.providers.discovery.etcd3`) instead. This also removes the
   unmaintained `python-etcd` dependency
+* Fixed the mDNS discovery: the endpoints read from the mDNS records had
+  neither a name nor a server, and were ignored by the transports. The records
+  are now browsed before the dispatcher is registered, and the exported
+  endpoints are announced without probing, which took more than a second each
+* Fixed the mDNS discovery between frameworks of a Windows host: the browsers
+  ask for multicast answers there, as Windows gives a unicast answer to a single
+  one of the sockets sharing the mDNS port
 
 ### Misc
 
