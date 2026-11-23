@@ -48,7 +48,7 @@ MQTT = ["paho-mqtt>=2.1,<2.3"]
 Redis = ["redis>=7.4,<8.2"]
 RSA = ["osgiservicebridge~=1.5.9", "grpcio>=1.80,<1.86", "grpcio-tools>=1.80,<1.86"]
 XMPP = ["slixmpp>=1.15,<1.18"]
-zeroconf = ["zeroconf>=0.148,<0.154"]
+zeroconf = ["zeroconf>=0.148,<0.155"]
 ZooKeeper = ["kazoo~=2.11.0"]
 yaml = ["pyyaml~=6.0.3"]
 
